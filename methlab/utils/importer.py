@@ -17,12 +17,16 @@ os.environ["DATABASE_URL"] = "postgres://{}:{}@{}:{}/{}".format(
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.local")
 django.setup()
 
+import pathlib  # noqa
 import time  # noqa
 import pytz  # noqa
 import uuid  # noqa
 import spf  # noqa
 import mailparser  # noqa
 import dateutil  # noqa
+import magic  # noqa
+import hashlib  # noqa
+from zipfile import ZipFile, is_zipfile  # noqa
 from django.utils import timezone  # noqa
 from imaplib import IMAP4  # noqa
 from dateutil.parser import parse  # noqa
@@ -47,6 +51,7 @@ from methlab.shop.models import (  # noqa
     Mail_Addresses,
     Analyzer,
     Report,
+    Whitelist,
 )
 
 # DA RIMUOVERE
@@ -74,7 +79,8 @@ else:
 
 
 def store_attachments(msg):
-    # store attachment to disk
+    """ store attachment to disk """
+
     random_path = "/tmp/{}".format(uuid.uuid4())
     os.makedirs(random_path)
     msg.write_attachments(random_path)
@@ -82,27 +88,52 @@ def store_attachments(msg):
 
 
 def check_cortex(ioc, ioc_type, object_id):
+    """ run all available analyzer for ioc """
+
     analyzers = Analyzer.objects.filter(
         disabled=False, supported_types__contains=[ioc_type]
     ).order_by("-priority")
-    print(analyzers)
-
     for analyzer in analyzers:
         try:
-            job = cortex_api.analyzers.run_by_name(
-                analyzer.name, {"data": ioc, "dataType": ioc_type, "tlp": 1}, force=1,
-            )
-            while job.status not in ["Success"]:
-                job = cortex_api.jobs.get_report(job.id)
-                print(job.id, job.status)
-                time.sleep(10)
-            report = Report(response=job.json(), content_object=object_id,)
-            report.save()
+            # job = cortex_api.analyzers.run_by_name(
+            #    analyzer.name, {"data": ioc, "dataType": ioc_type, "tlp": 1}, force=1,
+            # )
+            # while job.status not in ["Success"]:
+            #    job = cortex_api.jobs.get_report(job.id)
+            #    print(job.id, job.status)
+            time.sleep(1)
+            # report = Report(response=job.json(), content_object=object_id,)
+            # report.save()
         except Exception as excp:
             print(ioc, ioc_type, excp)
 
 
+def get_hashes(filepath):
+    """" get file md5, sha1, sha256 """
+
+    with open(filepath, "rb") as f:
+        md5_hash = hashlib.md5()
+        sha1_hash = hashlib.sha1()
+        sha256_hash = hashlib.sha256()
+        while chunk := f.read(8192):
+            md5_hash.update(chunk)
+            sha1_hash.update(chunk)
+            sha256_hash.update(chunk)
+    return md5_hash.hexdigest(), sha1_hash.hexdigest(), sha256_hash.hexdigest()
+
+
+def is_whitelisted(content_type):
+    """" checks if content_type is whitelisted """
+    
+    if info.mimetype_whitelist:
+        for wl in info.mimetype_whitelist:
+            if content_type.startswith(wl):
+                return True
+    return False
+
+
 def process_mail(msg, parent_id=None):
+    """ main workflow for single mail """
 
     # IF MAIL WAS ALREADY PROCESSED IGNORE
     try:
@@ -205,43 +236,58 @@ def process_mail(msg, parent_id=None):
     if mail.tags.count() == 0:
         mail.tags.add("Hunting")
 
+    # TODO: Extract ioc from main text
+
     # Save attachments
     random_path = store_attachments(msg)
 
+    all_wl = Whitelist.objects.all()
+
     # PROCESS ATTACHMENTS
     for mess_att in msg.attachments:
-        whitelisted = False
-
-        # I don't have payload or I don't understand type
-        if not mess_att["mail_content_type"] or not mess_att["payload"]:
-            continue
-
-        # If is in whitelist I'll skip
-        if info.mimetype_whitelist:
-            for wl in info.mimetype_whitelist:
-                if mess_att["mail_content_type"].startswith(wl):
-                    whitelisted = True
-                    break
-        if whitelisted:
-            continue
 
         _, fileext = os.path.splitext(mess_att["filename"])
-        file_path = "{}/{}".format(random_path, mess_att["filename"])
+        filepath = "{}/{}".format(random_path, mess_att["filename"])
 
+        # I don't have payload or I don't understand type skip
+        if not mess_att["mail_content_type"] or not mess_att["payload"]:
+            os.remove(filepath)
+            continue
+
+        # Unzip the attachment if is_zipfile
+        if is_zipfile(filepath):
+            with ZipFile(filepath, "r") as zipObj:
+                objs = zipObj.namelist()
+                if len(objs) == 1:
+                    filepath = zipObj.extract(objs[0], pathlib.Path(filepath).parent)
+                    mess_att["mail_content_type"] =  magic.from_file(filepath, mime=True)
+                else:
+                    # Zipped and multiple files, skip
+                    os.remove(filepath)
+                    continue
+
+        if is_whitelisted(mess_att['mail_content_type']):
+            os.remove(filepath)
+            continue
+
+        # IF MAIL PROCESS RECURSIVELY
         if (
             mess_att["mail_content_type"] == "application/octet-stream"
             and fileext in (".eml", ".msg")
         ) or mess_att["mail_content_type"] == "message/rfc822":
-            internal_message = mailparser.parse_from_file(file_path)
+            internal_message = mailparser.parse_from_file(filepath)
             process_mail(internal_message, mail.pk)
 
+        # IF TEXT EXTRACT IOC
         elif mess_att["mail_content_type"] in ("text/plain", "text/html",):
+
+            # EXTRACT URL, CHECK IF WL AND GET REPORT
             for url in parse_urls(mess_att["payload"]):
                 url = url.split(">")[0].rstrip('"].').strip("/").lower()
-                ioc, _ = Ioc.objects.get_or_create(
-                    domain=".".join(part for part in extract(url) if part),
-                )
-
+                domain = ".".join(part for part in extract(url) if part)
+                if domain in [x.value for x in all_wl if x.type == "domain"]:
+                    continue
+                ioc, _ = Ioc.objects.get_or_create(domain=domain,)
                 if ioc.urls and url not in ioc.urls:
                     ioc.urls.append(url)
                     ioc.save()
@@ -249,26 +295,37 @@ def process_mail(msg, parent_id=None):
                     ioc.urls = [url]
                     ioc.save()
                 mail.iocs.add(ioc)
-                if not ioc.whitelisted:
-                    check_cortex(url, "url", ioc)
+                check_cortex(url, "url", ioc)
 
+            # EXTRACT IP, CHECK IF WL AND GET REPORT
             for ip in (
                 parse_ipv4_addresses(mess_att["payload"])
                 + parse_ipv4_cidrs(mess_att["payload"])
                 + parse_ipv6_addresses(mess_att["payload"])
             ):
+                if ip in [x.value for x in all_wl if x.type == "ip"]:
+                    continue
                 ioc, _ = Ioc.objects.get_or_create(ip=ip)
                 mail.iocs.add(ioc)
                 if not ioc.whitelisted:
                     check_cortex(ip, "url", ioc)
 
+        # IF GENERIC FILE, EXTRACT MD5/SHA256 AND GET REPORT
         else:
+            md5, sha1, sha256 = get_hashes(filepath)
+            if md5 in [x.value for x in all_wl if x.type == "md5"] or sha256 in [x.value for x in all_wl if x.type == "sha256"]:
+                os.remove(filepath)
+                continue
+
             fix_mail_dict = dict((k.replace("-", "_"), v) for k, v in mess_att.items())
             attachment = Attachment(**fix_mail_dict)
             attachment.mail = mail
-            attachment.filepath = file_path
+            attachment.filepath = filepath
+            attachment.md5 = md5
+            attachment.sha1 = sha1
+            attachment.sha256 = sha256
             attachment.save()
-            check_cortex(file_path, "file", attachment)
+            check_cortex(filepath, "file", attachment)
 
     # STORE FLAGS IN DB
     for flag, note in flags:
@@ -277,6 +334,8 @@ def process_mail(msg, parent_id=None):
 
 
 def main():
+    """ check mails in inbox """
+
     _, data = inbox.search(None, "ALL")
     email_list = list(reversed(data[0].split()))
     for number in email_list:

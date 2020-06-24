@@ -55,6 +55,9 @@ class Analyzer(models.Model):
 
 class Report(models.Model):
     response = JSONField(blank=True, null=True)
+    analyzer = models.ForeignKey(
+        Analyzer, on_delete=models.CASCADE, blank=True, null=True
+    )
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
     object_id = models.PositiveIntegerField()
     content_object = GenericForeignKey("content_type", "object_id")
@@ -63,7 +66,6 @@ class Report(models.Model):
 class Address(models.Model):
     name = models.CharField(max_length=200, blank=True, null=True)
     address = models.EmailField(blank=True, null=True)
-    whitelist = models.BooleanField(default=False)
 
     def __str__(self):
         return self.address if self.address else ""
@@ -94,11 +96,25 @@ class Flag(models.Model):
         return self.name
 
 
+class Whitelist(models.Model):
+    WL_TYPE = (
+        ("address", "address"),
+        ("domain", "domain"),
+        ("ip", "ip"),
+        ("md5", "md5"),
+        ("sha256", "sha256"),
+    )
+    value = models.CharField(max_length=500)
+    type = models.CharField(max_length=8, choices=WL_TYPE)
+
+    def __str__(self):
+        return "[{}] {}".format(self.type, self.value)
+
+
 class Ioc(models.Model):
     ip = models.GenericIPAddressField(blank=True, null=True)
     urls = ArrayField(models.CharField(max_length=500), blank=True, null=True)
     domain = models.CharField(max_length=200, blank=True, null=True)
-    whitelisted = models.BooleanField(default=False)
 
     def __str__(self):
         return self.ip if self.ip else self.domain

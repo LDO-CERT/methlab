@@ -2,7 +2,16 @@ from django.contrib import admin
 from import_export import resources
 from django.contrib.auth.models import Group
 
-from .models import Mail, Attachment, Flag, InternalInfo, Ioc, Analyzer, Report
+from .models import (
+    Mail,
+    Attachment,
+    Flag,
+    InternalInfo,
+    Ioc,
+    Analyzer,
+    Report,
+    Whitelist,
+)
 from django_better_admin_arrayfield.admin.mixins import DynamicArrayMixin
 from import_export.admin import ImportExportModelAdmin
 from django.contrib.contenttypes.admin import GenericTabularInline
@@ -131,7 +140,7 @@ class ReportInline(GenericTabularInline):
 
 
 class IocAdmin(admin.ModelAdmin, DynamicArrayMixin):
-    list_display = ("ip", "domain", "whitelisted")
+    list_display = ("ip", "domain")
     inlines = [ReportInline]
     search_fields = ["ip", "domain"]
 
@@ -148,11 +157,18 @@ class AnalyzerAdmin(admin.ModelAdmin, DynamicArrayMixin):
         return False
 
 
+class WhitelistAdmin(admin.ModelAdmin, DynamicArrayMixin):
+    list_display = ("value", "type")
+    list_filter = ("type",)
+    search_fields = ["value"]
+
+
 admin.site.register(InternalInfo, InternalInfoAdmin)
 admin.site.register(Mail, MailAdmin)
 admin.site.register(Flag, FlagAdmin)
 admin.site.register(Ioc, IocAdmin)
 admin.site.register(Analyzer, AnalyzerAdmin)
+admin.site.register(Whitelist, WhitelistAdmin)
 admin.site.register(Report)
 
 admin.site.unregister(Group)
