@@ -9,12 +9,12 @@ python-ldap==3.2.0  # https://github.com/python-ldap/python-ldap
 
 # Django
 # ------------------------------------------------------------------------------
-django==3.0.5  # pyup: < 3.1  # https://www.djangoproject.com/
+django==3.0.7  # pyup: < 3.1  # https://www.djangoproject.com/
 django-environ==0.4.5  # https://github.com/joke2k/django-environ
 django-model-utils==4.0.0  # https://github.com/jazzband/django-model-utils
-django-crispy-forms==1.9.0  # https://github.com/django-crispy-forms/django-crispy-forms
-django-redis==4.11.0  # https://github.com/jazzband/django-redis
-django-auth-ldap==2.1.1 # https://github.com/django-auth-ldap/django-auth-ldap
+django-crispy-forms==1.9.1  # https://github.com/django-crispy-forms/django-crispy-forms
+django-redis==4.12.1  # https://github.com/jazzband/django-redis
+django-auth-ldap==2.2.0 # https://github.com/django-auth-ldap/django-auth-ldap
 django-colorfield==0.3.1  # https://github.com/fabiocaccamo/django-colorfield
 django-better-admin-arrayfield==1.1.0  # https://github.com/gradam/django-better-admin-arrayfield
 django-taggit==1.3.0  # https://github.com/jazzband/django-taggit
