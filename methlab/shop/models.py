@@ -3,6 +3,8 @@ from colorfield.fields import ColorField
 from taggit.managers import TaggableManager
 from django.contrib.postgres.fields import JSONField, ArrayField
 from django_better_admin_arrayfield.models.fields import ArrayField  # noqa
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
 
 
 class InternalInfo(models.Model):
@@ -39,6 +41,25 @@ class InternalInfo(models.Model):
         return self.name
 
 
+class Analyzer(models.Model):
+    PRIORITY = (
+        (1, "Low"),
+        (2, "Medium"),
+        (3, "High"),
+    )
+    name = models.CharField(max_length=200, blank=True, null=True)
+    disabled = models.BooleanField(default=False)
+    supported_types = ArrayField(models.CharField(max_length=10), blank=True, null=True)
+    priority = models.PositiveIntegerField(choices=PRIORITY, default=1)
+
+
+class Report(models.Model):
+    response = JSONField(blank=True, null=True)
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+    object_id = models.PositiveIntegerField()
+    content_object = GenericForeignKey("content_type", "object_id")
+
+
 class Address(models.Model):
     name = models.CharField(max_length=200, blank=True, null=True)
     address = models.EmailField(blank=True, null=True)
@@ -59,6 +80,9 @@ class Attachment(models.Model):
     mail_content_type = models.CharField(max_length=200, blank=True, null=True)
     payload = models.TextField(blank=True, null=True)
     mail = models.ForeignKey("Mail", on_delete=models.CASCADE)
+    md5 = models.CharField(max_length=32, blank=True, null=True)
+    sha1 = models.CharField(max_length=40, blank=True, null=True)
+    sha256 = models.CharField(max_length=64, blank=True, null=True)
 
 
 class Flag(models.Model):
@@ -73,7 +97,7 @@ class Flag(models.Model):
 class Ioc(models.Model):
     ip = models.GenericIPAddressField(blank=True, null=True)
     urls = ArrayField(models.CharField(max_length=500), blank=True, null=True)
-    domain = models.CharField(max_length=200)
+    domain = models.CharField(max_length=200, blank=True, null=True)
     whitelisted = models.BooleanField(default=False)
 
     def __str__(self):

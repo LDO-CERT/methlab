@@ -1,9 +1,11 @@
 from django.contrib import admin
 from import_export import resources
+from django.contrib.auth.models import Group
 
-from .models import Mail, Attachment, Flag, InternalInfo, Ioc
+from .models import Mail, Attachment, Flag, InternalInfo, Ioc, Analyzer, Report
 from django_better_admin_arrayfield.admin.mixins import DynamicArrayMixin
 from import_export.admin import ImportExportModelAdmin
+from django.contrib.contenttypes.admin import GenericTabularInline
 
 
 class FlagResource(resources.ModelResource):
@@ -13,6 +15,7 @@ class FlagResource(resources.ModelResource):
 
 class FlagAdmin(ImportExportModelAdmin):
     resource_class = FlagResource
+    list_display = ("name", "color")
 
 
 class InternalInfoResource(resources.ModelResource):
@@ -37,7 +40,7 @@ class InternalInfoAdmin(ImportExportModelAdmin, DynamicArrayMixin):
         ),
         ("Whitelist", {"fields": ("mimetype_whitelist",)}),
         ("Cortex", {"fields": ("cortex_url", "cortex_api")}),
-        ("Misp", {"fields": ("mips_url", "misp_api")}),
+        ("Misp", {"fields": ("misp_url", "misp_api")}),
         ("Security", {"fields": ("security_emails", "honeypot_emails")}),
         (
             "Info",
@@ -119,18 +122,41 @@ class MailAdmin(admin.ModelAdmin):
         "tag_list",
         "flag_list",
     )
+    search_fields = ["subject"]
 
 
-class AttachmentAdmin(admin.ModelAdmin):
-    list_display = ("filename", "filepath")
+class ReportInline(GenericTabularInline):
+    model = Report
+    extra = 0
 
 
 class IocAdmin(admin.ModelAdmin, DynamicArrayMixin):
     list_display = ("ip", "domain", "whitelisted")
+    inlines = [ReportInline]
+    search_fields = ["ip", "domain"]
+
+
+class AnalyzerAdmin(admin.ModelAdmin, DynamicArrayMixin):
+    list_display = ("name", "disabled", "supported_types")
+    list_filter = ("priority", "disabled", "supported_types")
+    search_fields = ["name"]
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 admin.site.register(InternalInfo, InternalInfoAdmin)
 admin.site.register(Mail, MailAdmin)
 admin.site.register(Flag, FlagAdmin)
 admin.site.register(Ioc, IocAdmin)
-admin.site.register(Attachment, AttachmentAdmin)
+admin.site.register(Analyzer, AnalyzerAdmin)
+admin.site.register(Report)
+
+admin.site.unregister(Group)
+
+admin.site.site_header = "MethLab Admin"
+admin.site.site_title = "MethLab Admin Portal"
+admin.site.index_title = "Welcome to MethLab"

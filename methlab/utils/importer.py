@@ -17,6 +17,7 @@ os.environ["DATABASE_URL"] = "postgres://{}:{}@{}:{}/{}".format(
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.local")
 django.setup()
 
+import time  # noqa
 import pytz  # noqa
 import uuid  # noqa
 import spf  # noqa
@@ -44,6 +45,8 @@ from methlab.shop.models import (  # noqa
     Flag,
     Ioc,
     Mail_Addresses,
+    Analyzer,
+    Report,
 )
 
 # DA RIMUOVERE
@@ -78,19 +81,25 @@ def store_attachments(msg):
     return random_path
 
 
-def check_cortex(ioc, ioc_type):
-    try:
-        job = cortex_api.analyzers.run_by_name(
-            "VirusTotal_GetReport_3_0",
-            {"data": ioc, "dataType": ioc_type, "tlp": 1},
-            force=1,
-        )
-        while job.status not in ["Success"]:
-            job = cortex_api.jobs.get_report(job.id)
-            print(job.id, job.status)
-        return job.json()
-    except Exception as excp:
-        print(ioc, ioc_type, excp)
+def check_cortex(ioc, ioc_type, object_id):
+    analyzers = Analyzer.objects.filter(
+        disabled=False, supported_types__contains=[ioc_type]
+    ).order_by("-priority")
+    print(analyzers)
+
+    for analyzer in analyzers:
+        try:
+            job = cortex_api.analyzers.run_by_name(
+                analyzer.name, {"data": ioc, "dataType": ioc_type, "tlp": 1}, force=1,
+            )
+            while job.status not in ["Success"]:
+                job = cortex_api.jobs.get_report(job.id)
+                print(job.id, job.status)
+                time.sleep(10)
+            report = Report(response=job.json(), content_object=object_id,)
+            report.save()
+        except Exception as excp:
+            print(ioc, ioc_type, excp)
 
 
 def process_mail(msg, parent_id=None):
@@ -177,7 +186,7 @@ def process_mail(msg, parent_id=None):
         text_not_managed=msg.text_not_managed,
         body=msg.body,
         body_plain=msg.body_plain,
-        sender_ip_address=msg.sender_ip_address,
+        sender_ip_address=msg.get_server_ipaddress(info.imap_server),
         to_domains=msg.to_domains,
     )
     mail.save()
@@ -233,9 +242,6 @@ def process_mail(msg, parent_id=None):
                     domain=".".join(part for part in extract(url) if part),
                 )
 
-                # import pdb
-                # pdb.set_trace()
-
                 if ioc.urls and url not in ioc.urls:
                     ioc.urls.append(url)
                     ioc.save()
@@ -244,8 +250,7 @@ def process_mail(msg, parent_id=None):
                     ioc.save()
                 mail.iocs.add(ioc)
                 if not ioc.whitelisted:
-                    # result = check_cortex(url, "url")
-                    pass
+                    check_cortex(url, "url", ioc)
 
             for ip in (
                 parse_ipv4_addresses(mess_att["payload"])
@@ -255,8 +260,7 @@ def process_mail(msg, parent_id=None):
                 ioc, _ = Ioc.objects.get_or_create(ip=ip)
                 mail.iocs.add(ioc)
                 if not ioc.whitelisted:
-                    # result = check_cortex(ip, "url")
-                    pass
+                    check_cortex(ip, "url", ioc)
 
         else:
             fix_mail_dict = dict((k.replace("-", "_"), v) for k, v in mess_att.items())
@@ -264,7 +268,7 @@ def process_mail(msg, parent_id=None):
             attachment.mail = mail
             attachment.filepath = file_path
             attachment.save()
-            # result = check_cortex(file_path, "file")
+            check_cortex(file_path, "file", attachment)
 
     # STORE FLAGS IN DB
     for flag, note in flags:
