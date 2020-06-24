@@ -30,3 +30,5 @@ tldextract==2.2.2  # https://github.com/john-kurkowski/tldextract
 cortex4py==2.0.1  # https://github.com/TheHive-Project/Cortex4py
 python-magic==0.4.18  # https://github.com/ahupp/python-magic
 aioimaplib==0.7.18  # https://github.com/bamthomas/aioimaplib
+tnefparse==1.3.0 # https://github.com/koodaamo/tnefparse
+compressed_rtf==1.0.6  # https://github.com/delimitry/compressed_rtf

@@ -26,6 +26,7 @@ import mailparser  # noqa
 import dateutil  # noqa
 import magic  # noqa
 import hashlib  # noqa
+from tnefparse import TNEF  # noqa
 from zipfile import ZipFile, is_zipfile  # noqa
 from django.utils import timezone  # noqa
 from imaplib import IMAP4  # noqa
@@ -115,7 +116,10 @@ def get_hashes(filepath):
         md5_hash = hashlib.md5()
         sha1_hash = hashlib.sha1()
         sha256_hash = hashlib.sha256()
-        while chunk := f.read(8192):
+        while True:
+            chunk = f.read(8192)
+            if not chunk:
+                break
             md5_hash.update(chunk)
             sha1_hash.update(chunk)
             sha256_hash.update(chunk)
@@ -124,12 +128,164 @@ def get_hashes(filepath):
 
 def is_whitelisted(content_type):
     """" checks if content_type is whitelisted """
-    
+
     if info.mimetype_whitelist:
         for wl in info.mimetype_whitelist:
             if content_type.startswith(wl):
                 return True
     return False
+
+
+def process_tnef(filepath, parent_id=None):
+    """ tnef is like an email but parser is different """
+    with open(filepath, "rb") as tneffile:
+        tnef = TNEF(tneffile.read())
+
+    tnef_objects = getattr(tnef, "objects", [])
+    for tnef_object in tnef_objects:
+        descriptive_name = TNEF.codes.get(tnef_object.name)
+        try:
+            object_data = tnef_object.data.strip(b"\0") or None
+        except Exception:
+            object_data = tnef_object.data
+
+        subject = dateobj = message_id = None
+        if object_data:
+            if descriptive_name == "Subject":
+                subject = object_data
+            elif descriptive_name == "Date Sent":
+                dateobj = object_data
+            elif descriptive_name == "Message ID":
+                message_id = object_data
+    body = None
+    tnef_html = getattr(tnef, "htmlbody", None)
+    tnef_rtf = getattr(tnef, "rtfbody", None)
+    if tnef_html:
+        body = tnef_html
+    elif tnef_rtf:
+        body = tnef_rtf
+
+    mail = Mail(
+        parent=None if not parent_id else Mail(parent_id),
+        message_id=message_id,
+        subject=subject,
+        date=dateobj,
+        body=body,
+    )
+    mail.save()
+
+    tnef_attachments = getattr(tnef, "attachments", [])
+    if tnef_attachments:
+        random_path = "/tmp/{}".format(uuid.uuid4())
+        os.makedirs(random_path)
+
+    for attachment in tnef_attachments:
+        attachment_name = attachment.name.decode() if attachment.name else uuid.uuid4()
+
+        with open("{}/{}".format(random_path, attachment_name), "wb") as f:
+            f.write(attachment.data)
+
+        attachment_magic = magic.from_file(
+            "{}/{}".format(random_path, attachment_name), mime=True
+        )
+
+        if is_whitelisted(attachment_magic):
+            os.remove("{}/{}".format(random_path, attachment_name))
+            continue
+
+        mess_att = {"mail_content_type": attachment_magic, "payload": attachment.data}
+
+        process_attachment(
+            "{}/{}".format(random_path, attachment_name), mail, mess_att, parent_id
+        )
+
+
+def process_attachment(filepath, mail, mess_att, parent_id):
+    """ check if attachments is whitelisted, zipped, another mail or text """
+
+    all_wl = Whitelist.objects.all()
+    _, fileext = os.path.splitext(mess_att["filename"])
+
+    # Unzip the attachment if is_zipfile
+    if is_zipfile(filepath):
+        with ZipFile(filepath, "r") as zipObj:
+            objs = zipObj.namelist()
+            if len(objs) == 1:
+                filepath = zipObj.extract(objs[0], pathlib.Path(filepath).parent)
+                mess_att["mail_content_type"] = magic.from_file(filepath, mime=True)
+            else:
+                # Zipped and multiple files, skip
+                os.remove(filepath)
+                return
+
+    if is_whitelisted(mess_att["mail_content_type"]):
+        os.remove(filepath)
+        return
+
+    # IF MAIL PROCESS RECURSIVELY
+    if mess_att["mail_content_type"] in [
+        "application/ms-tnef",
+        "Transport Neutral Encapsulation Format",
+    ]:
+        process_tnef(filepath, parent_id=parent_id)
+
+    elif (
+        mess_att["mail_content_type"] == "application/octet-stream"
+        and fileext in (".eml", ".msg")
+    ) or mess_att["mail_content_type"] == "message/rfc822":
+        internal_message = mailparser.parse_from_file(filepath)
+        process_mail(internal_message, mail.pk)
+
+    # IF TEXT EXTRACT IOC
+    elif mess_att["mail_content_type"] in ("text/plain", "text/html",):
+
+        # EXTRACT URL, CHECK IF WL AND GET REPORT
+        for url in parse_urls(mess_att["payload"]):
+            url = url.split(">")[0].rstrip('"].').strip("/").lower()
+            domain = ".".join(part for part in extract(url) if part)
+            if domain in [x.value for x in all_wl if x.type == "domain"]:
+                continue
+            ioc, _ = Ioc.objects.get_or_create(domain=domain,)
+            if ioc.urls and url not in ioc.urls:
+                ioc.urls.append(url)
+                ioc.save()
+            elif not ioc.urls:
+                ioc.urls = [url]
+                ioc.save()
+            mail.iocs.add(ioc)
+            check_cortex(url, "url", ioc)
+
+        # EXTRACT IP, CHECK IF WL AND GET REPORT
+        for ip in (
+            parse_ipv4_addresses(mess_att["payload"])
+            + parse_ipv4_cidrs(mess_att["payload"])
+            + parse_ipv6_addresses(mess_att["payload"])
+        ):
+            if ip in [x.value for x in all_wl if x.type == "ip"]:
+                continue
+            ioc, _ = Ioc.objects.get_or_create(ip=ip)
+            mail.iocs.add(ioc)
+            if not ioc.whitelisted:
+                check_cortex(ip, "url", ioc)
+
+    # IF GENERIC FILE, EXTRACT MD5/SHA256 AND GET REPORT
+    else:
+        md5, sha1, sha256 = get_hashes(filepath)
+        if md5 in [x.value for x in all_wl if x.type == "md5"] or sha256 in [
+            x.value for x in all_wl if x.type == "sha256"
+        ]:
+            os.remove(filepath)
+            return
+
+        fix_mail_dict = dict((k.replace("-", "_"), v) for k, v in mess_att.items())
+        attachment = Attachment(**fix_mail_dict)
+        attachment.mail = mail
+        attachment.filepath = filepath
+        attachment.md5 = md5
+        attachment.sha1 = sha1
+        attachment.sha256 = sha256
+        attachment.save()
+        check_cortex(filepath, "file", attachment)
 
 
 def process_mail(msg, parent_id=None):
@@ -241,12 +397,9 @@ def process_mail(msg, parent_id=None):
     # Save attachments
     random_path = store_attachments(msg)
 
-    all_wl = Whitelist.objects.all()
-
     # PROCESS ATTACHMENTS
     for mess_att in msg.attachments:
 
-        _, fileext = os.path.splitext(mess_att["filename"])
         filepath = "{}/{}".format(random_path, mess_att["filename"])
 
         # I don't have payload or I don't understand type skip
@@ -254,78 +407,7 @@ def process_mail(msg, parent_id=None):
             os.remove(filepath)
             continue
 
-        # Unzip the attachment if is_zipfile
-        if is_zipfile(filepath):
-            with ZipFile(filepath, "r") as zipObj:
-                objs = zipObj.namelist()
-                if len(objs) == 1:
-                    filepath = zipObj.extract(objs[0], pathlib.Path(filepath).parent)
-                    mess_att["mail_content_type"] =  magic.from_file(filepath, mime=True)
-                else:
-                    # Zipped and multiple files, skip
-                    os.remove(filepath)
-                    continue
-
-        if is_whitelisted(mess_att['mail_content_type']):
-            os.remove(filepath)
-            continue
-
-        # IF MAIL PROCESS RECURSIVELY
-        if (
-            mess_att["mail_content_type"] == "application/octet-stream"
-            and fileext in (".eml", ".msg")
-        ) or mess_att["mail_content_type"] == "message/rfc822":
-            internal_message = mailparser.parse_from_file(filepath)
-            process_mail(internal_message, mail.pk)
-
-        # IF TEXT EXTRACT IOC
-        elif mess_att["mail_content_type"] in ("text/plain", "text/html",):
-
-            # EXTRACT URL, CHECK IF WL AND GET REPORT
-            for url in parse_urls(mess_att["payload"]):
-                url = url.split(">")[0].rstrip('"].').strip("/").lower()
-                domain = ".".join(part for part in extract(url) if part)
-                if domain in [x.value for x in all_wl if x.type == "domain"]:
-                    continue
-                ioc, _ = Ioc.objects.get_or_create(domain=domain,)
-                if ioc.urls and url not in ioc.urls:
-                    ioc.urls.append(url)
-                    ioc.save()
-                elif not ioc.urls:
-                    ioc.urls = [url]
-                    ioc.save()
-                mail.iocs.add(ioc)
-                check_cortex(url, "url", ioc)
-
-            # EXTRACT IP, CHECK IF WL AND GET REPORT
-            for ip in (
-                parse_ipv4_addresses(mess_att["payload"])
-                + parse_ipv4_cidrs(mess_att["payload"])
-                + parse_ipv6_addresses(mess_att["payload"])
-            ):
-                if ip in [x.value for x in all_wl if x.type == "ip"]:
-                    continue
-                ioc, _ = Ioc.objects.get_or_create(ip=ip)
-                mail.iocs.add(ioc)
-                if not ioc.whitelisted:
-                    check_cortex(ip, "url", ioc)
-
-        # IF GENERIC FILE, EXTRACT MD5/SHA256 AND GET REPORT
-        else:
-            md5, sha1, sha256 = get_hashes(filepath)
-            if md5 in [x.value for x in all_wl if x.type == "md5"] or sha256 in [x.value for x in all_wl if x.type == "sha256"]:
-                os.remove(filepath)
-                continue
-
-            fix_mail_dict = dict((k.replace("-", "_"), v) for k, v in mess_att.items())
-            attachment = Attachment(**fix_mail_dict)
-            attachment.mail = mail
-            attachment.filepath = filepath
-            attachment.md5 = md5
-            attachment.sha1 = sha1
-            attachment.sha256 = sha256
-            attachment.save()
-            check_cortex(filepath, "file", attachment)
+        process_attachment(filepath, mail, mess_att, parent_id)
 
     # STORE FLAGS IN DB
     for flag, note in flags:

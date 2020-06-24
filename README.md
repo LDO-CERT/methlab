@@ -29,4 +29,4 @@ docker-compose -f local.yml run --rm django python manage.py cortex_import
 # Thanks to:
 [ioc-fider](https://github.com/fhightower/ioc-finder)
 
-[mail-parser](https://github.com/SpamScope/mail-parser/blob/develop/mailparser/mailparser.py)
+[mail-parser](https://github.com/SpamScope/mail-parser)
