@@ -52,6 +52,9 @@ class Analyzer(models.Model):
     supported_types = ArrayField(models.CharField(max_length=10), blank=True, null=True)
     priority = models.PositiveIntegerField(choices=PRIORITY, default=1)
 
+    def __str__(self):
+        return self.name
+
 
 class Report(models.Model):
     response = JSONField(blank=True, null=True)
@@ -137,7 +140,6 @@ class Mail(models.Model):
     text_plain = models.TextField(blank=True, null=True)
     text_not_managed = models.TextField(blank=True, null=True)
     body = models.TextField(blank=True, null=True)
-    body_plain = models.TextField(blank=True, null=True)
     sender_ip_address = models.CharField(max_length=50, blank=True, null=True)
     to_domains = ArrayField(models.CharField(max_length=200), blank=True, null=True)
     iocs = models.ManyToManyField(Ioc, related_name="iocs")

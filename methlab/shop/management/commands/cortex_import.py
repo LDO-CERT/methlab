@@ -48,7 +48,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR("No analyzers in cortex"))
 
         for analyzer in analyzers:
-            if analyzer.name not in cortex_analyzers:
+            if analyzer.name not in [x[0] for x in cortex_analyzers]:
                 analyzer.disabled = True
                 analyzer.save()
                 self.stdout.write(

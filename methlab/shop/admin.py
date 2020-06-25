@@ -11,6 +11,7 @@ from .models import (
     Analyzer,
     Report,
     Whitelist,
+    Address,
 )
 from django_better_admin_arrayfield.admin.mixins import DynamicArrayMixin
 from import_export.admin import ImportExportModelAdmin
@@ -89,7 +90,7 @@ class AddressesInline(admin.TabularInline):
     extra = 0
 
 
-class MailAdmin(admin.ModelAdmin):
+class MailAdmin(admin.ModelAdmin, DynamicArrayMixin):
     def get_queryset(self, request):
         return (
             super()
@@ -120,7 +121,6 @@ class MailAdmin(admin.ModelAdmin):
         "text_plain",
         "text_not_managed",
         "body",
-        "body_plain",
     )
     list_display = (
         "message_id",
@@ -146,7 +146,7 @@ class IocAdmin(admin.ModelAdmin, DynamicArrayMixin):
 
 
 class AnalyzerAdmin(admin.ModelAdmin, DynamicArrayMixin):
-    list_display = ("name", "disabled", "supported_types")
+    list_display = ("name", "disabled", "supported_types", "priority")
     list_filter = ("priority", "disabled", "supported_types")
     search_fields = ["name"]
 
@@ -163,13 +163,23 @@ class WhitelistAdmin(admin.ModelAdmin, DynamicArrayMixin):
     search_fields = ["value"]
 
 
+class AddressesAdmin(admin.ModelAdmin):
+    list_display = ("name", "address")
+    search_fields = ["name", "address"]
+
+
+class ReportAdmin(admin.ModelAdmin):
+    list_display = ("analyzer", "content_type", "object_id")
+
+
 admin.site.register(InternalInfo, InternalInfoAdmin)
 admin.site.register(Mail, MailAdmin)
+admin.site.register(Address, AddressesAdmin)
 admin.site.register(Flag, FlagAdmin)
 admin.site.register(Ioc, IocAdmin)
 admin.site.register(Analyzer, AnalyzerAdmin)
 admin.site.register(Whitelist, WhitelistAdmin)
-admin.site.register(Report)
+admin.site.register(Report, ReportAdmin)
 
 admin.site.unregister(Group)
 

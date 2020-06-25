@@ -59,6 +59,7 @@ from methlab.shop.models import (  # noqa
 Attachment.objects.all().delete()
 Address.objects.all().delete()
 Mail.objects.all().delete()
+Ioc.objects.all().delete()
 
 info = InternalInfo.objects.first()
 inbox = IMAP4(info.imap_server)
@@ -96,15 +97,17 @@ def check_cortex(ioc, ioc_type, object_id):
     ).order_by("-priority")
     for analyzer in analyzers:
         try:
-            # job = cortex_api.analyzers.run_by_name(
-            #    analyzer.name, {"data": ioc, "dataType": ioc_type, "tlp": 1}, force=1,
-            # )
-            # while job.status not in ["Success"]:
-            #    job = cortex_api.jobs.get_report(job.id)
-            #    print(job.id, job.status)
+            job = cortex_api.analyzers.run_by_name(
+                analyzer.name, {"data": ioc, "dataType": ioc_type, "tlp": 1}, force=1,
+            )
+            while job.status not in ["Success"]:
+                job = cortex_api.jobs.get_report(job.id)
+                print(job.id, job.status)
             time.sleep(1)
-            # report = Report(response=job.json(), content_object=object_id,)
-            # report.save()
+            report = Report(
+                response=job.json(), content_object=object_id, analyzer=analyzer
+            )
+            report.save()
         except Exception as excp:
             print(ioc, ioc_type, excp)
 
@@ -138,6 +141,7 @@ def is_whitelisted(content_type):
 
 def process_tnef(filepath, parent_id=None):
     """ tnef is like an email but parser is different """
+
     with open(filepath, "rb") as tneffile:
         tnef = TNEF(tneffile.read())
 
@@ -182,22 +186,20 @@ def process_tnef(filepath, parent_id=None):
     for attachment in tnef_attachments:
         attachment_name = attachment.name.decode() if attachment.name else uuid.uuid4()
 
-        with open("{}/{}".format(random_path, attachment_name), "wb") as f:
+        filepath = "{}/{}".format(random_path, attachment_name)
+
+        with open(filepath, "wb") as f:
             f.write(attachment.data)
 
-        attachment_magic = magic.from_file(
-            "{}/{}".format(random_path, attachment_name), mime=True
-        )
+        attachment_magic = magic.from_file(filepath, mime=True)
 
         if is_whitelisted(attachment_magic):
-            os.remove("{}/{}".format(random_path, attachment_name))
+            os.remove(filepath)
             continue
 
         mess_att = {"mail_content_type": attachment_magic, "payload": attachment.data}
 
-        process_attachment(
-            "{}/{}".format(random_path, attachment_name), mail, mess_att, parent_id
-        )
+        process_attachment(filepath, mail, mess_att, parent_id)
 
 
 def process_attachment(filepath, mail, mess_att, parent_id):
@@ -233,40 +235,15 @@ def process_attachment(filepath, mail, mess_att, parent_id):
         mess_att["mail_content_type"] == "application/octet-stream"
         and fileext in (".eml", ".msg")
     ) or mess_att["mail_content_type"] == "message/rfc822":
-        internal_message = mailparser.parse_from_file(filepath)
+        if fileext == ".msg":
+            internal_message = mailparser.parse_from_file_msg(filepath)
+        else:
+            internal_message = mailparser.parse_from_file(filepath)
         process_mail(internal_message, mail.pk)
 
     # IF TEXT EXTRACT IOC
     elif mess_att["mail_content_type"] in ("text/plain", "text/html",):
-
-        # EXTRACT URL, CHECK IF WL AND GET REPORT
-        for url in parse_urls(mess_att["payload"]):
-            url = url.split(">")[0].rstrip('"].').strip("/").lower()
-            domain = ".".join(part for part in extract(url) if part)
-            if domain in [x.value for x in all_wl if x.type == "domain"]:
-                continue
-            ioc, _ = Ioc.objects.get_or_create(domain=domain,)
-            if ioc.urls and url not in ioc.urls:
-                ioc.urls.append(url)
-                ioc.save()
-            elif not ioc.urls:
-                ioc.urls = [url]
-                ioc.save()
-            mail.iocs.add(ioc)
-            check_cortex(url, "url", ioc)
-
-        # EXTRACT IP, CHECK IF WL AND GET REPORT
-        for ip in (
-            parse_ipv4_addresses(mess_att["payload"])
-            + parse_ipv4_cidrs(mess_att["payload"])
-            + parse_ipv6_addresses(mess_att["payload"])
-        ):
-            if ip in [x.value for x in all_wl if x.type == "ip"]:
-                continue
-            ioc, _ = Ioc.objects.get_or_create(ip=ip)
-            mail.iocs.add(ioc)
-            if not ioc.whitelisted:
-                check_cortex(ip, "url", ioc)
+        find_ioc(mess_att["payload"], mail)
 
     # IF GENERIC FILE, EXTRACT MD5/SHA256 AND GET REPORT
     else:
@@ -288,6 +265,41 @@ def process_attachment(filepath, mail, mess_att, parent_id):
         check_cortex(filepath, "file", attachment)
 
 
+def find_ioc(payload, mail, from_main=False):
+    """" extracts url and ip from text """
+
+    all_wl = Whitelist.objects.all()
+
+    # EXTRACT URL, CHECK IF WL AND GET REPORT
+    for url in parse_urls(payload):
+        url = url.split(">")[0].rstrip('"].').strip("/").lower()
+        domain = ".".join(part for part in extract(url) if part)
+        if domain in [x.value for x in all_wl if x.type == "domain"]:
+            continue
+        ioc, _ = Ioc.objects.get_or_create(domain=domain,)
+        if ioc.urls and url not in ioc.urls:
+            ioc.urls.append(url)
+            ioc.save()
+        elif not ioc.urls:
+            ioc.urls = [url]
+            ioc.save()
+        mail.iocs.add(ioc)
+        check_cortex(url, "url", ioc)
+
+    # EXTRACT IP, CHECK IF WL AND GET REPORT
+    for ip in (
+        parse_ipv4_addresses(payload)
+        + parse_ipv4_cidrs(payload)
+        + parse_ipv6_addresses(payload)
+    ):
+        if ip in [x.value for x in all_wl if x.type == "ip"]:
+            continue
+        ioc, _ = Ioc.objects.get_or_create(ip=ip)
+        mail.iocs.add(ioc)
+        if not ioc.whitelisted:
+            check_cortex(ip, "url", ioc)
+
+
 def process_mail(msg, parent_id=None):
     """ main workflow for single mail """
 
@@ -299,9 +311,13 @@ def process_mail(msg, parent_id=None):
 
     flags = []
 
+    mail_wl = Whitelist.objects.filter(type="address")
+
     # CHECK ADDRESSES AND ASSIGN FLAGS
     addresses_list = []
     for (name, address_from) in msg.from_:
+        if address_from in [x.value for x in mail_wl]:
+            return
         address, _ = Address.objects.get_or_create(name=name, address=address_from)
         addresses_list.append((address, "from"))
         other_addresses = parse_email_addresses(name)
@@ -372,7 +388,6 @@ def process_mail(msg, parent_id=None):
         text_plain=msg.text_plain,
         text_not_managed=msg.text_not_managed,
         body=msg.body,
-        body_plain=msg.body_plain,
         sender_ip_address=msg.get_server_ipaddress(info.imap_server),
         to_domains=msg.to_domains,
     )
@@ -392,7 +407,7 @@ def process_mail(msg, parent_id=None):
     if mail.tags.count() == 0:
         mail.tags.add("Hunting")
 
-    # TODO: Extract ioc from main text
+    find_ioc(mail.body, mail, True)
 
     # Save attachments
     random_path = store_attachments(msg)
