@@ -91,6 +91,9 @@ class AddressesInline(admin.TabularInline):
 
 
 class MailAdmin(admin.ModelAdmin, DynamicArrayMixin):
+    def has_change_permission(self, request, obj=None):
+        return False
+
     def get_queryset(self, request):
         return (
             super()
@@ -111,17 +114,6 @@ class MailAdmin(admin.ModelAdmin, DynamicArrayMixin):
         return u", ".join([x.name for x in obj.flags.all()])
 
     inlines = [AttachmentInline, AddressesInline, IocInline, FlagInline]
-    readonly_fields = (
-        "message_id",
-        "subject",
-        "received",
-        "headers",
-        "defects",
-        "defects_categories",
-        "text_plain",
-        "text_not_managed",
-        "body",
-    )
     list_display = (
         "message_id",
         "parent",
@@ -180,6 +172,7 @@ admin.site.register(Ioc, IocAdmin)
 admin.site.register(Analyzer, AnalyzerAdmin)
 admin.site.register(Whitelist, WhitelistAdmin)
 admin.site.register(Report, ReportAdmin)
+admin.site.register(Attachment)
 
 admin.site.unregister(Group)
 
