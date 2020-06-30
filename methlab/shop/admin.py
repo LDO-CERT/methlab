@@ -84,7 +84,7 @@ class IocInline(admin.TabularInline):
     extra = 0
 
 
-class AddressesInline(admin.TabularInline):
+class AddressesInline(admin.TabularInline, DynamicArrayMixin):
     model = Mail.addresses.through
     extra = 0
 

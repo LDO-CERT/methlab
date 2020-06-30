@@ -19,6 +19,8 @@ django.setup()
 
 from django.core.exceptions import ObjectDoesNotExist  # noqa
 
+from tqdm import tqdm  # noqa
+
 import shutil  # noqa
 import pathlib  # noqa
 import time  # noqa
@@ -93,7 +95,7 @@ def store_attachments(msg):
     random_path = "/tmp/{}".format(uuid.uuid4())
     os.makedirs(random_path)
     msg.write_attachments(random_path)
-    logging.error("storing attachment at {}".format(random_path))
+    logging.debug("storing attachment at {}".format(random_path))
     return random_path
 
 
@@ -104,7 +106,7 @@ def check_cortex(ioc, ioc_type, object_id):
         disabled=False, supported_types__contains=[ioc_type]
     ).order_by("-priority")
     for analyzer in analyzers:
-        logging.error("running analyzer {} for {}".format(analyzer.name, ioc))
+        logging.debug("running analyzer {} for {}".format(analyzer.name, ioc))
         try:
             job = cortex_api.analyzers.run_by_name(
                 analyzer.name, {"data": ioc, "dataType": ioc_type, "tlp": 1}, force=1,
@@ -116,7 +118,7 @@ def check_cortex(ioc, ioc_type, object_id):
                 response=job.json(), content_object=object_id, analyzer=analyzer
             )
             report.save()
-            logging.error("done analyzer {} for {}".format(analyzer.name, ioc))
+            logging.debug("done analyzer {} for {}".format(analyzer.name, ioc))
         except Exception as excp:
             logging.error(
                 "ERROR running analyzer {} for {}: {}".format(analyzer.name, ioc, excp)
@@ -137,7 +139,7 @@ def get_hashes(filepath):
             md5_hash.update(chunk)
             sha1_hash.update(chunk)
             sha256_hash.update(chunk)
-    logging.error("generating fingerprint for {}".format(filepath))
+    logging.debug("generating fingerprint for {}".format(filepath))
     return md5_hash.hexdigest(), sha1_hash.hexdigest(), sha256_hash.hexdigest()
 
 
@@ -147,7 +149,7 @@ def is_whitelisted(content_type):
     if info.mimetype_whitelist:
         for wl in info.mimetype_whitelist:
             if content_type.startswith(wl):
-                logging.error("{} is whitelisted".format(content_type))
+                logging.debug("{} is whitelisted".format(content_type))
                 return True
     return False
 
@@ -220,19 +222,20 @@ def process_attachment(filepath, mail, mess_att, parent_id):
 
     all_wl = Whitelist.objects.all()
     _, fileext = os.path.splitext(mess_att["filename"])
+    fileext = fileext.lower()
 
     if not os.path.exists(filepath):
         logging.error("ERROR: {} does not exists".format(filepath))
         return
 
     # Unzip the attachment if is_zipfile
-    if is_zipfile(filepath):
+    if is_zipfile(filepath) and fileext not in ["jar", "xlsx"]:
         with ZipFile(filepath, "r") as zipObj:
             objs = zipObj.namelist()
             if len(objs) == 1:
                 filepath = zipObj.extract(objs[0], pathlib.Path(filepath).parent)
                 mess_att["mail_content_type"] = magic.from_file(filepath, mime=True)
-                logging.error("ATTACHMENT unzipped, new path {}".format(filepath))
+                logging.debug("ATTACHMENT unzipped, new path {}".format(filepath))
             else:
                 # Zipped and multiple files, skip
                 logging.error(
@@ -250,7 +253,7 @@ def process_attachment(filepath, mail, mess_att, parent_id):
         "application/ms-tnef",
         "Transport Neutral Encapsulation Format",
     ]:
-        logging.error("ATTACHMENT {} is a tnef, parsing".format(filepath))
+        logging.debug("ATTACHMENT {} is a tnef, parsing".format(filepath))
         process_tnef(filepath, parent_id=parent_id)
     elif (
         mess_att["mail_content_type"] == "application/octet-stream"
@@ -260,17 +263,17 @@ def process_attachment(filepath, mail, mess_att, parent_id):
             internal_message = mailparser.parse_from_file_msg(filepath)
         else:
             internal_message = mailparser.parse_from_file(filepath)
-        logging.error("ATTACHMENT {} is a mail, parsing".format(filepath))
+        logging.debug("ATTACHMENT {} is a mail, parsing".format(filepath))
         process_mail(internal_message, mail.pk)
 
     # IF TEXT EXTRACT IOC
     elif mess_att["mail_content_type"] in ("text/plain", "text/html",):
-        logging.error("ATTACHMENT {} is text, extracting ioc".format(filepath))
+        logging.debug("ATTACHMENT {} is text, extracting ioc".format(filepath))
         find_ioc(mess_att["payload"], mail)
 
     # IF GENERIC FILE, EXTRACT MD5/SHA256 AND GET REPORT
     else:
-        logging.error("ATTACHMENT {} is file, sending to cortex".format(filepath))
+        logging.debug("ATTACHMENT {} is file, sending to cortex".format(filepath))
         md5, sha1, sha256 = get_hashes(filepath)
         if md5 in [x.value for x in all_wl if x.type == "md5"] or sha256 in [
             x.value for x in all_wl if x.type == "sha256"
@@ -308,7 +311,7 @@ def find_ioc(payload, mail, from_main=False):
         url = url.split(">")[0].rstrip('"].').strip("/").lower()
         domain = ".".join(part for part in extract(url) if part)
         if domain in [x.value for x in all_wl if x.type == "domain"]:
-            logging.error("IOC url: {} WL".format(url))
+            logging.debug("IOC url: {} WL".format(url))
             continue
         ioc, created = Ioc.objects.get_or_create(domain=domain,)
         if ioc.urls and url not in ioc.urls:
@@ -319,10 +322,10 @@ def find_ioc(payload, mail, from_main=False):
             ioc.save()
         mail.iocs.add(ioc)
         if created:
-            logging.error("IOC url: {} new - creating report".format(url))
+            logging.debug("IOC url: {} new - creating report".format(url))
             check_cortex(url, "url", ioc)
         else:
-            logging.error("IOC url: {} old".format(url))
+            logging.debug("IOC url: {} old".format(url))
 
     # EXTRACT IP, CHECK IF WL AND GET REPORT
     for ip in (
@@ -331,15 +334,15 @@ def find_ioc(payload, mail, from_main=False):
         + parse_ipv6_addresses(payload)
     ):
         if ip in [x.value for x in all_wl if x.type == "ip"]:
-            logging.error("IOC ip: {} WL".format(ip))
+            logging.debug("IOC ip: {} WL".format(ip))
             continue
         ioc, created = Ioc.objects.get_or_create(ip=ip)
         mail.iocs.add(ioc)
         if created:
-            logging.error("IOC ip: {} new - creating report".format(ip))
+            logging.debug("IOC ip: {} new - creating report".format(ip))
             check_cortex(ip, "ip", ioc)
         else:
-            logging.error("IOC ip: {} old".format(ip))
+            logging.debug("IOC ip: {} old".format(ip))
 
 
 def process_mail(msg, parent_id=None):
@@ -361,7 +364,7 @@ def process_mail(msg, parent_id=None):
     addresses_list = []
     for (name, address_from) in msg.from_:
         if address_from in [x.value for x in mail_wl]:
-            logging.error("sender {} in WL - skip".format(address_from))
+            logging.debug("sender {} in WL - skip".format(address_from))
             return
         address, _ = Address.objects.get_or_create(address=address_from)
         if not address.name:
@@ -518,11 +521,12 @@ def main():
         Ioc.objects.all().delete()
         Mail.objects.all().delete()
         Report.objects.all().delete()
+        Attachment.objects.all().delete()
         [shutil.rmtree("/tmp/{}".format(x)) for x in os.listdir("/tmp")]
 
     _, data = inbox.search(None, "(UNSEEN)")
     email_list = list(reversed(data[0].split()))
-    for number in email_list:
+    for number in tqdm(email_list):
         _, data = inbox.fetch(number, "(RFC822)")
 
         # IF PARSE FAILS IGNORE
@@ -531,7 +535,7 @@ def main():
         except Exception as e:
             logging.error(e)
             continue
-        logging.error("PARSING MAIL {}".format(number))
+        logging.debug("PARSING MAIL {}".format(number))
         process_mail(msg)
 
 

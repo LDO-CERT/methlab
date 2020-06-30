@@ -69,8 +69,11 @@ class Report(models.Model):
 
 
 class Address(models.Model):
-    name = ArrayField(models.CharField(max_length=200), blank=True, null=True)
+    name = ArrayField(models.CharField(max_length=500), blank=True, null=True)
     address = models.EmailField(blank=True, null=True, unique=True)
+
+    class Meta:
+        verbose_name_plural = "addresses"
 
     def __str__(self):
         return self.address if self.address else ""
@@ -78,13 +81,13 @@ class Address(models.Model):
 
 class Attachment(models.Model):
     binary = models.BooleanField()
-    charset = models.CharField(max_length=200, blank=True, null=True)
-    content_transfer_encoding = models.CharField(max_length=200, blank=True, null=True)
+    charset = models.CharField(max_length=500, blank=True, null=True)
+    content_transfer_encoding = models.CharField(max_length=500, blank=True, null=True)
     content_disposition = models.TextField(blank=True, null=True)
-    content_id = models.CharField(max_length=200, blank=True, null=True)
+    content_id = models.CharField(max_length=500, blank=True, null=True)
     filename = ArrayField(models.CharField(max_length=500), blank=True, null=True)
     filepath = models.CharField(max_length=500, blank=True, null=True)
-    mail_content_type = models.CharField(max_length=200, blank=True, null=True)
+    mail_content_type = models.CharField(max_length=500, blank=True, null=True)
     md5 = models.CharField(max_length=32, blank=True, null=True, unique=True)
     sha1 = models.CharField(max_length=40, blank=True, null=True, unique=True)
     sha256 = models.CharField(max_length=64, blank=True, null=True, unique=True)
@@ -125,7 +128,7 @@ class Ioc(models.Model):
 
 class Mail(models.Model):
     parent = models.ForeignKey("self", blank=True, null=True, on_delete=models.CASCADE)
-    message_id = models.CharField(max_length=200)
+    message_id = models.CharField(max_length=1000)
     subject = models.CharField(max_length=500)
     date = models.DateTimeField(blank=True, null=True)
     addresses = models.ManyToManyField(
@@ -135,11 +138,11 @@ class Mail(models.Model):
     headers = JSONField(blank=True, null=True)
     defects = models.TextField(blank=True, null=True)
     defects_categories = ArrayField(
-        models.CharField(max_length=200), blank=True, null=True
+        models.CharField(max_length=500), blank=True, null=True
     )
     body = models.TextField(blank=True, null=True)
     sender_ip_address = models.CharField(max_length=50, blank=True, null=True)
-    to_domains = ArrayField(models.CharField(max_length=200), blank=True, null=True)
+    to_domains = ArrayField(models.CharField(max_length=500), blank=True, null=True)
     iocs = models.ManyToManyField(Ioc, related_name="iocs")
     attachments = models.ManyToManyField(Attachment, related_name="attachments")
     flags = models.ManyToManyField(Flag, related_name="flags", through="Mail_Flag")
