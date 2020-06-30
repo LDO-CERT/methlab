@@ -10,6 +10,8 @@ RUN apt-get update \
   && apt-get install -y python3-magic \
   # ldap
   && apt-get install -y libsasl2-dev libldap2-dev libssl-dev \
+  # git for cloning
+  && apt-get install -y git curl unzip \  
   # msg support
   && apt-get install -y libemail-outlook-message-perl \
   # psycopg2 dependencies

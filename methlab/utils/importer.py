@@ -279,13 +279,22 @@ def process_attachment(filepath, mail, mess_att, parent_id):
             return
 
         fix_mail_dict = dict((k.replace("-", "_"), v) for k, v in mess_att.items())
-        attachment = Attachment(**fix_mail_dict)
-        attachment.mail = mail
-        attachment.filepath = filepath
-        attachment.md5 = md5
-        attachment.sha1 = sha1
-        attachment.sha256 = sha256
+        filename = fix_mail_dict["filename"]
+        del fix_mail_dict["payload"]
+        del fix_mail_dict["filename"]
+        attachment, created = Attachment.objects.get_or_create(
+            md5=md5, defaults=fix_mail_dict
+        )
+        if created:
+            attachment.filename = [filename]
+            attachment.filepath = filepath
+            attachment.sha1 = sha1
+            attachment.sha256 = sha256
+        else:
+            if filename not in attachment.filename:
+                attachment.filename.append(filename)
         attachment.save()
+        mail.attachments.add(attachment)
         check_cortex(filepath, "file", attachment)
 
 
@@ -339,8 +348,9 @@ def process_mail(msg, parent_id=None):
     # IF MAIL WAS ALREADY PROCESSED IGNORE
     try:
         mail = Mail.objects.get(message_id=msg.message_id, parent_id__pk=parent_id)
-    except Mail.DoesNotExist:
         logging.error("mail already in db - skip")
+        return
+    except Mail.DoesNotExist:
         pass
 
     flags = []
@@ -351,12 +361,19 @@ def process_mail(msg, parent_id=None):
     addresses_list = []
     for (name, address_from) in msg.from_:
         if address_from in [x.value for x in mail_wl]:
-            logging.error("sender {} il WL - skip".format(address_from))
+            logging.error("sender {} in WL - skip".format(address_from))
             return
-        address, _ = Address.objects.get_or_create(name=name, address=address_from)
+        address, _ = Address.objects.get_or_create(address=address_from)
+        if not address.name:
+            address.name = [name]
+        elif name not in address.name:
+            address.name.append(name)
+        address.save()
         addresses_list.append((address, "from"))
         other_addresses = parse_email_addresses(name)
-        if len(other_addresses) > 0 and any([x != mail for x in other_addresses]):
+        if len(other_addresses) > 0 and any(
+            [x != address_from for x in other_addresses]
+        ):
             flags.append((Flag.objects.get(name="Fake Real Name"), None))
         if info.vip_list:
             for vip in info.vip_list:
@@ -368,16 +385,36 @@ def process_mail(msg, parent_id=None):
                         )
                     )
     for (name, address) in msg.to:
-        address, _ = Address.objects.get_or_create(name=name, address=address)
+        address, _ = Address.objects.get_or_create(address=address)
+        if not address.name:
+            address.name = [name]
+        elif name not in address.name:
+            address.name.append(name)
+        address.save()
         addresses_list.append((address, "to"))
     for (name, address) in msg.bcc:
-        address, _ = Address.objects.get_or_create(name=name, address=address)
+        address, _ = Address.objects.get_or_create(address=address)
+        if not address.name:
+            address.name = [name]
+        elif name not in address.name:
+            address.name.append(name)
+        address.save()
         addresses_list.append((address, "bcc"))
     for (name, address) in msg.cc:
-        address, _ = Address.objects.get_or_create(name=name, address=address)
+        address, _ = Address.objects.get_or_create(address=address)
+        if not address.name:
+            address.name = [name]
+        elif name not in address.name:
+            address.name.append(name)
+        address.save()
         addresses_list.append((address, "cc"))
     for (name, address) in msg.reply_to:
-        address, _ = Address.objects.get_or_create(name=name, address=address)
+        address, _ = Address.objects.get_or_create(address=address)
+        if not address.name:
+            address.name = [name]
+        elif name not in address.name:
+            address.name.append(name)
+        address.save()
         addresses_list.append((address, "reply_to"))
 
     # CHECK SPF & INTERNAL FROM FIRST HOP
@@ -420,8 +457,6 @@ def process_mail(msg, parent_id=None):
         headers=msg.headers,
         defects=msg.defects,
         defects_categories=[x for x in msg.defects_categories],
-        text_plain=msg.text_plain,
-        text_not_managed=msg.text_not_managed,
         body=msg.body,
         sender_ip_address=msg.get_server_ipaddress(info.imap_server),
         to_domains=msg.to_domains,
@@ -432,12 +467,14 @@ def process_mail(msg, parent_id=None):
         addr_obj = Mail_Addresses(mail=mail, address=addr_item, field=addr_type)
         addr_obj.save()
         if addr_type == "to":
-            if info.security_emails and addr_obj.address.name in info.security_emails:
+            if info.security_emails and addr_obj.address in info.security_emails:
                 mail.tags.add("SecInc")
-            if info.honeypot_emails and addr_obj.address.name in info.honeypot_emails:
+            if info.honeypot_emails and any(
+                [addr_item.address.endswith(x) for x in info.honeypot_emails]
+            ):
                 mail.tags.add("Honeypot")
         elif addr_type == "cc":
-            if info.security_emails and addr_obj.address.name in info.security_emails:
+            if info.security_emails and addr_obj.address in info.security_emails:
                 mail.tags.add("SecInc")
     if mail.tags.count() == 0:
         mail.tags.add("Hunting")

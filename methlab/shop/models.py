@@ -29,7 +29,9 @@ class InternalInfo(models.Model):
     )
 
     security_emails = ArrayField(models.EmailField(), blank=True, null=True)
-    honeypot_emails = ArrayField(models.EmailField(), blank=True, null=True)
+    honeypot_emails = ArrayField(
+        models.CharField(max_length=200), blank=True, null=True
+    )
     internal_domains = ArrayField(
         models.CharField(max_length=100), blank=True, null=True
     )
@@ -67,8 +69,8 @@ class Report(models.Model):
 
 
 class Address(models.Model):
-    name = models.CharField(max_length=200, blank=True, null=True)
-    address = models.EmailField(blank=True, null=True)
+    name = ArrayField(models.CharField(max_length=200), blank=True, null=True)
+    address = models.EmailField(blank=True, null=True, unique=True)
 
     def __str__(self):
         return self.address if self.address else ""
@@ -80,14 +82,12 @@ class Attachment(models.Model):
     content_transfer_encoding = models.CharField(max_length=200, blank=True, null=True)
     content_disposition = models.TextField(blank=True, null=True)
     content_id = models.CharField(max_length=200, blank=True, null=True)
-    filename = models.CharField(max_length=500, blank=True, null=True)
+    filename = ArrayField(models.CharField(max_length=500), blank=True, null=True)
     filepath = models.CharField(max_length=500, blank=True, null=True)
     mail_content_type = models.CharField(max_length=200, blank=True, null=True)
-    payload = models.TextField(blank=True, null=True)
-    mail = models.ForeignKey("Mail", on_delete=models.CASCADE)
-    md5 = models.CharField(max_length=32, blank=True, null=True)
-    sha1 = models.CharField(max_length=40, blank=True, null=True)
-    sha256 = models.CharField(max_length=64, blank=True, null=True)
+    md5 = models.CharField(max_length=32, blank=True, null=True, unique=True)
+    sha1 = models.CharField(max_length=40, blank=True, null=True, unique=True)
+    sha256 = models.CharField(max_length=64, blank=True, null=True, unique=True)
 
 
 class Flag(models.Model):
@@ -137,12 +137,11 @@ class Mail(models.Model):
     defects_categories = ArrayField(
         models.CharField(max_length=200), blank=True, null=True
     )
-    text_plain = models.TextField(blank=True, null=True)
-    text_not_managed = models.TextField(blank=True, null=True)
     body = models.TextField(blank=True, null=True)
     sender_ip_address = models.CharField(max_length=50, blank=True, null=True)
     to_domains = ArrayField(models.CharField(max_length=200), blank=True, null=True)
     iocs = models.ManyToManyField(Ioc, related_name="iocs")
+    attachments = models.ManyToManyField(Attachment, related_name="attachments")
     flags = models.ManyToManyField(Flag, related_name="flags", through="Mail_Flag")
     tags = TaggableManager()
 

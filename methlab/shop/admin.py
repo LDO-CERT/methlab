@@ -4,7 +4,6 @@ from django.contrib.auth.models import Group
 
 from .models import (
     Mail,
-    Attachment,
     Flag,
     InternalInfo,
     Ioc,
@@ -71,7 +70,7 @@ class InternalInfoAdmin(ImportExportModelAdmin, DynamicArrayMixin):
 
 
 class AttachmentInline(admin.StackedInline):
-    model = Attachment
+    model = Mail.attachments.through
     extra = 0
 
 
@@ -98,11 +97,11 @@ class MailAdmin(admin.ModelAdmin, DynamicArrayMixin):
         return (
             super()
             .get_queryset(request)
-            .prefetch_related("tags", "attachment_set", "flags", "iocs")
+            .prefetch_related("tags", "attachments", "flags", "iocs")
         )
 
     def count_attachments(self, obj):
-        return obj.attachment_set.count()
+        return obj.attachments.count()
 
     def count_iocs(self, obj):
         return obj.iocs.count()
@@ -172,7 +171,6 @@ admin.site.register(Ioc, IocAdmin)
 admin.site.register(Analyzer, AnalyzerAdmin)
 admin.site.register(Whitelist, WhitelistAdmin)
 admin.site.register(Report, ReportAdmin)
-admin.site.register(Attachment)
 
 admin.site.unregister(Group)
 

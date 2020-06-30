@@ -1,3 +1,5 @@
+import sys
+import cortex4py
 from methlab.shop.models import InternalInfo, Analyzer
 from cortex4py.api import Api
 from django.core.management.base import BaseCommand
@@ -28,13 +30,23 @@ class Command(BaseCommand):
         else:
             cortex_api = Api(info.cortex_url, info.cortex_api, verify_cert=False)
 
-        self.stdout.write(self.style.SUCCESS("Cortex login ok"))
-
-        cortex_analyzers = [
-            (x.name, x.dataTypeList)
-            for x in cortex_api.analyzers.find_all({}, range="all")
-            if len(set(x.dataTypeList).intersection(("url", "ip", "file", "mail"))) > 0
-        ]
+        try:
+            cortex_analyzers = [
+                (x.name, x.dataTypeList)
+                for x in cortex_api.analyzers.find_all({}, range="all")
+                if len(set(x.dataTypeList).intersection(("url", "ip", "file", "mail")))
+                > 0
+            ]
+        except (
+            cortex4py.exceptions.AuthenticationError,
+            cortex4py.exceptions.AuthorizationError,
+            cortex4py.exceptions.ServiceUnavailableError,
+            cortex4py.exceptions.CortexError,
+        ):
+            self.stdout.write(
+                self.style.ERROR("Problems during cortex connection - Exit!")
+            )
+            sys.exit()
 
         if len(cortex_analyzers) > 0:
             self.stdout.write(
