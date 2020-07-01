@@ -154,8 +154,9 @@ class WhitelistAdmin(admin.ModelAdmin, DynamicArrayMixin):
     search_fields = ["value"]
 
 
-class AddressesAdmin(admin.ModelAdmin):
-    list_display = ("name", "address")
+class AddressesAdmin(admin.ModelAdmin, DynamicArrayMixin):
+    list_filter = ("domain",)
+    list_display = ("name", "address", "domain")
     search_fields = ["name", "address"]
 
 

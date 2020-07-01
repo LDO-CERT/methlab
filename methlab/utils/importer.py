@@ -229,7 +229,7 @@ def process_attachment(filepath, mail, mess_att, parent_id):
         return
 
     # Unzip the attachment if is_zipfile
-    if is_zipfile(filepath) and fileext not in ["jar", "xlsx"]:
+    if is_zipfile(filepath) and fileext not in ["jar", "xlsx", "xlsm"]:
         with ZipFile(filepath, "r") as zipObj:
             objs = zipObj.namelist()
             if len(objs) == 1:
@@ -363,6 +363,8 @@ def process_mail(msg, parent_id=None):
     # CHECK ADDRESSES AND ASSIGN FLAGS
     addresses_list = []
     for (name, address_from) in msg.from_:
+        name = name.capitalize()
+        address_from = address_from.lower()
         if address_from in [x.value for x in mail_wl]:
             logging.debug("sender {} in WL - skip".format(address_from))
             return
@@ -371,6 +373,7 @@ def process_mail(msg, parent_id=None):
             address.name = [name]
         elif name not in address.name:
             address.name.append(name)
+        address.domain = address_from.split("@")[-1]
         address.save()
         addresses_list.append((address, "from"))
         other_addresses = parse_email_addresses(name)
@@ -387,36 +390,52 @@ def process_mail(msg, parent_id=None):
                             "{} mail for {}".format(name, vip),
                         )
                     )
-    for (name, address) in msg.to:
-        address, _ = Address.objects.get_or_create(address=address)
+
+    for (name, address_to) in msg.to:
+        name = name.capitalize()
+        address_to = address_to.lower()
+        address, _ = Address.objects.get_or_create(address=address_to)
         if not address.name:
             address.name = [name]
         elif name not in address.name:
             address.name.append(name)
+        address.domain = address_to.split("@")[-1]
         address.save()
         addresses_list.append((address, "to"))
-    for (name, address) in msg.bcc:
-        address, _ = Address.objects.get_or_create(address=address)
+
+    for (name, address_bcc) in msg.bcc:
+        name = name.capitalize()
+        address_bcc = address_bcc.lower()
+        address, _ = Address.objects.get_or_create(address=address_bcc)
         if not address.name:
             address.name = [name]
         elif name not in address.name:
             address.name.append(name)
+        address.domain = address_bcc.split("@")[-1]
         address.save()
         addresses_list.append((address, "bcc"))
-    for (name, address) in msg.cc:
-        address, _ = Address.objects.get_or_create(address=address)
+
+    for (name, address_cc) in msg.cc:
+        name = name.capitalize()
+        address_cc = address_cc.lower()
+        address, _ = Address.objects.get_or_create(address=address_cc)
         if not address.name:
             address.name = [name]
         elif name not in address.name:
             address.name.append(name)
+        address.domain = address_cc.split("@")[-1]
         address.save()
         addresses_list.append((address, "cc"))
-    for (name, address) in msg.reply_to:
-        address, _ = Address.objects.get_or_create(address=address)
+
+    for (name, address_reply_to) in msg.reply_to:
+        name = name.capitalize()
+        address_reply_to = address_reply_to.lower()
+        address, _ = Address.objects.get_or_create(address=address_reply_to)
         if not address.name:
             address.name = [name]
         elif name not in address.name:
             address.name.append(name)
+        address.domain = address_reply_to.split("@")[-1]
         address.save()
         addresses_list.append((address, "reply_to"))
 
@@ -470,7 +489,7 @@ def process_mail(msg, parent_id=None):
         addr_obj = Mail_Addresses(mail=mail, address=addr_item, field=addr_type)
         addr_obj.save()
         if addr_type == "to":
-            if info.security_emails and addr_obj.address in info.security_emails:
+            if info.security_emails and addr_item.address in info.security_emails:
                 mail.tags.add("SecInc")
             if info.honeypot_emails and any(
                 [addr_item.address.endswith(x) for x in info.honeypot_emails]
@@ -524,7 +543,7 @@ def main():
         Attachment.objects.all().delete()
         [shutil.rmtree("/tmp/{}".format(x)) for x in os.listdir("/tmp")]
 
-    _, data = inbox.search(None, "(UNSEEN)")
+    _, data = inbox.search(None, "(ALL)")
     email_list = list(reversed(data[0].split()))
     for number in tqdm(email_list):
         _, data = inbox.fetch(number, "(RFC822)")

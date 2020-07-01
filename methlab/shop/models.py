@@ -70,7 +70,8 @@ class Report(models.Model):
 
 class Address(models.Model):
     name = ArrayField(models.CharField(max_length=500), blank=True, null=True)
-    address = models.EmailField(blank=True, null=True, unique=True)
+    address = models.EmailField(unique=True)
+    domain = models.CharField(max_length=500)
 
     class Meta:
         verbose_name_plural = "addresses"

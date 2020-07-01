@@ -66,6 +66,7 @@ INSTALLED_APPS = [
     "django_better_admin_arrayfield",
     "taggit",
     "import_export",
+    "django_tables2",
     "methlab.shop.apps.ShopConfig",
 ]
 
