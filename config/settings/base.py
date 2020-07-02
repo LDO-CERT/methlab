@@ -67,6 +67,7 @@ INSTALLED_APPS = [
     "taggit",
     "import_export",
     "django_tables2",
+    "django_json_widget",
     "methlab.shop.apps.ShopConfig",
 ]
 

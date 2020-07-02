@@ -230,6 +230,7 @@ def process_attachment(filepath, mail, mess_att, parent_id):
 
     # Unzip the attachment if is_zipfile
     if is_zipfile(filepath) and fileext not in ["jar", "xlsx", "xlsm"]:
+        logging.error("FILEXT: {}".format(fileext))
         with ZipFile(filepath, "r") as zipObj:
             objs = zipObj.namelist()
             if len(objs) == 1:
@@ -301,7 +302,7 @@ def process_attachment(filepath, mail, mess_att, parent_id):
         check_cortex(filepath, "file", attachment)
 
 
-def find_ioc(payload, mail, from_main=False):
+def find_ioc(payload, mail):
     """" extracts url and ip from text """
 
     all_wl = Whitelist.objects.all()
@@ -439,11 +440,16 @@ def process_mail(msg, parent_id=None):
         address.save()
         addresses_list.append((address, "reply_to"))
 
+    # RUN ANALYZER ON FULL EMAIL
+
     # CHECK SPF & INTERNAL FROM FIRST HOP
     first_hop = next(iter(msg.received), None)
     if first_hop:
         ip = parse_ipv4_addresses(first_hop.get("from", []))
         domain = first_hop.get("by", None)
+
+        logging.error("DOMAIN {}, from {}, to {}".format(domain, msg.from_, msg.to))
+
         if len(ip) > 0 and domain:
             ip = ip[0]
             domain = domain.split()[0]
@@ -461,7 +467,7 @@ def process_mail(msg, parent_id=None):
         if (
             domain
             and info.internal_domains
-            and any([internal.find(domain) != -1 for internal in info.internal_domains])
+            and any([domain.find(internal) != -1 for internal in info.internal_domains])
         ):
             flags.append((Flag.objects.get(name="Internal"), None))
 
@@ -477,8 +483,6 @@ def process_mail(msg, parent_id=None):
         date=date,
         received=msg.received,
         headers=msg.headers,
-        defects=msg.defects,
-        defects_categories=[x for x in msg.defects_categories],
         body=msg.body,
         sender_ip_address=msg.get_server_ipaddress(info.imap_server),
         to_domains=msg.to_domains,
@@ -501,7 +505,12 @@ def process_mail(msg, parent_id=None):
     if mail.tags.count() == 0:
         mail.tags.add("Hunting")
 
-    find_ioc(mail.body, mail, True)
+    # STORE FLAGS IN DB
+    for flag, note in flags:
+        mf = Mail_Flag(mail=mail, flag=flag, note=note)
+        mf.save()
+
+    find_ioc(mail.body, mail)
 
     # Save attachments
     random_path = store_attachments(msg)
@@ -517,11 +526,6 @@ def process_mail(msg, parent_id=None):
             continue
 
         process_attachment(filepath, mail, mess_att, parent_id)
-
-    # STORE FLAGS IN DB
-    for flag, note in flags:
-        mf = Mail_Flag(mail=mail, flag=flag, note=note)
-        mf.save()
 
 
 def clean_file(filepath):

@@ -19,7 +19,7 @@
     <header>
       <nav class="navbar navbar-expand-md navbar-dark fixed-top bg-dark">
         <div class="container-fluid">
-          <a class="navbar-brand" href="{% url 'home' %}">MethLab</a>
+          <a class="navbar-brand" href="{% url 'home' %}">Meth</a>
           <button
             class="navbar-toggler"
             type="button"
@@ -37,6 +37,7 @@
                 <a class="nav-link" aria-current="page" href="/admin">Admin</a>
               </li>
             </ul>
+            <!--
             <form class="d-flex">
               <input
                 class="form-control mr-2"
@@ -48,6 +49,7 @@
                 Search
               </button>
             </form>
+            -->
           </div>
         </div>
       </nav>
@@ -103,7 +105,7 @@
             <div class="col">
               <div class="card shadow-sm">
                 <div class="card-body">
-                  <h5 class="card-title">Common Filenames</h5>
+                  <h5 class="card-title">Common Ioc</h5>
                   {% render_table table_i %}
                 </div>
               </div>

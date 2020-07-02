@@ -5,6 +5,7 @@ from django.contrib.postgres.fields import JSONField, ArrayField
 from django_better_admin_arrayfield.models.fields import ArrayField  # noqa
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
+from django.template.defaultfilters import truncatechars
 
 
 class InternalInfo(models.Model):
@@ -137,10 +138,6 @@ class Mail(models.Model):
     )
     received = JSONField(blank=True, null=True)
     headers = JSONField(blank=True, null=True)
-    defects = models.TextField(blank=True, null=True)
-    defects_categories = ArrayField(
-        models.CharField(max_length=500), blank=True, null=True
-    )
     body = models.TextField(blank=True, null=True)
     sender_ip_address = models.CharField(max_length=50, blank=True, null=True)
     to_domains = ArrayField(models.CharField(max_length=500), blank=True, null=True)
@@ -149,8 +146,16 @@ class Mail(models.Model):
     flags = models.ManyToManyField(Flag, related_name="flags", through="Mail_Flag")
     tags = TaggableManager()
 
+    @property
+    def short_id(self):
+        return truncatechars(self.message_id, 15)
+
+    @property
+    def short_subject(self):
+        return truncatechars(self.subject, 80)
+
     def __str__(self):
-        return self.subject if self.subject else ""
+        return truncatechars(self.subject, 80) if self.subject else ""
 
 
 class Mail_Addresses(models.Model):

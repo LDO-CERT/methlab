@@ -1,7 +1,7 @@
 from django.contrib import admin
 from import_export import resources
 from django.contrib.auth.models import Group
-
+from django.contrib.contenttypes.admin import GenericTabularInline
 from .models import (
     Mail,
     Flag,
@@ -12,9 +12,10 @@ from .models import (
     Whitelist,
     Address,
 )
+from django.contrib.postgres import fields
+from django_json_widget.widgets import JSONEditorWidget
 from django_better_admin_arrayfield.admin.mixins import DynamicArrayMixin
 from import_export.admin import ImportExportModelAdmin
-from django.contrib.contenttypes.admin import GenericTabularInline
 
 
 class FlagResource(resources.ModelResource):
@@ -70,6 +71,12 @@ class InternalInfoAdmin(ImportExportModelAdmin, DynamicArrayMixin):
 
 
 class AttachmentInline(admin.StackedInline):
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
     model = Mail.attachments.through
     extra = 0
 
@@ -80,18 +87,48 @@ class FlagInline(admin.TabularInline):
 
 
 class IocInline(admin.TabularInline):
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
     model = Mail.iocs.through
     extra = 0
 
 
 class AddressesInline(admin.TabularInline, DynamicArrayMixin):
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
     model = Mail.addresses.through
     extra = 0
 
 
 class MailAdmin(admin.ModelAdmin, DynamicArrayMixin):
-    def has_change_permission(self, request, obj=None):
-        return False
+
+    formfield_overrides = {
+        fields.JSONField: {
+            "widget": JSONEditorWidget(options={"mode": "tree", "modes": ["tree"]})
+        },
+    }
+
+    readonly_fields = (
+        "parent",
+        "message_id",
+        "subject",
+        "date",
+        "body",
+        "sender_ip_address",
+        "to_domains",
+        "attachments",
+        "flags",
+    )
+
+    exclude = ("tags", "iocs", "addresses")
 
     def get_queryset(self, request):
         return (
@@ -114,9 +151,9 @@ class MailAdmin(admin.ModelAdmin, DynamicArrayMixin):
 
     inlines = [AttachmentInline, AddressesInline, IocInline, FlagInline]
     list_display = (
-        "message_id",
+        "short_id",
         "parent",
-        "subject",
+        "short_subject",
         "count_attachments",
         "count_iocs",
         "tag_list",
@@ -126,6 +163,12 @@ class MailAdmin(admin.ModelAdmin, DynamicArrayMixin):
 
 
 class ReportInline(GenericTabularInline):
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
     model = Report
     extra = 0
 
@@ -161,6 +204,13 @@ class AddressesAdmin(admin.ModelAdmin, DynamicArrayMixin):
 
 
 class ReportAdmin(admin.ModelAdmin):
+
+    formfield_overrides = {
+        fields.JSONField: {
+            "widget": JSONEditorWidget(options={"mode": "tree", "modes": ["tree"]})
+        },
+    }
+
     list_display = ("analyzer", "content_type", "object_id")
 
 
