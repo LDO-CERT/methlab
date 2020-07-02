@@ -11,11 +11,16 @@ from .models import (
     Report,
     Whitelist,
     Address,
+    Attachment,
 )
 from django.contrib.postgres import fields
 from django_json_widget.widgets import JSONEditorWidget
 from django_better_admin_arrayfield.admin.mixins import DynamicArrayMixin
 from import_export.admin import ImportExportModelAdmin
+
+# ########################
+# ## TO IMPORT / EXPORT
+# ########################
 
 
 class FlagResource(resources.ModelResource):
@@ -68,6 +73,11 @@ class InternalInfoAdmin(ImportExportModelAdmin, DynamicArrayMixin):
 
     def has_delete_permission(self, request, obj=None):
         return False
+
+
+# ########################
+# ## MAIL
+# ########################
 
 
 class AttachmentInline(admin.StackedInline):
@@ -162,6 +172,11 @@ class MailAdmin(admin.ModelAdmin, DynamicArrayMixin):
     search_fields = ["subject"]
 
 
+# ########################
+# ## IOC
+# ########################
+
+
 class ReportInline(GenericTabularInline):
     def has_add_permission(self, request, obj=None):
         return False
@@ -174,9 +189,26 @@ class ReportInline(GenericTabularInline):
 
 
 class IocAdmin(admin.ModelAdmin, DynamicArrayMixin):
+    actions = ["add_to_wl"]
+
+    def add_to_wl(self, request, queryset):
+        for item in queryset:
+            if item.ip:
+                wl = Whitelist(value=item.ip, type="ip")
+            else:
+                wl = Whitelist(value=item.domain, type="domain")
+            wl.save()
+
+    add_to_wl.short_description = "Add selected iocs to whitelist"
+
     list_display = ("ip", "domain")
     inlines = [ReportInline]
     search_fields = ["ip", "domain"]
+
+
+# ########################
+# ## OTHERS
+# ########################
 
 
 class AnalyzerAdmin(admin.ModelAdmin, DynamicArrayMixin):
@@ -198,6 +230,16 @@ class WhitelistAdmin(admin.ModelAdmin, DynamicArrayMixin):
 
 
 class AddressesAdmin(admin.ModelAdmin, DynamicArrayMixin):
+
+    actions = ["add_to_wl"]
+
+    def add_to_wl(self, request, queryset):
+        for item in queryset:
+            wl = Whitelist(value=item.address, type="address")
+            wl.save()
+
+    add_to_wl.short_description = "Add selected addresses to whitelist"
+
     list_filter = ("domain",)
     list_display = ("name", "address", "domain")
     search_fields = ["name", "address"]
@@ -214,6 +256,22 @@ class ReportAdmin(admin.ModelAdmin):
     list_display = ("analyzer", "content_type", "object_id")
 
 
+class AttachmentAdmin(admin.ModelAdmin):
+    actions = ["add_to_wl"]
+
+    def add_to_wl(self, request, queryset):
+        for item in queryset:
+            wl = Whitelist(value=item.md5, type="md5")
+            wl.save()
+            wl = Whitelist(value=item.sha256, type="sha256")
+            wl.save()
+
+    add_to_wl.short_description = "Add selected hashes to whitelist"
+
+    list_display = ("filename", "md5", "sha256")
+    search_fields = ["filename", "md5", "sha256"]
+
+
 admin.site.register(InternalInfo, InternalInfoAdmin)
 admin.site.register(Mail, MailAdmin)
 admin.site.register(Address, AddressesAdmin)
@@ -222,6 +280,7 @@ admin.site.register(Ioc, IocAdmin)
 admin.site.register(Analyzer, AnalyzerAdmin)
 admin.site.register(Whitelist, WhitelistAdmin)
 admin.site.register(Report, ReportAdmin)
+admin.site.register(Attachment, AttachmentAdmin)
 
 admin.site.unregister(Group)
 
