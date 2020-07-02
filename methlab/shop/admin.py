@@ -121,9 +121,7 @@ class AddressesInline(admin.TabularInline, DynamicArrayMixin):
 class MailAdmin(admin.ModelAdmin, DynamicArrayMixin):
 
     formfield_overrides = {
-        fields.JSONField: {
-            "widget": JSONEditorWidget(options={"mode": "tree", "modes": ["tree"]})
-        },
+        fields.JSONField: {"widget": JSONEditorWidget()},
     }
 
     readonly_fields = (
@@ -245,15 +243,18 @@ class AddressesAdmin(admin.ModelAdmin, DynamicArrayMixin):
     search_fields = ["name", "address"]
 
 
-class ReportAdmin(admin.ModelAdmin):
+class ReportAdmin(admin.ModelAdmin, DynamicArrayMixin):
 
     formfield_overrides = {
-        fields.JSONField: {
-            "widget": JSONEditorWidget(options={"mode": "tree", "modes": ["tree"]})
-        },
+        fields.JSONField: {"widget": JSONEditorWidget()},
     }
 
-    list_display = ("analyzer", "content_type", "object_id")
+    list_display = (
+        "analyzer",
+        "content_type",
+        "object_id",
+        "taxonomies",
+    )
 
 
 class AttachmentAdmin(admin.ModelAdmin):

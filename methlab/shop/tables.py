@@ -3,6 +3,8 @@ from methlab.shop.models import Attachment, Ioc, Mail
 
 
 class MailTable(tables.Table):
+    total = tables.Column(verbose_name="Total")
+
     class Meta:
         model = Mail
         template_name = "django_tables2/bootstrap4.html"
@@ -10,6 +12,10 @@ class MailTable(tables.Table):
 
 
 class AttachmentTable(tables.Table):
+    total = tables.Column(verbose_name="Total")
+    attachments__md5 = tables.Column(verbose_name="MD5")
+    attachments__sha256 = tables.Column(verbose_name="SHA256")
+
     class Meta:
         model = Attachment
         template_name = "django_tables2/bootstrap4.html"
@@ -17,6 +23,10 @@ class AttachmentTable(tables.Table):
 
 
 class IocTable(tables.Table):
+    total = tables.Column(verbose_name="Total")
+    iocs__ip = tables.Column(verbose_name="Ip")
+    iocs__domain = tables.Column(verbose_name="Domain")
+
     class Meta:
         model = Ioc
         template_name = "django_tables2/bootstrap4.html"

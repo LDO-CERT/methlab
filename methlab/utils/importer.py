@@ -2,8 +2,6 @@ import os
 import sys
 import django
 
-# import json
-
 sys.path.append("/app")
 
 os.environ["DATABASE_URL"] = "postgres://{}:{}@{}:{}/{}".format(
@@ -20,6 +18,7 @@ django.setup()
 from django.core.exceptions import ObjectDoesNotExist  # noqa
 
 from tqdm import tqdm  # noqa
+from glom import glom, PathAccessError  # noqa
 
 import shutil  # noqa
 import pathlib  # noqa
@@ -62,7 +61,7 @@ from methlab.shop.models import (  # noqa
 
 import logging  # noqa
 
-logging.basicConfig(filename="example.log", level=logging.DEBUG)
+logging.basicConfig(filename="/app/methlab/importer.log", level=logging.DEBUG)
 
 try:
     info = InternalInfo.objects.first()
@@ -99,11 +98,22 @@ def store_attachments(msg):
     return random_path
 
 
-def check_cortex(ioc, ioc_type, object_id):
+def store_mail(content):
+    """ saves mail as file to send it to cortex analyzers """
+    eml_path = "/tmp/{}.eml".format(uuid.uuid4())
+    with open(eml_path, "wb") as f:
+        f.write(content)
+    return eml_path
+
+
+def check_cortex(ioc, ioc_type, object_id, is_mail=False):
     """ run all available analyzer for ioc """
 
+    # Mail object is file in cortex
+    # need to save mail object analyzer as mail_obj to discriminate them
+    filter_type = ioc_type if not is_mail else "mail_obj"
     analyzers = Analyzer.objects.filter(
-        disabled=False, supported_types__contains=[ioc_type]
+        disabled=False, supported_types__contains=[filter_type]
     ).order_by("-priority")
     for analyzer in analyzers:
         logging.debug("running analyzer {} for {}".format(analyzer.name, ioc))
@@ -111,14 +121,31 @@ def check_cortex(ioc, ioc_type, object_id):
             job = cortex_api.analyzers.run_by_name(
                 analyzer.name, {"data": ioc, "dataType": ioc_type, "tlp": 1}, force=1,
             )
-            while job.status not in ["Success"]:
+            while job.status not in ["Success", "Failure"]:
+                time.sleep(10)
                 job = cortex_api.jobs.get_report(job.id)
-            time.sleep(30)
-            report = Report(
-                response=job.json(), content_object=object_id, analyzer=analyzer
-            )
-            report.save()
-            logging.debug("done analyzer {} for {}".format(analyzer.name, ioc))
+            if job.status == "Success":
+                response = job.json()
+                try:
+                    taxonomies = glom(
+                        response, ("report.summary.taxonomies", ["level"])
+                    )
+                except PathAccessError:
+                    taxonomies = None
+                report = Report(
+                    response=response,
+                    content_object=object_id,
+                    analyzer=analyzer,
+                    taxonomies=taxonomies,
+                )
+                report.save()
+                logging.debug("done analyzer {} for {}".format(analyzer.name, ioc))
+            elif job.success == "Failure":
+                logging.error(
+                    "ERROR running analyzer {} for {}: {}".format(
+                        analyzer.name, ioc, job.errorMessage
+                    )
+                )
         except Exception as excp:
             logging.error(
                 "ERROR running analyzer {} for {}: {}".format(analyzer.name, ioc, excp)
@@ -265,7 +292,7 @@ def process_attachment(filepath, mail, mess_att, parent_id):
         else:
             internal_message = mailparser.parse_from_file(filepath)
         logging.debug("ATTACHMENT {} is a mail, parsing".format(filepath))
-        process_mail(internal_message, mail.pk)
+        process_mail(internal_message, mail.pk, filepath)
 
     # IF TEXT EXTRACT IOC
     elif mess_att["mail_content_type"] in ("text/plain", "text/html",):
@@ -346,7 +373,7 @@ def find_ioc(payload, mail):
             logging.debug("IOC ip: {} old".format(ip))
 
 
-def process_mail(msg, parent_id=None):
+def process_mail(msg, parent_id=None, mail_filepath=None):
     """ main workflow for single mail """
 
     # IF MAIL WAS ALREADY PROCESSED IGNORE
@@ -440,15 +467,11 @@ def process_mail(msg, parent_id=None):
         address.save()
         addresses_list.append((address, "reply_to"))
 
-    # RUN ANALYZER ON FULL EMAIL
-
     # CHECK SPF & INTERNAL FROM FIRST HOP
     first_hop = next(iter(msg.received), None)
     if first_hop:
         ip = parse_ipv4_addresses(first_hop.get("from", []))
         domain = first_hop.get("by", None)
-
-        logging.error("DOMAIN {}, from {}, to {}".format(domain, msg.from_, msg.to))
 
         if len(ip) > 0 and domain:
             ip = ip[0]
@@ -489,6 +512,9 @@ def process_mail(msg, parent_id=None):
     )
     mail.save()
 
+    # RUN ANALYZER ON FULL EMAIL
+    check_cortex(mail_filepath, "file", mail, is_mail=True)
+
     for addr_item, addr_type in addresses_list:
         addr_obj = Mail_Addresses(mail=mail, address=addr_item, field=addr_type)
         addr_obj.save()
@@ -527,6 +553,9 @@ def process_mail(msg, parent_id=None):
 
         process_attachment(filepath, mail, mess_att, parent_id)
 
+    # DELETE MAIL TEMP FILE
+    clean_file(mail_filepath)
+
 
 def clean_file(filepath):
     """ clean a file or log error """
@@ -541,11 +570,21 @@ def main():
 
     clean = True
     if clean:
+        Address.objects.all().delete()
         Ioc.objects.all().delete()
         Mail.objects.all().delete()
         Report.objects.all().delete()
         Attachment.objects.all().delete()
-        [shutil.rmtree("/tmp/{}".format(x)) for x in os.listdir("/tmp")]
+        [
+            shutil.rmtree("/tmp/{}".format(x))
+            for x in os.listdir("/tmp")
+            if os.path.isdir(x)
+        ]
+        [
+            os.remove("/tmp/{}".format(x))
+            for x in os.listdir("/tmp")
+            if os.path.isfile(x)
+        ]
 
     _, data = inbox.search(None, "(ALL)")
     email_list = list(reversed(data[0].split()))
@@ -554,12 +593,14 @@ def main():
 
         # IF PARSE FAILS IGNORE
         try:
-            msg = mailparser.parse_from_bytes(data[0][1])
+            content = data[0][1]
+            filepath = store_mail(content)
+            msg = mailparser.parse_from_bytes(content)
         except Exception as e:
             logging.error(e)
             continue
         logging.debug("PARSING MAIL {}".format(number))
-        process_mail(msg)
+        process_mail(msg, filepath=filepath)
 
 
 if __name__ == "__main__":

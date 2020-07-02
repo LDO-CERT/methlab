@@ -29,7 +29,7 @@ def home(request):
     table_i = IocTable(
         Mail.objects.all()
         .values("iocs__ip", "iocs__domain")
-        .annotate(total=Count("iocs__ip"))
+        .annotate(total=Count("iocs"))
         .order_by("-total"),
         prefix="i_",
     )

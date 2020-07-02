@@ -60,6 +60,15 @@ class Analyzer(models.Model):
 
 
 class Report(models.Model):
+
+    LEVEL = (
+        (0, "none"),
+        (1, "info"),
+        (2, "safe"),
+        (3, "suspicious"),
+        (4, "malicious"),
+    )
+
     response = JSONField(blank=True, null=True)
     analyzer = models.ForeignKey(
         Analyzer, on_delete=models.CASCADE, blank=True, null=True
@@ -67,6 +76,7 @@ class Report(models.Model):
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
     object_id = models.PositiveIntegerField()
     content_object = GenericForeignKey("content_type", "object_id")
+    taxonomies = ArrayField(models.CharField(max_length=50), blank=True, null=True)
 
 
 class Address(models.Model):
