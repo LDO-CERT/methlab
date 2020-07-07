@@ -68,3 +68,9 @@ tqdm==4.47.0
 glom==20.5.0
 # https://github.com/rthalley/dnspython
 dnspython==2.0.0rc2
+# https://github.com/tomas-net/ip2geotools
+ip2geotools==0.1.5
+# https://github.com/DannyCork/python-whois/
+whois==0.9.7
+# https://github.com/secynic/ipwhois
+ipwhois==1.1.0

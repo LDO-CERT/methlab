@@ -20,7 +20,7 @@ def home(request):
     table_l = table_m = LatestMailTable(
         Mail.external_objects.all().order_by("-date"), prefix="l_",
     )
-    table_l.paginate(page=request.GET.get("l_page", 1), per_page=10)
+    table_l.paginate(page=request.GET.get("l_page", 1), per_page=50)
 
     table_m = MailTable(
         Mail.external_objects.all()

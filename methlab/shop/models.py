@@ -137,6 +137,7 @@ class Ioc(models.Model):
     ip = models.GenericIPAddressField(blank=True, null=True)
     urls = ArrayField(models.CharField(max_length=500), blank=True, null=True)
     domain = models.CharField(max_length=200, blank=True, null=True)
+    whois = JSONField(blank=True, null=True)
 
     def __str__(self):
         return self.ip if self.ip else self.domain
@@ -157,6 +158,7 @@ class Mail(models.Model):
     )
     received = JSONField(blank=True, null=True)
     headers = JSONField(blank=True, null=True)
+    geo_info = JSONField(blank=True, null=True)
     body = models.TextField(blank=True, null=True)
     sender_ip_address = models.CharField(max_length=50, blank=True, null=True)
     to_domains = ArrayField(models.CharField(max_length=500), blank=True, null=True)

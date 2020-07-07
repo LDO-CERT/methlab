@@ -31,6 +31,9 @@ import mailparser  # noqa
 import dateutil  # noqa
 import magic  # noqa
 import hashlib  # noqa
+import whois  # noqa
+
+# from ipwhois import IPWhois  # noqa
 from tnefparse import TNEF  # noqa
 from zipfile import ZipFile, is_zipfile  # noqa
 from django.utils import timezone  # noqa
@@ -38,6 +41,7 @@ from imaplib import IMAP4  # noqa
 from dateutil.parser import parse  # noqa
 from tldextract import extract  # noqa
 from cortex4py.api import Api  # noqa
+from ip2geotools.databases.noncommercial import MaxMindGeoLite2City  # noqa
 
 from ioc_finder import (  # noqa
     parse_urls,
@@ -385,7 +389,9 @@ def process_attachment(filepath, mail, mess_att, parent_id):
             else:
                 # Zipped and multiple files, skip
                 logging.error(
-                    "ATTACHMENT {} is zipped but with more than 1 file".format(filepath)
+                    "ATTACHMENT {} is zipped but with more than 1 file - {}".format(
+                        filepath, fileext
+                    )
                 )
                 clean_file(filepath)
                 return False
@@ -467,14 +473,19 @@ def find_ioc(payload, mail):
 
     # EXTRACT URL, CHECK IF WL AND GET REPORT
     for url in parse_urls(payload):
+        whois_info = None
         url = url.split(">")[0].rstrip('"].').strip("/").lower()
         domain = ".".join(part for part in extract(url) if part)
         if domain in [x.value for x in all_wl if x.type == "domain"]:
             logging.debug("IOC url: {} WL".format(url))
             continue
         ioc, created = Ioc.objects.get_or_create(domain=domain,)
+        if created:
+            whois_info = whois.query(domain)
+
         if ioc.urls and url not in ioc.urls:
             ioc.urls.append(url)
+            ioc.whois = whois_info
             ioc.save()
         elif not ioc.urls:
             ioc.urls = [url]
@@ -489,10 +500,15 @@ def find_ioc(payload, mail):
         + parse_ipv4_cidrs(payload)
         + parse_ipv6_addresses(payload)
     ):
+        whois_info = None
         if ip in [x.value for x in all_wl if x.type == "ip"]:
             logging.debug("IOC ip: {} WL".format(ip))
             continue
         ioc, created = Ioc.objects.get_or_create(ip=ip)
+        # if created:
+        # whois_info = IPWhois(ip).lookup_rdap(depth=1)
+        ioc.whois = whois_info
+        ioc.save()
         mail.iocs.add(ioc)
         if check_cortex(ip, "ip", ioc):
             return True
@@ -524,6 +540,8 @@ def process_mail(msg, parent_id=None, mail_filepath=None):
     flags = []
 
     mail_wl = Whitelist.objects.filter(type="address")
+
+    geo_info = None
 
     # CHECK ADDRESSES AND ASSIGN FLAGS
     addresses_list = []
@@ -607,11 +625,19 @@ def process_mail(msg, parent_id=None, mail_filepath=None):
     # CHECK SPF & INTERNAL FROM FIRST HOP
     first_hop = next(iter(msg.received), None)
     if first_hop:
+        from pprint import pprint
+
+        pprint(first_hop)
+
         ip = parse_ipv4_addresses(first_hop.get("from", []))
         domain = first_hop.get("by", None)
 
         if len(ip) > 0 and domain:
             ip = ip[0]
+            try:
+                geo_info = MaxMindGeoLite2City.get(ip, api_key="free").to_json()
+            except Exception as e:
+                logging.error(e)
             domain = domain.split()[0]
             sender = msg.from_[0][1]
             spf_check = spf.check(s=sender, i=ip, h=domain)
@@ -646,6 +672,7 @@ def process_mail(msg, parent_id=None, mail_filepath=None):
         body=msg.body,
         sender_ip_address=msg.get_server_ipaddress(info.imap_server),
         to_domains=msg.to_domains,
+        geo_info=geo_info,
     )
     mail.save()
 
