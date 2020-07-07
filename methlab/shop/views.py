@@ -57,7 +57,7 @@ def home(request):
     table_i.paginate(page=request.GET.get("i_page", 1), per_page=10)
     return render(
         request,
-        "base.html",
+        "pages/main.html",
         {
             "table_l": table_l,
             "table_m": table_m,

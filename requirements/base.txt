@@ -1,39 +1,70 @@
-pytz==2020.1  # https://github.com/stub42/pytz
-python-slugify==4.0.0  # https://github.com/un33k/python-slugify
-Pillow==7.1.2  # https://github.com/python-pillow/Pillow
-argon2-cffi==19.2.0  # https://github.com/hynek/argon2_cffi
-whitenoise==5.0.1  # https://github.com/evansd/whitenoise
-redis==3.5.0  # https://github.com/andymccurdy/redis-py
-hiredis==1.0.1  # https://github.com/redis/hiredis-py
-python-ldap==3.2.0  # https://github.com/python-ldap/python-ldap
+# https://github.com/stub42/pytz
+pytz==2020.1
+# https://github.com/un33k/python-slugify
+python-slugify==4.0.0
+# https://github.com/python-pillow/Pillow
+Pillow==7.1.2
+# https://github.com/hynek/argon2_cffi
+argon2-cffi==19.2.0
+# https://github.com/evansd/whitenoise
+whitenoise==5.0.1
+# https://github.com/andymccurdy/redis-py
+redis==3.5.0
+# https://github.com/redis/hiredis-py
+hiredis==1.0.1
+# https://github.com/python-ldap/python-ldap
+python-ldap==3.2.0
 
 # Django
 # ------------------------------------------------------------------------------
-django==3.0.7  # pyup: < 3.1  # https://www.djangoproject.com/
-django-environ==0.4.5  # https://github.com/joke2k/django-environ
-django-model-utils==4.0.0  # https://github.com/jazzband/django-model-utils
-django-crispy-forms==1.9.1  # https://github.com/django-crispy-forms/django-crispy-forms
-django-redis==4.12.1  # https://github.com/jazzband/django-redis
-django-auth-ldap==2.2.0 # https://github.com/django-auth-ldap/django-auth-ldap
-django-colorfield==0.3.1  # https://github.com/fabiocaccamo/django-colorfield
-django-better-admin-arrayfield==1.1.0  # https://github.com/gradam/django-better-admin-arrayfield
-django-taggit==1.3.0  # https://github.com/jazzband/django-taggit
-django-import-export==2.2.0  # https://github.com/django-import-export/django-import-export
+# https://www.djangoproject.com/
+django==3.0.7  # pyup: < 3.1
+# https://github.com/joke2k/django-environ
+django-environ==0.4.5
+# https://github.com/jazzband/django-model-utils
+django-model-utils==4.0.0
+# https://github.com/django-crispy-forms/django-crispy-forms
+django-crispy-forms==1.9.1
+# https://github.com/jazzband/django-redis
+django-redis==4.12.1
+# https://github.com/django-auth-ldap/django-auth-ldap
+django-auth-ldap==2.2.
+# https://github.com/fabiocaccamo/django-colorfield
+django-colorfield==0.3.1
+# https://github.com/gradam/django-better-admin-arrayfield
+django-better-admin-arrayfield==1.1.0
+# https://github.com/jazzband/django-taggit
+django-taggit==1.3.0
+# https://github.com/django-import-export/django-import-export
+django-import-export==2.2.0
+# https://github.com/jieter/django-tables2/
+django-tables2==2.3.1
+# https://github.com/jmrivas86/django-json-widget
+django-json-widget==1.0.1
 
 # Varie
 # ------------------------------------------------------------------------------
-ioc-finder==3.0.0  # https://github.com/fhightower/ioc-finder
+# https://github.com/fhightower/ioc-finder
+ioc-finder==3.0.0
 # mail-parser==3.12.0  # https://github.com/SpamScope/mail-parser
 -e git+https://github.com/dadokkio/mail-parser.git#egg=mail-parser
-pyspf==2.0.14  # https://github.com/sdgathman/pyspf
-dnspython==1.16.0  # http://www.dnspython.org/
-tldextract==2.2.2  # https://github.com/john-kurkowski/tldextract
-cortex4py==2.0.1  # https://github.com/TheHive-Project/Cortex4py
-python-magic==0.4.18  # https://github.com/ahupp/python-magic
-aioimaplib==0.7.18  # https://github.com/bamthomas/aioimaplib
-tnefparse==1.3.0 # https://github.com/koodaamo/tnefparse
-compressed_rtf==1.0.6  # https://github.com/delimitry/compressed_rtf
-tqdm==4.47.0  # https://github.com/tqdm/tqdm
-django-tables2==2.3.1  # https://github.com/jieter/django-tables2/
-django-json-widget==1.0.1  # https://github.com/jmrivas86/django-json-widget
-glom==20.5.0  # https://github.com/mahmoud/glom
+# https://github.com/sdgathman/pyspf
+pyspf==2.0.14
+# https://github.com/john-kurkowski/tldextract
+tldextract==2.2.2
+# https://github.com/TheHive-Project/Cortex4py
+cortex4py==2.0.1
+# https://github.com/ahupp/python-magic
+python-magic==0.4.18
+# https://github.com/bamthomas/aioimaplib
+aioimaplib==0.7.18
+# https://github.com/koodaamo/tnefparse
+tnefparse==1.3.0
+# https://github.com/delimitry/compressed_rtf
+compressed_rtf==1.0.6
+# https://github.com/tqdm/tqdm
+tqdm==4.47.0
+# https://github.com/mahmoud/glom
+glom==20.5.0
+# https://github.com/rthalley/dnspython
+dnspython==2.0.0rc2

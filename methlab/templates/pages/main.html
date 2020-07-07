@@ -1,0 +1,82 @@
+{% extends "base.html" %} 
+{% load render_table from django_tables2 %} 
+{% load static i18n %} 
+
+{% block container %}
+<section class="py-5 text-center container">
+  <div class="row py-lg-5">
+    <div class="col-lg-6 col-md-8 mx-auto">
+      <h1 class="font-weight-light">
+        <img src="{% static 'images/meth.gif' %}" />
+      </h1>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <h5 class="card-title">Email Analyzed</h5>
+          <p><span style="font-size: 80px;">{{email_count}}</span></p>
+        </div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <h5 class="card-title">Suspicious</h5>
+          <p><span style="font-size: 80px;">{{suspicious}}</span></p>
+        </div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <h5 class="card-title">Malicious</h5>
+          <p><span style="font-size: 80px;">{{malicious}}</span></p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="album py-5 bg-light">
+  <div class="container">
+    <div class="row row-cols-1 row-cols-md-2 g-4">
+      <div class="col-md-12">
+        <div class="card shadow-sm h-100">
+          <div class="card-body">
+            <h5 class="card-title">Latest email</h5>
+            {% render_table table_l %}
+          </div>
+        </div>
+      </div>
+
+      <div class="col">
+        <div class="card shadow-sm h-100">
+          <div class="card-body">
+            <h5 class="card-title">Common Subjects</h5>
+            {% render_table table_m %}
+          </div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="card shadow-sm h-100">
+          <div class="card-body">
+            <h5 class="card-title">Common Ioc</h5>
+            {% render_table table_i %}
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-12">
+        <div class="card shadow-sm h-100">
+          <div class="card-body">
+            <h5 class="card-title">Common hashes</h5>
+            {% render_table table_a %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock container %}
