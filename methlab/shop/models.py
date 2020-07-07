@@ -77,6 +77,7 @@ class Report(models.Model):
     object_id = models.PositiveIntegerField()
     content_object = GenericForeignKey("content_type", "object_id")
     taxonomies = ArrayField(models.CharField(max_length=50), blank=True, null=True)
+    success = models.BooleanField(default=False)
 
 
 class Address(models.Model):
@@ -141,6 +142,11 @@ class Ioc(models.Model):
         return self.ip if self.ip else self.domain
 
 
+class MailManager(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().exclude(tags__name__in=["SecInc"])
+
+
 class Mail(models.Model):
     parent = models.ForeignKey("self", blank=True, null=True, on_delete=models.CASCADE)
     message_id = models.CharField(max_length=1000)
@@ -158,6 +164,8 @@ class Mail(models.Model):
     attachments = models.ManyToManyField(Attachment, related_name="attachments")
     flags = models.ManyToManyField(Flag, related_name="flags", through="Mail_Flag")
     tags = TaggableManager()
+    external_objects = MailManager()
+    objects = models.Manager()
 
     @property
     def short_id(self):
@@ -166,6 +174,14 @@ class Mail(models.Model):
     @property
     def short_subject(self):
         return truncatechars(self.subject, 80)
+
+    @property
+    def tag_list(self):
+        return u", ".join(x.name for x in self.tags.all())
+
+    @property
+    def flag_list(self):
+        return u", ".join([x.name for x in self.flags.all()])
 
     def __str__(self):
         return truncatechars(self.subject, 80) if self.subject else ""

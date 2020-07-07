@@ -151,12 +151,6 @@ class MailAdmin(admin.ModelAdmin, DynamicArrayMixin):
     def count_iocs(self, obj):
         return obj.iocs.count()
 
-    def tag_list(self, obj):
-        return u", ".join(o.name for o in obj.tags.all())
-
-    def flag_list(self, obj):
-        return u", ".join([x.name for x in obj.flags.all()])
-
     inlines = [AttachmentInline, AddressesInline, IocInline, FlagInline]
     list_display = (
         "short_id",
@@ -249,12 +243,7 @@ class ReportAdmin(admin.ModelAdmin, DynamicArrayMixin):
         fields.JSONField: {"widget": JSONEditorWidget()},
     }
 
-    list_display = (
-        "analyzer",
-        "content_type",
-        "object_id",
-        "taxonomies",
-    )
+    list_display = ("analyzer", "content_type", "object_id", "taxonomies", "success")
 
 
 class AttachmentAdmin(admin.ModelAdmin):

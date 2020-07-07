@@ -11,6 +11,13 @@ class MailTable(tables.Table):
         fields = ("subject", "total")
 
 
+class LatestMailTable(tables.Table):
+    class Meta:
+        model = Mail
+        template_name = "django_tables2/bootstrap4.html"
+        fields = ("short_subject", "flag_list", "tag_list")
+
+
 class AttachmentTable(tables.Table):
     total = tables.Column(verbose_name="Total")
     attachments__md5 = tables.Column(verbose_name="MD5")

@@ -9,7 +9,6 @@ class Command(BaseCommand):
     help = "Sync Cortex Analyzers"
 
     def handle(self, *args, **kwargs):
-
         analyzers = Analyzer.objects.all()
         analyzers_name = [x.name for x in analyzers]
         if len(analyzers) > 0:
@@ -34,7 +33,11 @@ class Command(BaseCommand):
             cortex_analyzers = [
                 (x.name, x.dataTypeList)
                 for x in cortex_api.analyzers.find_all({}, range="all")
-                if len(set(x.dataTypeList).intersection(("url", "ip", "file", "mail")))
+                if len(
+                    set(x.dataTypeList).intersection(
+                        ("url", "ip", "file", "mail", "hash")
+                    )
+                )
                 > 0
             ]
         except (
@@ -73,7 +76,9 @@ class Command(BaseCommand):
                     name=analyzer,
                     disabled=True,
                     supported_types=[
-                        x for x in supported_types if x in ("url", "ip", "file", "mail")
+                        x
+                        for x in supported_types
+                        if x in ("url", "ip", "file", "mail", "hash")
                     ],
                 )
                 new.save()

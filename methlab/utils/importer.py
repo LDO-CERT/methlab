@@ -16,6 +16,7 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.local")
 django.setup()
 
 from django.core.exceptions import ObjectDoesNotExist  # noqa
+from django.contrib.contenttypes.models import ContentType  # noqa
 
 from tqdm import tqdm  # noqa
 from glom import glom, PathAccessError  # noqa
@@ -89,8 +90,14 @@ else:
 
 
 def store_attachments(msg):
-    """ store attachment to disk """
+    """ Store attachment to disk.
 
+        arguments:
+        - msg: mail containing attachments
+
+        returns:
+        - random_path: path on disk containing attachments
+    """
     random_path = "/tmp/{}".format(uuid.uuid4())
     os.makedirs(random_path)
     msg.write_attachments(random_path)
@@ -99,15 +106,46 @@ def store_attachments(msg):
 
 
 def store_mail(content):
-    """ saves mail as file to send it to cortex analyzers """
+    """ Saves mail as file to send it to cortex analyzers.
+
+        arguments:
+        - content: mail payload to write on disk
+
+        returns:
+        - eml_path: path on disk
+    """
     eml_path = "/tmp/{}.eml".format(uuid.uuid4())
     with open(eml_path, "wb") as f:
         f.write(content)
     return eml_path
 
 
-def check_cortex(ioc, ioc_type, object_id, is_mail=False):
-    """ run all available analyzer for ioc """
+def clean_file(filepath):
+    """ Clean a file or log error.
+
+        arguments:
+        - filepath: path to delete
+    """
+    try:
+        os.remove(filepath)
+    except FileNotFoundError:
+        logging.error("Error deleting {}".format(filepath))
+
+
+def check_cortex(ioc, ioc_type, object_id, mail, is_mail=False):
+    """ Run all available analyzer for ioc.
+
+        arguments:
+        - ioc: value/path of item we need to check on cortex
+        - ioc_type: type of the ioc (generic_relation and cortex datatype)
+        - object_id: item to attach report to
+        - mail: original mail object to add tag if dangerous
+        - is_mail: ioc is a mail [mail datatype is for addresses and file is for mail]
+
+        returns:
+        - True: item is dangerous
+        - False: item is safe
+     """
 
     # Mail object is file in cortex
     # need to save mail object analyzer as mail_obj to discriminate them
@@ -115,7 +153,40 @@ def check_cortex(ioc, ioc_type, object_id, is_mail=False):
     analyzers = Analyzer.objects.filter(
         disabled=False, supported_types__contains=[filter_type]
     ).order_by("-priority")
+
+    if ioc_type == "mail" and is_mail is False:
+        content_type = Address
+    elif ioc_type == "mail" and is_mail is True:
+        content_type = Mail
+    elif ioc_type in ["url", "ip"]:
+        content_type = Ioc
+    elif ioc_type == "file":
+        content_type = Attachment
+    else:
+        logging.error("IOCTYPE {} not managed".format(ioc_type))
+        return False
+
+    old_reports = Report.objects.filter(
+        content_type=ContentType.objects.get_for_model(content_type),
+        object_id=object_id.pk,
+        success=True,
+    )
+
     for analyzer in analyzers:
+
+        for report in old_reports:
+            if report.analyzer == analyzer:
+                logging.debug(
+                    "Analyzer {} for {} already run".format(analyzer.name, ioc)
+                )
+                if "malicious" in report.taxonomies:
+                    mail.tags.add("{}: malicious".format(analyzer.name))
+                    return True
+                elif "suspicious" in report.taxonomies:
+                    mail.tags.add("{}: suspicious".format(analyzer.name))
+                    return True
+                continue
+
         logging.debug("running analyzer {} for {}".format(analyzer.name, ioc))
         try:
             job = cortex_api.analyzers.run_by_name(
@@ -137,10 +208,21 @@ def check_cortex(ioc, ioc_type, object_id, is_mail=False):
                     content_object=object_id,
                     analyzer=analyzer,
                     taxonomies=taxonomies,
+                    success=True,
                 )
                 report.save()
                 logging.debug("done analyzer {} for {}".format(analyzer.name, ioc))
-            elif job.success == "Failure":
+
+                if "malicious" in taxonomies:
+                    mail.tags.add("{}: malicious".format(analyzer.name))
+                elif "suspicious" in taxonomies:
+                    mail.tags.add("{}: suspicious".format(analyzer.name))
+
+            elif job.status == "Failure":
+                report = Report(
+                    content_object=object_id, analyzer=analyzer, success=False,
+                )
+                report.save()
                 logging.error(
                     "ERROR running analyzer {} for {}: {}".format(
                         analyzer.name, ioc, job.errorMessage
@@ -153,7 +235,14 @@ def check_cortex(ioc, ioc_type, object_id, is_mail=False):
 
 
 def get_hashes(filepath):
-    """" get file md5, sha1, sha256 """
+    """" Get file md5, sha1, sha256.
+
+        arguments:
+        - filepath: file to generate md5/sha1/sha256
+
+        returns:
+        - md5/sha1/sha256
+    """
 
     with open(filepath, "rb") as f:
         md5_hash = hashlib.md5()
@@ -171,7 +260,15 @@ def get_hashes(filepath):
 
 
 def is_whitelisted(content_type):
-    """" checks if content_type is whitelisted """
+    """" Checks if content_type is whitelisted.
+
+        arguments:
+        - content_type: attachment content type
+
+        returns:
+        - True: content_type is in whitelist
+        - False: content_type is not in whitelist
+    """
 
     if info.mimetype_whitelist:
         for wl in info.mimetype_whitelist:
@@ -182,7 +279,16 @@ def is_whitelisted(content_type):
 
 
 def process_tnef(filepath, parent_id=None):
-    """ tnef is like an email but parser is different """
+    """ Tnef is like an email but parser is different.
+
+        arguments:
+        - filepath: path of the tnef file
+        - parend_id: id of the parent mail
+
+        returns:
+        - True: tnef email is dangerous
+        - False: tnef email is safe
+    """
 
     with open(filepath, "rb") as tneffile:
         tnef = TNEF(tneffile.read())
@@ -241,11 +347,24 @@ def process_tnef(filepath, parent_id=None):
 
         mess_att = {"mail_content_type": attachment_magic, "payload": attachment.data}
 
-        process_attachment(filepath, mail, mess_att, parent_id)
+        if process_attachment(filepath, mail, mess_att, parent_id):
+            return True
+    return False
 
 
 def process_attachment(filepath, mail, mess_att, parent_id):
-    """ check if attachments is whitelisted, zipped, another mail or text """
+    """ Check if attachments is whitelisted, zipped, another mail or text:
+
+        arguments:
+        - filepath: path of the attachment
+        - mail: mail object attachment is related to
+        - mess_att: attachment obcject
+        - parent_id: parent_id to propagate from mail if attachment is an mail
+
+        returns:
+        - True: attachment is dangerous
+        - False: attachment is safe
+    """
 
     all_wl = Whitelist.objects.all()
     _, fileext = os.path.splitext(mess_att["filename"])
@@ -253,11 +372,10 @@ def process_attachment(filepath, mail, mess_att, parent_id):
 
     if not os.path.exists(filepath):
         logging.error("ERROR: {} does not exists".format(filepath))
-        return
+        return False
 
     # Unzip the attachment if is_zipfile
-    if is_zipfile(filepath) and fileext not in ["jar", "xlsx", "xlsm"]:
-        logging.error("FILEXT: {}".format(fileext))
+    if is_zipfile(filepath) and fileext not in ["jar", "xlsx", "xlsm", "docx"]:
         with ZipFile(filepath, "r") as zipObj:
             objs = zipObj.namelist()
             if len(objs) == 1:
@@ -270,11 +388,11 @@ def process_attachment(filepath, mail, mess_att, parent_id):
                     "ATTACHMENT {} is zipped but with more than 1 file".format(filepath)
                 )
                 clean_file(filepath)
-                return
+                return False
 
     if is_whitelisted(mess_att["mail_content_type"]):
         clean_file(filepath)
-        return
+        return False
 
     # IF MAIL PROCESS RECURSIVELY
     if mess_att["mail_content_type"] in [
@@ -307,7 +425,7 @@ def process_attachment(filepath, mail, mess_att, parent_id):
             x.value for x in all_wl if x.type == "sha256"
         ]:
             clean_file(filepath)
-            return
+            return False
 
         fix_mail_dict = dict((k.replace("-", "_"), v) for k, v in mess_att.items())
         filename = fix_mail_dict["filename"]
@@ -326,11 +444,24 @@ def process_attachment(filepath, mail, mess_att, parent_id):
                 attachment.filename.append(filename)
         attachment.save()
         mail.attachments.add(attachment)
-        check_cortex(filepath, "file", attachment)
+        if check_cortex(filepath, "file", attachment, mail):
+            return True
+
+    # Attachment is safe
+    return False
 
 
 def find_ioc(payload, mail):
-    """" extracts url and ip from text """
+    """" Extracts url and ip from text.
+
+        arguments:
+        - payload: message body
+        - mail: mail item
+
+        returns:
+        - True: some iocs are dangerous
+        - False: all iocs are safe
+    """
 
     all_wl = Whitelist.objects.all()
 
@@ -349,11 +480,8 @@ def find_ioc(payload, mail):
             ioc.urls = [url]
             ioc.save()
         mail.iocs.add(ioc)
-        if created:
-            logging.debug("IOC url: {} new - creating report".format(url))
-            check_cortex(url, "url", ioc)
-        else:
-            logging.debug("IOC url: {} old".format(url))
+        if check_cortex(url, "url", ioc, mail):
+            return True
 
     # EXTRACT IP, CHECK IF WL AND GET REPORT
     for ip in (
@@ -366,15 +494,24 @@ def find_ioc(payload, mail):
             continue
         ioc, created = Ioc.objects.get_or_create(ip=ip)
         mail.iocs.add(ioc)
-        if created:
-            logging.debug("IOC ip: {} new - creating report".format(ip))
-            check_cortex(ip, "ip", ioc)
-        else:
-            logging.debug("IOC ip: {} old".format(ip))
+        if check_cortex(ip, "ip", ioc):
+            return True
+
+    # All IOC as ok, return False
+    return False
 
 
 def process_mail(msg, parent_id=None, mail_filepath=None):
-    """ main workflow for single mail """
+    """ Main workflow for single mail.
+
+        arguments:
+        - msg: mail object
+        - parent_id: parent id of the mail if processed mail was an attachment
+        - mail_filepath: phisycal path of the mail
+
+        returns:
+        - None
+    """
 
     # IF MAIL WAS ALREADY PROCESSED IGNORE
     try:
@@ -512,10 +649,19 @@ def process_mail(msg, parent_id=None, mail_filepath=None):
     )
     mail.save()
 
-    # RUN ANALYZER ON FULL EMAIL
-    check_cortex(mail_filepath, "file", mail, is_mail=True)
+    # RUN ANALYZERS ON FULL EMAIL
+    if check_cortex(mail_filepath, "file", mail, mail, is_mail=True):
+        return
 
     for addr_item, addr_type in addresses_list:
+
+        # RUN ANALYZERS ON EMAIL ADDRESSES
+        if not info.internal_domains or all(
+            [addr_item.address.lower().find(x) == -1 for x in info.internal_domains]
+        ):
+            if check_cortex(addr_item.address, "mail", addr_item, mail, is_mail=False):
+                return
+
         addr_obj = Mail_Addresses(mail=mail, address=addr_item, field=addr_type)
         addr_obj.save()
         if addr_type == "to":
@@ -536,7 +682,8 @@ def process_mail(msg, parent_id=None, mail_filepath=None):
         mf = Mail_Flag(mail=mail, flag=flag, note=note)
         mf.save()
 
-    find_ioc(mail.body, mail)
+    if find_ioc(mail.body, mail):
+        return
 
     # Save attachments
     random_path = store_attachments(msg)
@@ -551,22 +698,15 @@ def process_mail(msg, parent_id=None, mail_filepath=None):
             clean_file(filepath)
             continue
 
-        process_attachment(filepath, mail, mess_att, parent_id)
+        if process_attachment(filepath, mail, mess_att, parent_id):
+            return
 
     # DELETE MAIL TEMP FILE
     clean_file(mail_filepath)
 
 
-def clean_file(filepath):
-    """ clean a file or log error """
-    try:
-        os.remove(filepath)
-    except FileNotFoundError:
-        logging.error("Error deleting {}".format(filepath))
-
-
 def main():
-    """ check mails in inbox """
+    """ check mails in inbox - main loop """
 
     clean = True
     if clean:
@@ -586,8 +726,11 @@ def main():
             if os.path.isfile(x)
         ]
 
-    _, data = inbox.search(None, "(ALL)")
-    email_list = list(reversed(data[0].split()))
+        _, data = inbox.search(None, "(ALL)")
+    else:
+        _, data = inbox.search(None, "(UNSEEN)")
+
+    email_list = list(data[0].split())
     for number in tqdm(email_list):
         _, data = inbox.fetch(number, "(RFC822)")
 
@@ -600,7 +743,7 @@ def main():
             logging.error(e)
             continue
         logging.debug("PARSING MAIL {}".format(number))
-        process_mail(msg, filepath=filepath)
+        process_mail(msg, mail_filepath=filepath)
 
 
 if __name__ == "__main__":
