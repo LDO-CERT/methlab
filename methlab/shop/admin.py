@@ -160,6 +160,7 @@ class MailAdmin(admin.ModelAdmin, DynamicArrayMixin):
         "count_iocs",
         "tag_list",
         "flag_list",
+        "geo_info",
     )
     search_fields = ["subject"]
 
@@ -170,6 +171,10 @@ class MailAdmin(admin.ModelAdmin, DynamicArrayMixin):
 
 
 class ReportInline(GenericTabularInline):
+    formfield_overrides = {
+        fields.JSONField: {"widget": JSONEditorWidget()},
+    }
+
     def has_add_permission(self, request, obj=None):
         return False
 
@@ -182,6 +187,9 @@ class ReportInline(GenericTabularInline):
 
 class IocAdmin(admin.ModelAdmin, DynamicArrayMixin):
     actions = ["add_to_wl"]
+    formfield_overrides = {
+        fields.JSONField: {"widget": JSONEditorWidget()},
+    }
 
     def add_to_wl(self, request, queryset):
         for item in queryset:
@@ -193,7 +201,7 @@ class IocAdmin(admin.ModelAdmin, DynamicArrayMixin):
 
     add_to_wl.short_description = "Add selected iocs to whitelist"
 
-    list_display = ("ip", "domain")
+    list_display = ("ip", "domain", "whois")
     inlines = [ReportInline]
     search_fields = ["ip", "domain"]
 

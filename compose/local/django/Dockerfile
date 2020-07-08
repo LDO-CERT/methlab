@@ -11,7 +11,9 @@ RUN apt-get update \
   # ldap
   && apt-get install -y libsasl2-dev libldap2-dev libssl-dev \
   # git for cloning
-  && apt-get install -y git curl unzip \  
+  && apt-get install -y git curl unzip \ 
+  # whois
+  && apt-get install -y whois \    
   # msg support
   && apt-get install -y libemail-outlook-message-perl \
   # psycopg2 dependencies

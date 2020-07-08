@@ -1,6 +1,7 @@
 import os
 import sys
 import django
+import pdb
 
 sys.path.append("/app")
 
@@ -21,27 +22,29 @@ from django.contrib.contenttypes.models import ContentType  # noqa
 from tqdm import tqdm  # noqa
 from glom import glom, PathAccessError  # noqa
 
+import json  # noqa
 import shutil  # noqa
 import pathlib  # noqa
 import time  # noqa
 import pytz  # noqa
 import uuid  # noqa
 import spf  # noqa
+import datetime  # noqa
 import mailparser  # noqa
 import dateutil  # noqa
 import magic  # noqa
 import hashlib  # noqa
 import whois  # noqa
-
-# from ipwhois import IPWhois  # noqa
+from ipwhois import IPWhois  # noqa
 from tnefparse import TNEF  # noqa
 from zipfile import ZipFile, is_zipfile  # noqa
 from django.utils import timezone  # noqa
+from django.core.serializers.json import DjangoJSONEncoder  # noqa
 from imaplib import IMAP4  # noqa
 from dateutil.parser import parse  # noqa
 from tldextract import extract  # noqa
 from cortex4py.api import Api  # noqa
-from ip2geotools.databases.noncommercial import MaxMindGeoLite2City  # noqa
+from ip2geotools.databases.noncommercial import DbIpCity  # noqa
 
 from ioc_finder import (  # noqa
     parse_urls,
@@ -379,7 +382,7 @@ def process_attachment(filepath, mail, mess_att, parent_id):
         return False
 
     # Unzip the attachment if is_zipfile
-    if is_zipfile(filepath) and fileext not in ["jar", "xlsx", "xlsm", "docx"]:
+    if is_zipfile(filepath) and fileext not in [".jar", ".xlsx", ".xlsm", ".docx"]:
         with ZipFile(filepath, "r") as zipObj:
             objs = zipObj.namelist()
             if len(objs) == 1:
@@ -481,15 +484,19 @@ def find_ioc(payload, mail):
             continue
         ioc, created = Ioc.objects.get_or_create(domain=domain,)
         if created:
-            whois_info = whois.query(domain)
+            try:
+                whois_info = json.dumps(
+                    whois.query(domain).__dict__, cls=DjangoJSONEncoder, default=default
+                )
+            except Exception as e:
+                logging.error(e)
 
         if ioc.urls and url not in ioc.urls:
             ioc.urls.append(url)
-            ioc.whois = whois_info
-            ioc.save()
         elif not ioc.urls:
             ioc.urls = [url]
-            ioc.save()
+        ioc.whois = whois_info
+        ioc.save()
         mail.iocs.add(ioc)
         if check_cortex(url, "url", ioc, mail):
             return True
@@ -505,8 +512,9 @@ def find_ioc(payload, mail):
             logging.debug("IOC ip: {} WL".format(ip))
             continue
         ioc, created = Ioc.objects.get_or_create(ip=ip)
-        # if created:
-        # whois_info = IPWhois(ip).lookup_rdap(depth=1)
+        if created:
+            pdb.set_trace()
+            whois_info = IPWhois(ip).lookup_rdap(depth=1)
         ioc.whois = whois_info
         ioc.save()
         mail.iocs.add(ioc)
@@ -515,6 +523,13 @@ def find_ioc(payload, mail):
 
     # All IOC as ok, return False
     return False
+
+
+def default(o):
+    if isinstance(o, (datetime.date, datetime.datetime)):
+        return o.isoformat()
+    if isinstance(o, set):
+        return list(o)
 
 
 def process_mail(msg, parent_id=None, mail_filepath=None):
@@ -625,17 +640,13 @@ def process_mail(msg, parent_id=None, mail_filepath=None):
     # CHECK SPF & INTERNAL FROM FIRST HOP
     first_hop = next(iter(msg.received), None)
     if first_hop:
-        from pprint import pprint
-
-        pprint(first_hop)
-
         ip = parse_ipv4_addresses(first_hop.get("from", []))
         domain = first_hop.get("by", None)
 
         if len(ip) > 0 and domain:
             ip = ip[0]
             try:
-                geo_info = MaxMindGeoLite2City.get(ip, api_key="free").to_json()
+                geo_info = json.loads(DbIpCity.get(ip, api_key="free").to_json())
             except Exception as e:
                 logging.error(e)
             domain = domain.split()[0]
@@ -758,12 +769,16 @@ def main():
         _, data = inbox.search(None, "(UNSEEN)")
 
     email_list = list(data[0].split())
-    for number in tqdm(email_list):
+    data_list = []
+    for number in tqdm(email_list[400:600]):
         _, data = inbox.fetch(number, "(RFC822)")
+        data_list.append(data[0][1])
+    inbox.close()
+    inbox.logout()
 
+    for content in tqdm(data_list):
         # IF PARSE FAILS IGNORE
         try:
-            content = data[0][1]
             filepath = store_mail(content)
             msg = mailparser.parse_from_bytes(content)
         except Exception as e:
