@@ -1,7 +1,8 @@
 import os
 import sys
 import django
-import pdb
+
+# import pdb
 
 sys.path.append("/app")
 
@@ -485,8 +486,12 @@ def find_ioc(payload, mail):
         ioc, created = Ioc.objects.get_or_create(domain=domain,)
         if created:
             try:
-                whois_info = json.dumps(
-                    whois.query(domain).__dict__, cls=DjangoJSONEncoder, default=default
+                whois_info = json.loads(
+                    json.dumps(
+                        whois.query(domain).__dict__,
+                        cls=DjangoJSONEncoder,
+                        default=default,
+                    )
                 )
             except Exception as e:
                 logging.error(e)
@@ -513,12 +518,11 @@ def find_ioc(payload, mail):
             continue
         ioc, created = Ioc.objects.get_or_create(ip=ip)
         if created:
-            pdb.set_trace()
             whois_info = IPWhois(ip).lookup_rdap(depth=1)
         ioc.whois = whois_info
         ioc.save()
         mail.iocs.add(ioc)
-        if check_cortex(ip, "ip", ioc):
+        if check_cortex(ip, "ip", ioc, mail):
             return True
 
     # All IOC as ok, return False
@@ -646,7 +650,14 @@ def process_mail(msg, parent_id=None, mail_filepath=None):
         if len(ip) > 0 and domain:
             ip = ip[0]
             try:
-                geo_info = json.loads(DbIpCity.get(ip, api_key="free").to_json())
+                geo_info_json = json.loads(DbIpCity.get(ip, api_key="free").to_json())
+                geo_info = {
+                    "type": "Point",
+                    "coordinates": [
+                        geo_info_json["latitude"],
+                        geo_info_json["longitude"],
+                    ],
+                }
             except Exception as e:
                 logging.error(e)
             domain = domain.split()[0]
@@ -683,7 +694,7 @@ def process_mail(msg, parent_id=None, mail_filepath=None):
         body=msg.body,
         sender_ip_address=msg.get_server_ipaddress(info.imap_server),
         to_domains=msg.to_domains,
-        geo_info=geo_info,
+        geom=geo_info,
     )
     mail.save()
 
@@ -770,7 +781,7 @@ def main():
 
     email_list = list(data[0].split())
     data_list = []
-    for number in tqdm(email_list[400:600]):
+    for number in tqdm(email_list[400:520]):
         _, data = inbox.fetch(number, "(RFC822)")
         data_list.append(data[0][1])
     inbox.close()

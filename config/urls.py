@@ -3,12 +3,15 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
 from django.views import defaults as default_views
-from django.views.generic import TemplateView
 from methlab.shop.views import home
+from methlab.shop.models import Mail
+from djgeojson.views import GeoJSONLayerView
+
 
 urlpatterns = [
     path("", home, name="home"),
     path(settings.ADMIN_URL, admin.site.urls),
+    path("data.geojson", GeoJSONLayerView.as_view(model=Mail), name="data",),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 

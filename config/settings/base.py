@@ -68,6 +68,8 @@ INSTALLED_APPS = [
     "import_export",
     "django_tables2",
     "django_json_widget",
+    "leaflet",
+    "djgeojson",
     "methlab.shop.apps.ShopConfig",
 ]
 

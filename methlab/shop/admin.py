@@ -17,6 +17,7 @@ from django.contrib.postgres import fields
 from django_json_widget.widgets import JSONEditorWidget
 from django_better_admin_arrayfield.admin.mixins import DynamicArrayMixin
 from import_export.admin import ImportExportModelAdmin
+from leaflet.admin import LeafletGeoAdmin
 
 # ########################
 # ## TO IMPORT / EXPORT
@@ -118,7 +119,7 @@ class AddressesInline(admin.TabularInline, DynamicArrayMixin):
     extra = 0
 
 
-class MailAdmin(admin.ModelAdmin, DynamicArrayMixin):
+class MailAdmin(LeafletGeoAdmin, DynamicArrayMixin):
 
     formfield_overrides = {
         fields.JSONField: {"widget": JSONEditorWidget()},
@@ -160,7 +161,7 @@ class MailAdmin(admin.ModelAdmin, DynamicArrayMixin):
         "count_iocs",
         "tag_list",
         "flag_list",
-        "geo_info",
+        "geom",
     )
     search_fields = ["subject"]
 

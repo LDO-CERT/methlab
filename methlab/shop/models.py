@@ -6,6 +6,7 @@ from django_better_admin_arrayfield.models.fields import ArrayField  # noqa
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.template.defaultfilters import truncatechars
+from djgeojson.fields import PointField
 
 
 class InternalInfo(models.Model):
@@ -158,7 +159,7 @@ class Mail(models.Model):
     )
     received = JSONField(blank=True, null=True)
     headers = JSONField(blank=True, null=True)
-    geo_info = JSONField(blank=True, null=True)
+    geom = PointField(blank=True, null=True)
     body = models.TextField(blank=True, null=True)
     sender_ip_address = models.CharField(max_length=50, blank=True, null=True)
     to_domains = ArrayField(models.CharField(max_length=500), blank=True, null=True)
@@ -166,8 +167,8 @@ class Mail(models.Model):
     attachments = models.ManyToManyField(Attachment, related_name="attachments")
     flags = models.ManyToManyField(Flag, related_name="flags", through="Mail_Flag")
     tags = TaggableManager()
-    external_objects = MailManager()
     objects = models.Manager()
+    external_objects = MailManager()
 
     @property
     def short_id(self):

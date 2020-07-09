@@ -12,6 +12,8 @@ RUN apt-get update \
   && apt-get install -y libsasl2-dev libldap2-dev libssl-dev \
   # git for cloning
   && apt-get install -y git curl unzip \ 
+  # geo
+  && apt-get install -y binutils libproj-dev gdal-bin \
   # whois
   && apt-get install -y whois \    
   # msg support
