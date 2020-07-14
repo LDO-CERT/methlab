@@ -383,7 +383,13 @@ def process_attachment(filepath, mail, mess_att, parent_id):
         return False
 
     # Unzip the attachment if is_zipfile
-    if is_zipfile(filepath) and fileext not in [".jar", ".xlsx", ".xlsm", ".docx"]:
+    if is_zipfile(filepath) and fileext not in [
+        ".jar",
+        ".xlsx",
+        ".xlsm",
+        ".docx",
+        ".pptx",
+    ]:
         with ZipFile(filepath, "r") as zipObj:
             objs = zipObj.namelist()
             if len(objs) == 1:
@@ -518,7 +524,10 @@ def find_ioc(payload, mail):
             continue
         ioc, created = Ioc.objects.get_or_create(ip=ip)
         if created:
-            whois_info = IPWhois(ip).lookup_rdap(depth=1)
+            try:
+                whois_info = IPWhois(ip).lookup_rdap(depth=1)
+            except:
+                pass
         ioc.whois = whois_info
         ioc.save()
         mail.iocs.add(ioc)
@@ -654,8 +663,8 @@ def process_mail(msg, parent_id=None, mail_filepath=None):
                 geo_info = {
                     "type": "Point",
                     "coordinates": [
-                        geo_info_json["latitude"],
                         geo_info_json["longitude"],
+                        geo_info_json["latitude"],
                     ],
                 }
             except Exception as e:
@@ -757,7 +766,7 @@ def process_mail(msg, parent_id=None, mail_filepath=None):
 def main():
     """ check mails in inbox - main loop """
 
-    clean = True
+    clean = False
     if clean:
         Address.objects.all().delete()
         Ioc.objects.all().delete()
@@ -781,7 +790,7 @@ def main():
 
     email_list = list(data[0].split())
     data_list = []
-    for number in tqdm(email_list[400:520]):
+    for number in tqdm(email_list):
         _, data = inbox.fetch(number, "(RFC822)")
         data_list.append(data[0][1])
     inbox.close()

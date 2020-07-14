@@ -14,6 +14,7 @@
       rel="stylesheet"
     />
     <link href="{% static 'css/project.css' %}" rel="stylesheet" />
+    <link href="{% static 'css/style.css' %}" rel="stylesheet" />
     {% block extra_css %} {% endblock extra_css %}
   </head>
 
@@ -39,8 +40,8 @@
                 <a class="nav-link" aria-current="page" href="/admin">Admin</a>
               </li>
             </ul>
-            <!--
-            <form class="d-flex">
+
+            <form class="d-flex" action="{% url 'search' %}">
               <input
                 class="form-control mr-2"
                 type="search"
@@ -51,7 +52,6 @@
                 Search
               </button>
             </form>
-            -->
           </div>
         </div>
       </nav>

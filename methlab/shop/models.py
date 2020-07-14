@@ -1,12 +1,20 @@
 from django.db import models
+
 from colorfield.fields import ColorField
+
 from taggit.managers import TaggableManager
+
+from django.contrib.postgres.indexes import GinIndex
+import django.contrib.postgres.search as pg_search
 from django.contrib.postgres.fields import JSONField, ArrayField
+
 from django_better_admin_arrayfield.models.fields import ArrayField  # noqa
+
+from djgeojson.fields import PointField
+
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.template.defaultfilters import truncatechars
-from djgeojson.fields import PointField
 
 
 class InternalInfo(models.Model):
@@ -167,8 +175,14 @@ class Mail(models.Model):
     attachments = models.ManyToManyField(Attachment, related_name="attachments")
     flags = models.ManyToManyField(Flag, related_name="flags", through="Mail_Flag")
     tags = TaggableManager()
+
+    search_vector = pg_search.SearchVectorField(null=True)
+
     objects = models.Manager()
     external_objects = MailManager()
+
+    class Meta:
+        indexes = [GinIndex(fields=["search_vector"])]
 
     @property
     def short_id(self):

@@ -1,3 +1,4 @@
+from django.http import HttpResponse
 from django.shortcuts import render
 from django.db.models import Count
 from taggit.models import Tag
@@ -20,11 +21,11 @@ def home(request):
     table_l = table_m = LatestMailTable(
         Mail.external_objects.all().order_by("-date"), prefix="l_",
     )
-    table_l.paginate(page=request.GET.get("l_page", 1), per_page=50)
+    table_l.paginate(page=request.GET.get("l_page", 1), per_page=25)
 
     table_m = MailTable(
         Mail.external_objects.all()
-        .values("subject")
+        .values("subject", "pk")
         .annotate(total=Count("subject"))
         .order_by("-total"),
         prefix="m_",
@@ -68,3 +69,15 @@ def home(request):
             "malicious": malicious,
         },
     )
+
+
+def campaign_detail(request, pk):
+    return HttpResponse(pk)
+
+
+def mail_detail(request, pk):
+    return HttpResponse(pk)
+
+
+def search(request):
+    return HttpResponse("search")

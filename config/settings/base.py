@@ -244,3 +244,14 @@ AUTH_LDAP_USER_SEARCH = LDAPSearch(
     ldap.SCOPE_SUBTREE,
     env("AUTH_LDAP_USER_SEARCH_ALIAS"),
 )
+
+# # LEAFLET
+# ------------------------------------------------------------------------------
+
+LEAFLET_CONFIG = {
+    "DEFAULT_CENTER": (45.0, -15.0),
+    "DEFAULT_ZOOM": 2,
+    "MIN_ZOOM": 1,
+    "MAX_ZOOM": 10,
+    "DEFAULT_PRECISION": 6,
+}

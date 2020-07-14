@@ -1,0 +1,10 @@
+.leaflet-container {
+  /* all maps */
+  width: 100%;
+  height: 500px;
+}
+
+/* Resize the "display_raw" textbox */
+.django-leaflet-raw-textarea {
+  width: 100%;
+}
