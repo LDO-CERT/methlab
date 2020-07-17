@@ -150,15 +150,21 @@
             if (!node.path) {return false;}
           }
         }
+        {% if mail.received %}
         const received_cont = document.getElementById("js_received")
         const received_editor = new JSONEditor(received_cont, options)
         received_editor.set({{mail.received|safe}})
+        {% endif %}
+        {% if mail.header %}
         const header_cont = document.getElementById("js_header")
         const header_editor = new JSONEditor(header_cont, options)
         header_editor.set({{mail.header|safe}})         
+        {% endif %}
+        {% if mail.geom %}
         function main_map_init (map, options) {
           L.geoJson({{mail.geom|safe}}).addTo(map);
         }
+        {% endif %}
     </script>
 
 </section>
