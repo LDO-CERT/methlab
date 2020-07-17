@@ -115,7 +115,11 @@ class Attachment(models.Model):
     sha256 = models.CharField(max_length=64, blank=True, null=True, unique=True)
 
     def __str__(self):
-        return self.filename if self.filename else ""
+        return (
+            "{} {}".format(self.filename.self.md5)
+            if self.filename
+            else "{}".format(self.md5)
+        )
 
 
 class Flag(models.Model):

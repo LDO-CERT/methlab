@@ -1,5 +1,5 @@
 from django.http import HttpResponse
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from django.db.models import Count
 from taggit.models import Tag
 from methlab.shop.models import Mail, Whitelist
@@ -25,7 +25,7 @@ def home(request):
 
     table_m = MailTable(
         Mail.external_objects.all()
-        .values("subject", "pk")
+        .values("subject")
         .annotate(total=Count("subject"))
         .order_by("-total"),
         prefix="m_",
@@ -76,7 +76,8 @@ def campaign_detail(request, pk):
 
 
 def mail_detail(request, pk):
-    return HttpResponse(pk)
+    mail = get_object_or_404(Mail, pk=pk)
+    return render(request, "pages/detail.html", {"mail": mail})
 
 
 def search(request):

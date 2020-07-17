@@ -5,7 +5,6 @@ from methlab.shop.models import Attachment, Ioc, Mail
 
 class MailTable(tables.Table):
     total = tables.Column(verbose_name="Total")
-    link = tables.LinkColumn("mail_detail", text=">>>", args=[A("pk")], orderable=False)
 
     class Meta:
         model = Mail
