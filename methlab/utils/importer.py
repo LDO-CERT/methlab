@@ -36,7 +36,7 @@ import dateutil  # noqa
 import magic  # noqa
 import hashlib  # noqa
 import whois  # noqa
-from email.utils import parseaddr  # noqa
+import dns.resolver  # noqa
 from ipwhois import IPWhois  # noqa
 from tnefparse import TNEF  # noqa
 from zipfile import ZipFile, is_zipfile  # noqa
@@ -527,7 +527,7 @@ def find_ioc(payload, mail):
         if created:
             try:
                 whois_info = IPWhois(ip).lookup_rdap(depth=1)
-            except:
+            except Exception:
                 pass
         ioc.whois = whois_info
         ioc.save()
@@ -575,8 +575,9 @@ def process_mail(msg, parent_id=None, mail_filepath=None):
     # CHECK ADDRESSES AND ASSIGN FLAGS
     addresses_list = []
     for (name, address_from) in msg.from_:
-        if not parseaddr(address_from):
+        if address_from == "":
             continue
+
         name = name.capitalize()
         address_from = address_from.lower()
         if address_from in [x.value for x in mail_wl]:
@@ -588,6 +589,15 @@ def process_mail(msg, parent_id=None, mail_filepath=None):
         elif name not in address.name:
             address.name.append(name)
         address.domain = address_from.split("@")[-1]
+        try:
+            address.mx_check = "\n".join(
+                [
+                    "{}: {}".format(rdata.exchange, rdata.preference)
+                    for rdata in dns.resolver.resolve(address.domain, "MX")
+                ]
+            )
+        except Exception:
+            pass
         address.save()
         addresses_list.append((address, "from"))
         other_addresses = parse_email_addresses(name)
@@ -606,7 +616,7 @@ def process_mail(msg, parent_id=None, mail_filepath=None):
                     )
 
     for (name, address_to) in msg.to:
-        if not parseaddr(address_to):
+        if address_to == "":
             continue
         name = name.capitalize()
         address_to = address_to.lower()
@@ -620,7 +630,7 @@ def process_mail(msg, parent_id=None, mail_filepath=None):
         addresses_list.append((address, "to"))
 
     for (name, address_bcc) in msg.bcc:
-        if not parseaddr(address_bcc):
+        if address_bcc == "":
             continue
         name = name.capitalize()
         address_bcc = address_bcc.lower()
@@ -634,7 +644,7 @@ def process_mail(msg, parent_id=None, mail_filepath=None):
         addresses_list.append((address, "bcc"))
 
     for (name, address_cc) in msg.cc:
-        if not parseaddr(address_cc):
+        if address_cc == "":
             continue
         name = name.capitalize()
         address_cc = address_cc.lower()
@@ -648,7 +658,7 @@ def process_mail(msg, parent_id=None, mail_filepath=None):
         addresses_list.append((address, "cc"))
 
     for (name, address_reply_to) in msg.reply_to:
-        if not parseaddr(address_reply_to):
+        if address_reply_to == "":
             continue
         name = name.capitalize()
         address_reply_to = address_reply_to.lower()
@@ -743,6 +753,10 @@ def process_mail(msg, parent_id=None, mail_filepath=None):
         elif addr_type == "cc":
             if info.security_emails and addr_obj.address in info.security_emails:
                 mail.tags.add("SecInc")
+        elif addr_type == "from":
+            if check_cortex(address.address, "mail", address, mail):
+                return
+
     if mail.tags.count() == 0:
         mail.tags.add("Hunting")
 

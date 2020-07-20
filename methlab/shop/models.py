@@ -94,6 +94,7 @@ class Address(models.Model):
     name = ArrayField(models.CharField(max_length=500), blank=True, null=True)
     address = models.EmailField(unique=True)
     domain = models.CharField(max_length=500)
+    mx_check = models.TextField(blank=True, null=True)
 
     reports = GenericRelation(Report, related_name="addresses")
 
