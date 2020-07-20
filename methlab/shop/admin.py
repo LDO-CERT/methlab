@@ -146,12 +146,6 @@ class MailAdmin(LeafletGeoAdmin, DynamicArrayMixin):
             .prefetch_related("tags", "attachments", "flags", "iocs")
         )
 
-    def count_attachments(self, obj):
-        return obj.attachments.count()
-
-    def count_iocs(self, obj):
-        return obj.iocs.count()
-
     inlines = [AttachmentInline, AddressesInline, IocInline, FlagInline]
     list_display = (
         "short_id",

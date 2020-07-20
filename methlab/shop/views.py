@@ -19,7 +19,12 @@ def home(request):
     malicious = Mail.external_objects.filter(tags__name__in=malicious_tags).count()
 
     table_l = table_m = LatestMailTable(
-        Mail.external_objects.all().order_by("-date"), prefix="l_",
+        Mail.external_objects.prefetch_related(
+            "addresses", "iocs", "attachments", "tags", "flags"
+        )
+        .all()
+        .order_by("-date"),
+        prefix="l_",
     )
     table_l.paginate(page=request.GET.get("l_page", 1), per_page=25)
 
@@ -76,7 +81,12 @@ def campaign_detail(request, pk):
 
 
 def mail_detail(request, pk):
-    mail = get_object_or_404(Mail, pk=pk)
+    mail = get_object_or_404(
+        Mail.objects.prefetch_related(
+            "addresses", "iocs", "attachments", "tags", "flags"
+        ),
+        pk=pk,
+    )
     return render(request, "pages/detail.html", {"mail": mail})
 
 

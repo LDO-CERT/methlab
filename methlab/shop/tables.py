@@ -18,7 +18,13 @@ class LatestMailTable(tables.Table):
     class Meta:
         model = Mail
         template_name = "django_tables2/bootstrap4.html"
-        fields = ("short_subject", "flag_list", "tag_list")
+        fields = (
+            "short_subject",
+            "flag_list",
+            "tag_list",
+            "count_attachments",
+            "count_iocs",
+        )
 
 
 class AttachmentTable(tables.Table):

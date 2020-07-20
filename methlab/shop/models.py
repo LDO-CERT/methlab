@@ -12,7 +12,8 @@ from django_better_admin_arrayfield.models.fields import ArrayField  # noqa
 
 from djgeojson.fields import PointField
 
-from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelation
+
 from django.contrib.contenttypes.models import ContentType
 from django.template.defaultfilters import truncatechars
 
@@ -94,6 +95,8 @@ class Address(models.Model):
     address = models.EmailField(unique=True)
     domain = models.CharField(max_length=500)
 
+    reports = GenericRelation(Report, related_name="addresses")
+
     class Meta:
         verbose_name_plural = "addresses"
 
@@ -114,9 +117,11 @@ class Attachment(models.Model):
     sha1 = models.CharField(max_length=40, blank=True, null=True, unique=True)
     sha256 = models.CharField(max_length=64, blank=True, null=True, unique=True)
 
+    reports = GenericRelation(Report, related_name="attachments")
+
     def __str__(self):
         return (
-            "{} {}".format(self.filename.self.md5)
+            "{} {}".format(self.filename, self.md5)
             if self.filename
             else "{}".format(self.md5)
         )
@@ -152,6 +157,8 @@ class Ioc(models.Model):
     domain = models.CharField(max_length=200, blank=True, null=True)
     whois = JSONField(blank=True, null=True)
 
+    reports = GenericRelation(Report, related_name="iocs")
+
     def __str__(self):
         return self.ip if self.ip else self.domain
 
@@ -180,6 +187,8 @@ class Mail(models.Model):
     flags = models.ManyToManyField(Flag, related_name="flags", through="Mail_Flag")
     tags = TaggableManager()
 
+    reports = GenericRelation(Report, related_name="mails")
+
     search_vector = pg_search.SearchVectorField(null=True)
 
     objects = models.Manager()
@@ -203,6 +212,14 @@ class Mail(models.Model):
     @property
     def flag_list(self):
         return u", ".join([x.name for x in self.flags.all()])
+
+    @property
+    def count_attachments(self):
+        return self.attachments.count()
+
+    @property
+    def count_iocs(self):
+        return self.iocs.count()
 
     def __str__(self):
         return truncatechars(self.subject, 80) if self.subject else ""

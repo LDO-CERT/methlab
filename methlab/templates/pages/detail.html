@@ -123,18 +123,54 @@
           {% if mail.iocs.all %}
           <div class="tab-pane fade show" id="iocs" role="tabpanel" aria-labelledby="iocs-tab">
             <div style="padding: 20px;">
-              {% for ioc in mail.iocs.all %}
-                {{ioc}}
-              {% endfor %}
+              <table class="table">
+                <thead>
+                  <tr>
+                    <td>Ioc</td>
+                    <td>Report</td>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for ioc in mail.iocs.all %}
+                  <tr>
+                    <td>{{ioc}}</td>
+                    <td>
+                      {% for report in ioc.reports.all %}
+                        {{report.analyzer.name}} - {{report.analyzer.taxonomies}}<br/>
+                      {% endfor %}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
             </div>
           </div>
           {% endif %}          
           {% if mail.attachments.all %}
           <div class="tab-pane fade show" id="attachments" role="tabpanel" aria-labelledby="attachments-tab">
             <div style="padding: 20px;">
-              {% for attachment in mail.attachments.all %}
-                {{attachment}}
-              {% endfor %}
+              <table class="table">
+                <thead>
+                  <tr>
+                    <td>Filename</td>
+                    <td>md5</td>
+                    <td>sha256</td>
+                    <td>Report</td>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for attachment in mail.attachments.all %}
+                  <tr>
+                    <td>{{attachment.filename}}</td>
+                    <td>{{attachment.md5}}</td>
+                    <td>{{attachment.sha256}}</td>
+                    <td>
+                      {% for report in attachment.reports.all %}
+                        {{report.analyzer.name}} - {{report.analyzer.taxonomies}}<br/>
+                      {% endfor %}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
             </div>
           </div>
           {% endif %}           

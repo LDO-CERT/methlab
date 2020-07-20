@@ -36,6 +36,7 @@ import dateutil  # noqa
 import magic  # noqa
 import hashlib  # noqa
 import whois  # noqa
+from email.utils import parseaddr  # noqa
 from ipwhois import IPWhois  # noqa
 from tnefparse import TNEF  # noqa
 from zipfile import ZipFile, is_zipfile  # noqa
@@ -574,6 +575,8 @@ def process_mail(msg, parent_id=None, mail_filepath=None):
     # CHECK ADDRESSES AND ASSIGN FLAGS
     addresses_list = []
     for (name, address_from) in msg.from_:
+        if not parseaddr(address_from):
+            continue
         name = name.capitalize()
         address_from = address_from.lower()
         if address_from in [x.value for x in mail_wl]:
@@ -603,6 +606,8 @@ def process_mail(msg, parent_id=None, mail_filepath=None):
                     )
 
     for (name, address_to) in msg.to:
+        if not parseaddr(address_to):
+            continue
         name = name.capitalize()
         address_to = address_to.lower()
         address, _ = Address.objects.get_or_create(address=address_to)
@@ -615,6 +620,8 @@ def process_mail(msg, parent_id=None, mail_filepath=None):
         addresses_list.append((address, "to"))
 
     for (name, address_bcc) in msg.bcc:
+        if not parseaddr(address_bcc):
+            continue
         name = name.capitalize()
         address_bcc = address_bcc.lower()
         address, _ = Address.objects.get_or_create(address=address_bcc)
@@ -627,6 +634,8 @@ def process_mail(msg, parent_id=None, mail_filepath=None):
         addresses_list.append((address, "bcc"))
 
     for (name, address_cc) in msg.cc:
+        if not parseaddr(address_cc):
+            continue
         name = name.capitalize()
         address_cc = address_cc.lower()
         address, _ = Address.objects.get_or_create(address=address_cc)
@@ -639,6 +648,8 @@ def process_mail(msg, parent_id=None, mail_filepath=None):
         addresses_list.append((address, "cc"))
 
     for (name, address_reply_to) in msg.reply_to:
+        if not parseaddr(address_reply_to):
+            continue
         name = name.capitalize()
         address_reply_to = address_reply_to.lower()
         address, _ = Address.objects.get_or_create(address=address_reply_to)
