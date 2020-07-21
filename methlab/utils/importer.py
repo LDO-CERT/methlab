@@ -161,7 +161,7 @@ def check_cortex(ioc, ioc_type, object_id, mail, is_mail=False):
 
         returns:
         - True: item is dangerous
-        - False: item is safe
+        - False: item is safe or no info
      """
 
     # Mail object is file in cortex
@@ -169,7 +169,7 @@ def check_cortex(ioc, ioc_type, object_id, mail, is_mail=False):
     filter_type = ioc_type if not is_mail else "mail_obj"
     analyzers = Analyzer.objects.filter(
         disabled=False, supported_types__contains=[filter_type]
-    ).order_by("-priority")
+    ).order_by("-priority")"
 
     if ioc_type == "mail" and is_mail is False:
         content_type = Address
@@ -179,6 +179,7 @@ def check_cortex(ioc, ioc_type, object_id, mail, is_mail=False):
         content_type = Ioc
     elif ioc_type == "file":
         content_type = Attachment
+        analyzers = analyzers.filter(onpremise=True)
     else:
         logging.error("IOCTYPE {} not managed".format(ioc_type))
         return False
@@ -190,7 +191,7 @@ def check_cortex(ioc, ioc_type, object_id, mail, is_mail=False):
     )
 
     for analyzer in analyzers:
-
+        # Check if item was already been processed
         for report in old_reports:
             if report.analyzer == analyzer:
                 logging.debug(
@@ -202,6 +203,9 @@ def check_cortex(ioc, ioc_type, object_id, mail, is_mail=False):
                 elif "suspicious" in report.taxonomies:
                     mail.tags.add("{}: suspicious".format(analyzer.name))
                     return True
+                elif "safe" in report.taxonomies:
+                    mail.tags.add("{}: safe".format(analyzer.name))
+                    return
                 continue
 
         logging.debug("running analyzer {} for {}".format(analyzer.name, ioc))
@@ -232,8 +236,14 @@ def check_cortex(ioc, ioc_type, object_id, mail, is_mail=False):
 
                 if "malicious" in taxonomies:
                     mail.tags.add("{}: malicious".format(analyzer.name))
+                    return True
                 elif "suspicious" in taxonomies:
                     mail.tags.add("{}: suspicious".format(analyzer.name))
+                    return True
+                elif "safe" in taxonomies:
+                    mail.tags.add("{}: safe".format(analyzer.name))
+                    # this will stop analysing this object but will continue analyze the mail
+                    return
 
             elif job.status == "Failure":
                 report = Report(
@@ -245,6 +255,7 @@ def check_cortex(ioc, ioc_type, object_id, mail, is_mail=False):
                         analyzer.name, ioc, job.errorMessage
                     )
                 )
+
         except Exception as excp:
             logging.error(
                 "ERROR running analyzer {} for {}: {}".format(analyzer.name, ioc, excp)
@@ -469,10 +480,14 @@ def process_attachment(filepath, mail, mess_att, parent_id):
                 attachment.filename.append(filename)
         attachment.save()
         mail.attachments.add(attachment)
+        # Check file in onprems sandboxes
         if check_cortex(filepath, "file", attachment, mail):
             return True
+        # Check hashes in cloud services
+        if check_cortex(attachment.sha256, "hash", attachment, mail):
+            return True
 
-    # Attachment is safe
+    # Attachment is safe or no info
     return False
 
 
@@ -486,6 +501,7 @@ def find_ioc(payload, mail):
         returns:
         - True: some iocs are dangerous
         - False: all iocs are safe
+        - None: no info related to iocs
     """
 
     all_wl = Whitelist.objects.all()
@@ -543,7 +559,7 @@ def find_ioc(payload, mail):
         if check_cortex(ip, "ip", ioc, mail):
             return True
 
-    # All IOC as ok, return False
+    # All IOC are safe or without info, return None
     return False
 
 
