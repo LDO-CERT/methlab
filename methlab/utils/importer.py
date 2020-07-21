@@ -2,8 +2,6 @@ import os
 import sys
 import django
 
-# import pdb
-
 sys.path.append("/app")
 
 os.environ["DATABASE_URL"] = "postgres://{}:{}@{}:{}/{}".format(
@@ -36,6 +34,7 @@ import dateutil  # noqa
 import magic  # noqa
 import hashlib  # noqa
 import whois  # noqa
+import socket  # noqa
 import dns.resolver  # noqa
 from ipwhois import IPWhois  # noqa
 from tnefparse import TNEF  # noqa
@@ -83,6 +82,9 @@ except ObjectDoesNotExist:
     logging.error("missing information")
     sys.exit()
 except IMAP4.error:
+    logging.error("error connecting to imap")
+    sys.exit()
+except socket.gaierror:
     logging.error("error connecting to imap")
     sys.exit()
 
@@ -540,10 +542,24 @@ def find_ioc(payload, mail):
 
 
 def default(o):
+    """ helpers to store item in json
+
+        arguments:
+        - o: field of the object to serialize
+
+        returns:
+        - valid serialized value for unserializable fields
+     
+    """
     if isinstance(o, (datetime.date, datetime.datetime)):
         return o.isoformat()
     if isinstance(o, set):
         return list(o)
+
+
+def create_misp_event():
+    """ If mail is not safe store info in misp"""
+    return
 
 
 def process_mail(msg, parent_id=None, mail_filepath=None):
@@ -615,63 +631,24 @@ def process_mail(msg, parent_id=None, mail_filepath=None):
                         )
                     )
 
-    for (name, address_to) in msg.to:
-        if address_to == "":
-            continue
-        name = name.capitalize()
-        address_to = address_to.lower()
-        address, _ = Address.objects.get_or_create(address=address_to)
-        if not address.name:
-            address.name = [name]
-        elif name not in address.name:
-            address.name.append(name)
-        address.domain = address_to.split("@")[-1]
-        address.save()
-        addresses_list.append((address, "to"))
+    for (field_value, field_name) in zip(
+        [msg.to, msg.bcc, msg.cc, msg.reply_to], ["to", "bcc", "cc", "reply_to"]
+    ):
+        for (name, address_value) in field_value:
+            if address_value == "":
+                continue
+            name = name.capitalize()
+            address_value = address_value.lower()
+            address, _ = Address.objects.get_or_create(address=address_value)
+            if not address.name:
+                address.name = [name]
+            elif name not in address.name:
+                address.name.append(name)
+            address.domain = address_value.split("@")[-1]
+            address.save()
+            addresses_list.append((address, field_name))
 
-    for (name, address_bcc) in msg.bcc:
-        if address_bcc == "":
-            continue
-        name = name.capitalize()
-        address_bcc = address_bcc.lower()
-        address, _ = Address.objects.get_or_create(address=address_bcc)
-        if not address.name:
-            address.name = [name]
-        elif name not in address.name:
-            address.name.append(name)
-        address.domain = address_bcc.split("@")[-1]
-        address.save()
-        addresses_list.append((address, "bcc"))
-
-    for (name, address_cc) in msg.cc:
-        if address_cc == "":
-            continue
-        name = name.capitalize()
-        address_cc = address_cc.lower()
-        address, _ = Address.objects.get_or_create(address=address_cc)
-        if not address.name:
-            address.name = [name]
-        elif name not in address.name:
-            address.name.append(name)
-        address.domain = address_cc.split("@")[-1]
-        address.save()
-        addresses_list.append((address, "cc"))
-
-    for (name, address_reply_to) in msg.reply_to:
-        if address_reply_to == "":
-            continue
-        name = name.capitalize()
-        address_reply_to = address_reply_to.lower()
-        address, _ = Address.objects.get_or_create(address=address_reply_to)
-        if not address.name:
-            address.name = [name]
-        elif name not in address.name:
-            address.name.append(name)
-        address.domain = address_reply_to.split("@")[-1]
-        address.save()
-        addresses_list.append((address, "reply_to"))
-
-    # CHECK SPF & INTERNAL FROM FIRST HOP
+    # CHECK SPF & INTERNAL FROM FIRST HOP & GET MAP COORDINATES
     first_hop = next(iter(msg.received), None)
     if first_hop:
         ip = parse_ipv4_addresses(first_hop.get("from", []))
@@ -725,22 +702,16 @@ def process_mail(msg, parent_id=None, mail_filepath=None):
         sender_ip_address=msg.get_server_ipaddress(info.imap_server),
         to_domains=msg.to_domains,
         geom=geo_info,
+        eml_path=mail_filepath,
     )
     mail.save()
 
     # RUN ANALYZERS ON FULL EMAIL
     if check_cortex(mail_filepath, "file", mail, mail, is_mail=True):
-        return
+        create_misp_event()
 
+    # ADD ADDRESSES TO MAIL, CHECK IF HONEYPOT OR SECINC
     for addr_item, addr_type in addresses_list:
-
-        # RUN ANALYZERS ON EMAIL ADDRESSES
-        if not info.internal_domains or all(
-            [addr_item.address.lower().find(x) == -1 for x in info.internal_domains]
-        ):
-            if check_cortex(addr_item.address, "mail", addr_item, mail, is_mail=False):
-                return
-
         addr_obj = Mail_Addresses(mail=mail, address=addr_item, field=addr_type)
         addr_obj.save()
         if addr_type == "to":
@@ -753,9 +724,14 @@ def process_mail(msg, parent_id=None, mail_filepath=None):
         elif addr_type == "cc":
             if info.security_emails and addr_obj.address in info.security_emails:
                 mail.tags.add("SecInc")
-        elif addr_type == "from":
-            if check_cortex(address.address, "mail", address, mail):
-                return
+        elif addr_type == "from" and (
+            not info.internal_domains
+            or all(
+                [addr_item.address.lower().find(x) == -1 for x in info.internal_domains]
+            )
+        ):
+            if check_cortex(addr_item.address, "mail", addr_item, mail, is_mail=False):
+                create_misp_event()
 
     if mail.tags.count() == 0:
         mail.tags.add("Hunting")
@@ -766,10 +742,12 @@ def process_mail(msg, parent_id=None, mail_filepath=None):
         mf.save()
 
     if find_ioc(mail.body, mail):
-        return
+        create_misp_event()
 
     # Save attachments
     random_path = store_attachments(msg)
+    mail.attachments_path = random_path
+    mail.save()
 
     # PROCESS ATTACHMENTS
     for mess_att in msg.attachments:
@@ -782,37 +760,33 @@ def process_mail(msg, parent_id=None, mail_filepath=None):
             continue
 
         if process_attachment(filepath, mail, mess_att, parent_id):
-            return
+            create_misp_event()
 
-    # DELETE MAIL TEMP FILE
+    # DELETE MAIL TEMP FILE, here should be safe
     clean_file(mail_filepath)
 
 
-def main():
+def clean():
+    """clean all items in db, not reinitialize index"""
+    Address.objects.all().delete()
+    Ioc.objects.all().delete()
+    Mail.objects.all().delete()
+    Report.objects.all().delete()
+    Attachment.objects.all().delete()
+    [shutil.rmtree("/tmp/{}".format(x)) for x in os.listdir("/tmp") if os.path.isdir(x)]
+    [os.remove("/tmp/{}".format(x)) for x in os.listdir("/tmp") if os.path.isfile(x)]
+
+
+def main(clean=False):
     """ check mails in inbox - main loop """
-
-    clean = False
     if clean:
-        Address.objects.all().delete()
-        Ioc.objects.all().delete()
-        Mail.objects.all().delete()
-        Report.objects.all().delete()
-        Attachment.objects.all().delete()
-        [
-            shutil.rmtree("/tmp/{}".format(x))
-            for x in os.listdir("/tmp")
-            if os.path.isdir(x)
-        ]
-        [
-            os.remove("/tmp/{}".format(x))
-            for x in os.listdir("/tmp")
-            if os.path.isfile(x)
-        ]
-
+        clean()
         _, data = inbox.search(None, "(ALL)")
     else:
         _, data = inbox.search(None, "(UNSEEN)")
 
+    # Mail are read once and then processed
+    # if not it'll generate timeout if processing takes time
     email_list = list(data[0].split())
     data_list = []
     for number in tqdm(email_list):

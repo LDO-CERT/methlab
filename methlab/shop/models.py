@@ -64,6 +64,7 @@ class Analyzer(models.Model):
     disabled = models.BooleanField(default=False)
     supported_types = ArrayField(models.CharField(max_length=10), blank=True, null=True)
     priority = models.PositiveIntegerField(choices=PRIORITY, default=1)
+    onpremise = models.BooleanField(default=False)
 
     def __str__(self):
         return self.name
@@ -186,6 +187,8 @@ class Mail(models.Model):
     iocs = models.ManyToManyField(Ioc, related_name="iocs")
     attachments = models.ManyToManyField(Attachment, related_name="attachments")
     flags = models.ManyToManyField(Flag, related_name="flags", through="Mail_Flag")
+    eml_path = models.CharField(max_length=500, blank=True, null=True)
+    attachments_path = models.CharField(max_length=500, blank=True, null=True)
     tags = TaggableManager()
 
     reports = GenericRelation(Report, related_name="mails")

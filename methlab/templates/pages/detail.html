@@ -1,209 +1,228 @@
-{% extends "base.html" %} 
-{% load static i18n leaflet_tags %} 
+{% extends "base.html" %}
+{% load static i18n leaflet_tags %}
 {% block extra_css %}
-  <script
-    src="https://code.jquery.com/jquery-3.5.1.min.js"
-    integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0="
-    crossorigin="anonymous"
-  ></script>
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/jsoneditor/9.0.3/jsoneditor.css" rel="stylesheet" type="text/css">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jsoneditor/9.0.3/jsoneditor.min.js"></script>
-  {% leaflet_js %} 
-  {% leaflet_css %} 
-{% endblock extra_css %} 
+<script src="https://code.jquery.com/jquery-3.5.1.min.js"
+  integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0=" crossorigin="anonymous"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/jsoneditor/9.0.3/jsoneditor.css" rel="stylesheet" type="text/css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsoneditor/9.0.3/jsoneditor.min.js"></script>
+{% leaflet_js %}
+{% leaflet_css %}
+{% endblock extra_css %}
 
 {% block container%}
 <section class="py-5 container">
   <div class="row py-lg-5">
-      <div class="col">
+    <div class="col">
 
-        <ul class="nav nav-pills" role="tablist">
-          <li class="nav-item" role="presentation">
-            <a class="nav-link active" id="info-tab" data-toggle="tab" href="#info" role="tab" aria-controls="info" aria-selected="true">Mail Info</a>
-          </li>
-          {% if mail.header %}
-          <li class="nav-item" role="presentation">
-            <a class="nav-link" id="header-tab" data-toggle="tab" href="#header" role="tab" aria-controls="header" aria-selected="false">Header</a>
-          </li> 
-          {% endif %}
-          {% if mail.received %}
-          <li class="nav-item" role="presentation">
-            <a class="nav-link" id="received-tab" data-toggle="tab" href="#received" role="tab" aria-controls="received" aria-selected="false">Received</a>
-          </li> 
-          {% endif %}          
-          <li class="nav-item" role="presentation">
-            <a class="nav-link" id="addresses-tab" data-toggle="tab" href="#addresses" role="tab" aria-controls="addresses" aria-selected="false">Addresses</a>
-          </li>  
-          {% if mail.geom %}
-          <li class="nav-item" role="presentation">
-            <a class="nav-link" id="location-tab" data-toggle="tab" href="#location" role="tab" aria-controls="location" aria-selected="false">Location</a>
-          </li>             
-          {% endif %}                    
-          {% if mail.iocs.all %}
-          <li class="nav-item" role="presentation">
-            <a class="nav-link" id="iocs-tab" data-toggle="tab" href="#iocs" role="tab" aria-controls="iocs" aria-selected="false">Iocs</a>
-          </li>             
-          {% endif %}     
-          {% if mail.attachments.all %}
-          <li class="nav-item" role="presentation">
-            <a class="nav-link" id="attachments-tab" data-toggle="tab" href="#attachments" role="tab" aria-controls="attachments" aria-selected="false">Attachments</a>
-          </li>             
-          {% endif %}                        
-        </ul>
-
-        <div class="tab-content">
-          <div class="tab-pane fade show active" id="info" role="tabpanel" aria-labelledby="info-tab">
-            <div style="padding: 20px;">
-              <dl class="row">
-                <dt class="col-sm-3">Subject:</dt>
-                <dd class="col-sm-9">{{mail.subject}}</dd>
-                <dt class="col-sm-3">Message-id:</dt>
-                <dd class="col-sm-9">{{mail.message_id}}</dd>
-                <dt class="col-sm-3">Date:</dt>
-                <dd class="col-sm-9">{{mail.date}}</dd>          
-                <hr/>
-
-                {% if mail.tags.all %}
-                <dt class="col-sm-3">Tags:</dt>
-                <dd class="col-sm-9">{% for tag in mail.tags.all %}<span class="badge {% if 'suspicious' in tag %}bg-warning{% elif 'malicious' in tag %}bg-danger{% else %}bg-info{% endif %}">{{tag}}</span>{% endfor %}</dd>  
-                {% endif %}
-
-                {% if mail.flags.all %}
-                <dt class="col-sm-3">Flags:</dt>
-                <dd class="col-sm-9">{% for flag in mail.flags.all %}<span class="badge" style="background-color: {{flag.color}};">{{flag}}</span> {% endfor %}</dd>  
-                {% endif %}
-              </dl>
-            </div>
-          </div>
-          {% if mail.received %}
-          <div class="tab-pane fade show" id="received" role="tabpanel" aria-labelledby="received-tab">
-            <div style="padding: 20px;">
-              <div id="js_received" style="width: 100%; height: 400px;"></div>
-            </div>
-          </div>
-          {% endif %}
-          {% if mail.header %}
-          <div class="tab-pane fade show" id="header" role="tabpanel" aria-labelledby="header-tab">
-            <div style="padding: 20px;">
-              <div id="js_header" style="width: 100%; height: 400px;"></div>
-            </div>
-          </div>
-          {% endif %}
-          <div class="tab-pane fade show" id="addresses" role="tabpanel" aria-labelledby="addresses-tab">
-            <div style="padding: 20px;">
-              <dl class="row">
-                <dt class="col-sm-3">From:</dt>
-                <dd class="col-sm-9">{% for address in mail.mail_addresses_set.all %}{% if address.field == 'from' %}{{address.address.address}} - {{address.address.name}}{% endif %}{% endfor%}</dd>
-                <dt class="col-sm-3">MX:</dt>
-                <dd class="col-sm-9">{% for address in mail.mail_addresses_set.all %}{% if address.field == 'from' %}{{address.address.mx_check}}{% endif %}{% endfor%}</dd>
-                <dt class="col-sm-3">To:</dt>
-                <dd class="col-sm-9">{% for address in mail.mail_addresses_set.all %}{% if address.field == 'to' %}{{address.address.address}} - {{address.address.name}}<br/>{% endif %}{% endfor%}</dd>          
-                <dt class="col-sm-3">Cc:</dt>
-                <dd class="col-sm-9">{% for address in mail.mail_addresses_set.all %}{% if address.field == 'cc' %}{{address.address.address}} - {{address.address.name}}<br/>{% endif %}{% endfor%}</dd>          
-                <dt class="col-sm-3">Bcc:</dt>
-                <dd class="col-sm-9">{% for address in mail.mail_addresses_set.all %}{% if address.field == 'bcc' %}{{address.address.address}} - {{address.address.name}}<br/>{% endif %}{% endfor%}</dd>          
-                <dt class="col-sm-3">Reply to:</dt>
-                <dd class="col-sm-9">{% for address in mail.mail_addresses_set.all %}{% if address.field == 'reply_to' %}{{address.address.address}} - {{address.address.name}}<br/>{% endif %}{% endfor%}</dd>          
-                {% if mail.to_domains%}
-                <dt class="col-sm-3">To-domains:</dt>
-                <dd class="col-sm-9">{{mail.to_domains}}</dd>          
-                {% endif %}
-                {% if mail.sender_ip_address%}
-                <dt class="col-sm-3">Sender IP address:</dt>
-                <dd class="col-sm-9">{{mail.sender_ip_address}}</dd>          
-                {% endif %}
-              </dl>
-            </div>
-          </div>
-          {% if mail.geom %}
-          <div class="tab-pane fade show" id="location" role="tabpanel" aria-labelledby="location-tab">
-            <div style="padding: 20px;">
-              <div>{% leaflet_map "main" callback="main_map_init" %}</div>
-            </div>
-          </div>
-          {% endif %}
-          {% if mail.iocs.all %}
-          <div class="tab-pane fade show" id="iocs" role="tabpanel" aria-labelledby="iocs-tab">
-            <div style="padding: 20px;">
-              <table class="table">
-                <thead>
-                  <tr>
-                    <td>Ioc</td>
-                    <td>Report</td>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for ioc in mail.iocs.all %}
-                  <tr>
-                    <td>{{ioc}}</td>
-                    <td>
-                      {% for report in ioc.reports.all %}
-                        {{report.analyzer.name}} - {{report.analyzer.taxonomies}}<br/>
-                      {% endfor %}</td>
-                  </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-            </div>
-          </div>
-          {% endif %}          
-          {% if mail.attachments.all %}
-          <div class="tab-pane fade show" id="attachments" role="tabpanel" aria-labelledby="attachments-tab">
-            <div style="padding: 20px;">
-              <table class="table">
-                <thead>
-                  <tr>
-                    <td>Filename</td>
-                    <td>md5</td>
-                    <td>sha256</td>
-                    <td>Report</td>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for attachment in mail.attachments.all %}
-                  <tr>
-                    <td>{{attachment.filename}}</td>
-                    <td>{{attachment.md5}}</td>
-                    <td>{{attachment.sha256}}</td>
-                    <td>
-                      {% for report in attachment.reports.all %}
-                        {{report.analyzer.name}} - {{report.analyzer.taxonomies}}<br/>
-                      {% endfor %}</td>
-                  </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-            </div>
-          </div>
-          {% endif %}           
-        </div>
-      </div>
-    </div>
-
-    <script>
-        const options = {
-          mode: 'code',
-          modes: ['text', 'code'],
-          onEditable: function (node) {
-            if (!node.path) {return false;}
-          }
-        }
+      <ul class="nav nav-pills" role="tablist">
+        <li class="nav-item" role="presentation">
+          <a class="nav-link active" id="info-tab" data-toggle="tab" href="#info" role="tab" aria-controls="info"
+            aria-selected="true">Mail Info</a>
+        </li>
+        {% if mail.header %}
+        <li class="nav-item" role="presentation">
+          <a class="nav-link" id="header-tab" data-toggle="tab" href="#header" role="tab" aria-controls="header"
+            aria-selected="false">Header</a>
+        </li>
+        {% endif %}
         {% if mail.received %}
-        const received_cont = document.getElementById("js_received")
-        const received_editor = new JSONEditor(received_cont, options)
-        received_editor.set({{mail.received|safe}})
+        <li class="nav-item" role="presentation">
+          <a class="nav-link" id="received-tab" data-toggle="tab" href="#received" role="tab" aria-controls="received"
+            aria-selected="false">Received</a>
+        </li>
+        {% endif %}
+        <li class="nav-item" role="presentation">
+          <a class="nav-link" id="addresses-tab" data-toggle="tab" href="#addresses" role="tab"
+            aria-controls="addresses" aria-selected="false">Addresses</a>
+        </li>
+        {% if mail.geom %}
+        <li class="nav-item" role="presentation">
+          <a class="nav-link" id="location-tab" data-toggle="tab" href="#location" role="tab" aria-controls="location"
+            aria-selected="false">Location</a>
+        </li>
+        {% endif %}
+        {% if mail.iocs.all %}
+        <li class="nav-item" role="presentation">
+          <a class="nav-link" id="iocs-tab" data-toggle="tab" href="#iocs" role="tab" aria-controls="iocs"
+            aria-selected="false">Iocs</a>
+        </li>
+        {% endif %}
+        {% if mail.attachments.all %}
+        <li class="nav-item" role="presentation">
+          <a class="nav-link" id="attachments-tab" data-toggle="tab" href="#attachments" role="tab"
+            aria-controls="attachments" aria-selected="false">Attachments</a>
+        </li>
+        {% endif %}
+      </ul>
+
+      <div class="tab-content">
+        <div class="tab-pane fade show active" id="info" role="tabpanel" aria-labelledby="info-tab">
+          <div style="padding: 20px;">
+            <dl class="row">
+              <dt class="col-sm-3">Subject:</dt>
+              <dd class="col-sm-9">{{mail.subject}}</dd>
+              <dt class="col-sm-3">Message-id:</dt>
+              <dd class="col-sm-9">{{mail.message_id}}</dd>
+              <dt class="col-sm-3">Date:</dt>
+              <dd class="col-sm-9">{{mail.date}}</dd>
+              <hr />
+
+              {% if mail.tags.all %}
+              <dt class="col-sm-3">Tags:</dt>
+              <dd class="col-sm-9">{% for tag in mail.tags.all %}<span
+                  class="badge {% if 'suspicious' in tag %}bg-warning{% elif 'malicious' in tag %}bg-danger{% else %}bg-info{% endif %}">{{tag}}</span>{% endfor %}
+              </dd>
+              {% endif %}
+
+              {% if mail.flags.all %}
+              <dt class="col-sm-3">Flags:</dt>
+              <dd class="col-sm-9">{% for flag in mail.flags.all %}<span class="badge"
+                  style="background-color: {{flag.color}};">{{flag}}</span> {% endfor %}</dd>
+              {% endif %}
+            </dl>
+          </div>
+        </div>
+        {% if mail.received %}
+        <div class="tab-pane fade show" id="received" role="tabpanel" aria-labelledby="received-tab">
+          <div style="padding: 20px;">
+            <div id="js_received" style="width: 100%; height: 400px;"></div>
+          </div>
+        </div>
         {% endif %}
         {% if mail.header %}
-        const header_cont = document.getElementById("js_header")
-        const header_editor = new JSONEditor(header_cont, options)
-        header_editor.set({{mail.header|safe}})         
+        <div class="tab-pane fade show" id="header" role="tabpanel" aria-labelledby="header-tab">
+          <div style="padding: 20px;">
+            <div id="js_header" style="width: 100%; height: 400px;"></div>
+          </div>
+        </div>
         {% endif %}
+        <div class="tab-pane fade show" id="addresses" role="tabpanel" aria-labelledby="addresses-tab">
+          <div style="padding: 20px;">
+            <dl class="row">
+              <dt class="col-sm-3">From:</dt>
+              <dd class="col-sm-9">
+                {% for address in mail.mail_addresses_set.all %}{% if address.field == 'from' %}{{address.address.address}}
+                - {{address.address.name}}{% endif %}{% endfor%}</dd>
+              <dt class="col-sm-3">MX:</dt>
+              <dd class="col-sm-9">
+                {% for address in mail.mail_addresses_set.all %}{% if address.field == 'from' %}{{address.address.mx_check}}{% endif %}{% endfor%}
+              </dd>
+              <dt class="col-sm-3">To:</dt>
+              <dd class="col-sm-9">
+                {% for address in mail.mail_addresses_set.all %}{% if address.field == 'to' %}{{address.address.address}}
+                - {{address.address.name}}<br />{% endif %}{% endfor%}</dd>
+              <dt class="col-sm-3">Cc:</dt>
+              <dd class="col-sm-9">
+                {% for address in mail.mail_addresses_set.all %}{% if address.field == 'cc' %}{{address.address.address}}
+                - {{address.address.name}}<br />{% endif %}{% endfor%}</dd>
+              <dt class="col-sm-3">Bcc:</dt>
+              <dd class="col-sm-9">
+                {% for address in mail.mail_addresses_set.all %}{% if address.field == 'bcc' %}{{address.address.address}}
+                - {{address.address.name}}<br />{% endif %}{% endfor%}</dd>
+              <dt class="col-sm-3">Reply to:</dt>
+              <dd class="col-sm-9">
+                {% for address in mail.mail_addresses_set.all %}{% if address.field == 'reply_to' %}{{address.address.address}}
+                - {{address.address.name}}<br />{% endif %}{% endfor%}</dd>
+              {% if mail.to_domains%}
+              <dt class="col-sm-3">To-domains:</dt>
+              <dd class="col-sm-9">{{mail.to_domains}}</dd>
+              {% endif %}
+              {% if mail.sender_ip_address%}
+              <dt class="col-sm-3">Sender IP address:</dt>
+              <dd class="col-sm-9">{{mail.sender_ip_address}}</dd>
+              {% endif %}
+            </dl>
+          </div>
+        </div>
         {% if mail.geom %}
-        function main_map_init (map, options) {
-          L.geoJson({{mail.geom|safe}}).addTo(map);
-        }
+        <div class="tab-pane fade show" id="location" role="tabpanel" aria-labelledby="location-tab">
+          <div style="padding: 20px;">
+            <div>{% leaflet_map "main" callback="main_map_init" %}</div>
+          </div>
+        </div>
         {% endif %}
-    </script>
+        {% if mail.iocs.all %}
+        <div class="tab-pane fade show" id="iocs" role="tabpanel" aria-labelledby="iocs-tab">
+          <div style="padding: 20px;">
+            <table class="table">
+              <thead>
+                <tr>
+                  <td>Ioc</td>
+                  <td>Report</td>
+                </tr>
+              </thead>
+              <tbody>
+                {% for ioc in mail.iocs.all %}
+                <tr>
+                  <td>{{ioc}}</td>
+                  <td>
+                    {% for report in ioc.reports.all %}
+                    {{report.analyzer.name}} - {{report.analyzer.taxonomies}}<br />
+                    {% endfor %}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {% endif %}
+        {% if mail.attachments.all %}
+        <div class="tab-pane fade show" id="attachments" role="tabpanel" aria-labelledby="attachments-tab">
+          <div style="padding: 20px;">
+            <table class="table">
+              <thead>
+                <tr>
+                  <td>Filename</td>
+                  <td>md5</td>
+                  <td>sha256</td>
+                  <td>Report</td>
+                </tr>
+              </thead>
+              <tbody>
+                {% for attachment in mail.attachments.all %}
+                <tr>
+                  <td>{{attachment.filename}}</td>
+                  <td>{{attachment.md5}}</td>
+                  <td>{{attachment.sha256}}</td>
+                  <td>
+                    {% for report in attachment.reports.all %}
+                    {{report.analyzer.name}} - {{report.analyzer.taxonomies}}<br />
+                    {% endfor %}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const options = {
+      mode: 'code',
+      modes: ['text', 'code'],
+      onEditable: function (node) {
+        if (!node.path) { return false; }
+      }
+    }
+    {% if mail.received %}
+    const received_cont = document.getElementById("js_received")
+    const received_editor = new JSONEditor(received_cont, options)
+    received_editor.set({{ mail.received | safe }})
+    {% endif %}
+    {% if mail.header %}
+    const header_cont = document.getElementById("js_header")
+    const header_editor = new JSONEditor(header_cont, options)
+    header_editor.set({{ mail.header | safe }})
+    {% endif %}
+    {% if mail.geom %}
+    function main_map_init(map, options) {
+      L.geoJson({{ mail.geom | safe }}).addTo(map);
+        }
+    {% endif %}
+  </script>
 
 </section>
 {% endblock container %}
