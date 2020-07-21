@@ -137,7 +137,14 @@ class MailAdmin(LeafletGeoAdmin, DynamicArrayMixin):
         "flags",
     )
 
-    exclude = ("tags", "iocs", "addresses")
+    exclude = (
+        "tags",
+        "iocs",
+        "addresses",
+        "search_vector",
+        "attachments_path",
+        "eml_path",
+    )
 
     def get_queryset(self, request):
         return (
@@ -156,6 +163,7 @@ class MailAdmin(LeafletGeoAdmin, DynamicArrayMixin):
         "tag_list",
         "flag_list",
         "geom",
+        "sender_ip_address",
     )
     search_fields = ["subject"]
 

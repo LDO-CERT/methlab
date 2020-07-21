@@ -131,16 +131,22 @@ def store_mail(content):
     return eml_path
 
 
-def clean_file(filepath):
-    """ Clean a file or log error.
+def clean_files(filepaths):
+    """ Clean a file or folder.
 
         arguments:
         - filepath: path to delete
     """
     try:
-        os.remove(filepath)
+        for filepath in filepaths:
+            if os.path.isdir(filepath):
+                shutil.rmtree(filepath)
+            elif os.path.isfile(filepath):
+                os.remove(filepath)
     except FileNotFoundError:
         logging.error("Error deleting {}".format(filepath))
+    except Exception as e:
+        logging.traceback(e)
 
 
 def check_cortex(ioc, ioc_type, object_id, mail, is_mail=False):
@@ -353,7 +359,7 @@ def process_tnef(filepath, parent_id=None):
         attachment_magic = magic.from_file(filepath, mime=True)
 
         if is_whitelisted(attachment_magic):
-            clean_file(filepath)
+            clean_files((mail.eml_path, mail.attachments_path))
             continue
 
         mess_att = {"mail_content_type": attachment_magic, "payload": attachment.data}
@@ -406,11 +412,11 @@ def process_attachment(filepath, mail, mess_att, parent_id):
                         filepath, fileext
                     )
                 )
-                clean_file(filepath)
+                clean_files((mail.eml_path, mail.attachments_path))
                 return False
 
     if is_whitelisted(mess_att["mail_content_type"]):
-        clean_file(filepath)
+        clean_files((mail.eml_path, mail.attachments_path))
         return False
 
     # IF MAIL PROCESS RECURSIVELY
@@ -443,7 +449,7 @@ def process_attachment(filepath, mail, mess_att, parent_id):
         if md5 in [x.value for x in all_wl if x.type == "md5"] or sha256 in [
             x.value for x in all_wl if x.type == "sha256"
         ]:
-            clean_file(filepath)
+            clean_files((mail.eml_path, mail.attachments_path))
             return False
 
         fix_mail_dict = dict((k.replace("-", "_"), v) for k, v in mess_att.items())
@@ -549,7 +555,6 @@ def default(o):
 
         returns:
         - valid serialized value for unserializable fields
-     
     """
     if isinstance(o, (datetime.date, datetime.datetime)):
         return o.isoformat()
@@ -578,6 +583,7 @@ def process_mail(msg, parent_id=None, mail_filepath=None):
     try:
         mail = Mail.objects.get(message_id=msg.message_id, parent_id__pk=parent_id)
         logging.error("mail already in db - skip")
+        clean_files((mail_filepath))
         return
     except Mail.DoesNotExist:
         pass
@@ -598,6 +604,7 @@ def process_mail(msg, parent_id=None, mail_filepath=None):
         address_from = address_from.lower()
         if address_from in [x.value for x in mail_wl]:
             logging.debug("sender {} in WL - skip".format(address_from))
+            clean_files((mail_filepath))
             return
         address, _ = Address.objects.get_or_create(address=address_from)
         if not address.name:
@@ -702,6 +709,7 @@ def process_mail(msg, parent_id=None, mail_filepath=None):
         sender_ip_address=msg.get_server_ipaddress(info.imap_server),
         to_domains=msg.to_domains,
         geom=geo_info,
+        # this is an .eml if parent is None otherwhise is the parent attachment folder
         eml_path=mail_filepath,
     )
     mail.save()
@@ -756,14 +764,14 @@ def process_mail(msg, parent_id=None, mail_filepath=None):
 
         # I don't have payload or I don't understand type skip
         if not mess_att["mail_content_type"] or not mess_att["payload"]:
-            clean_file(filepath)
+            clean_files((mail.eml_path, mail.attachments_path))
             continue
 
         if process_attachment(filepath, mail, mess_att, parent_id):
             create_misp_event()
 
     # DELETE MAIL TEMP FILE, here should be safe
-    clean_file(mail_filepath)
+    clean_files((mail.eml_path, mail.attachments_path))
 
 
 def clean():
