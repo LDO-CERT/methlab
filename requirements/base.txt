@@ -11,7 +11,7 @@ whitenoise==5.0.1
 # https://github.com/andymccurdy/redis-py
 redis==3.5.0
 # https://github.com/redis/hiredis-py
-hiredis==1.0.1
+hiredis==1.1.0
 # https://github.com/python-ldap/python-ldap
 python-ldap==3.2.0
 
