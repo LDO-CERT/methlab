@@ -73,7 +73,7 @@ tqdm==4.47.0
 # https://github.com/mahmoud/glom
 glom==20.5.0
 # https://github.com/rthalley/dnspython
-dnspython==2.0.0rc2
+dnspython==2.0.0
 # https://github.com/tomas-net/ip2geotools
 ip2geotools==0.1.5
 # https://github.com/DannyCork/python-whois/
