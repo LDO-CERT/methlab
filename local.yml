@@ -9,6 +9,9 @@ services:
     build:
       context: .
       dockerfile: ./compose/local/django/Dockerfile
+      args:
+        - http_proxy
+        - https_proxy
     image: methlab_local_django
     container_name: django
     depends_on:
@@ -27,6 +30,9 @@ services:
     build:
       context: .
       dockerfile: ./compose/production/postgres/Dockerfile
+      args:
+        - http_proxy
+        - https_proxy
     image: methlab_production_postgres
     container_name: postgres
     volumes:
