@@ -4,6 +4,7 @@ from django.db.models import Count
 from taggit.models import Tag
 from methlab.shop.models import Mail, Whitelist
 from methlab.shop.tables import AttachmentTable, IocTable, MailTable, LatestMailTable
+from django.contrib.postgres.search import SearchQuery
 
 
 def home(request):
@@ -91,4 +92,18 @@ def mail_detail(request, pk):
 
 
 def search(request):
-    return HttpResponse("search")
+
+    query = request.POST["query"]
+    mails = Mail.external_objects.search(query)
+
+    results = [
+        {
+            "rank": mail.rank,
+            "similarity": mail.similarity,
+            "subject": mail.subject,
+            "body": mail.body,
+        }
+        for mail in mails
+    ]
+
+    return render(request, "pages/search.html", {"results": results, "query": query})

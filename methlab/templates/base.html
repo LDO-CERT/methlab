@@ -1,66 +1,55 @@
 {% load static i18n %}
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="" />
-    <meta name="author" content="dadokkio" />
-    <title>{% block title %}Meth{% endblock title %}</title>
 
-    <link rel="icon" href="{% static 'images/favicons/favicon.ico' %}" />
-    <link
-      href="https://stackpath.bootstrapcdn.com/bootstrap/5.0.0-alpha1/css/bootstrap.min.css"
-      rel="stylesheet"
-    />
-    <link href="{% static 'css/project.css' %}" rel="stylesheet" />
-    <link href="{% static 'css/style.css' %}" rel="stylesheet" />
-    {% block extra_css %} {% endblock extra_css %}
-  </head>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="" />
+  <meta name="author" content="dadokkio" />
+  <title>{% block title %}Meth{% endblock title %}</title>
 
-  <body>
-    <header>
-      <nav class="navbar navbar-expand-md navbar-dark fixed-top bg-dark">
-        <div class="container-fluid">
-          <a class="navbar-brand" href="{% url 'home' %}">Meth</a>
-          <button
-            class="navbar-toggler"
-            type="button"
-            data-toggle="collapse"
-            data-target="#navbarCollapse"
-            aria-controls="navbarCollapse"
-            aria-expanded="false"
-            aria-label="Toggle navigation"
-          >
-            <span class="navbar-toggler-icon"></span>
-          </button>
-          <div class="collapse navbar-collapse" id="navbarCollapse">
-            <ul class="navbar-nav mr-auto mb-2 mb-md-0">
-              <li class="nav-item active">
-                <a class="nav-link" aria-current="page" href="/admin">Admin</a>
-              </li>
-            </ul>
+  <link rel="icon" href="{% static 'images/favicons/favicon.ico' %}" />
+  <link href="https://stackpath.bootstrapcdn.com/bootstrap/5.0.0-alpha1/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="{% static 'css/project.css' %}" rel="stylesheet" />
+  <link href="{% static 'css/style.css' %}" rel="stylesheet" />
+  {% block extra_css %} {% endblock extra_css %}
+</head>
 
-            <form class="d-flex" action="{% url 'search' %}">
-              <input
-                class="form-control mr-2"
-                type="search"
-                placeholder="Search"
-                aria-label="Search"
-              />
-              <button class="btn btn-outline-success" type="submit">
-                Search
-              </button>
-            </form>
-          </div>
+<body>
+  <header>
+    <nav class="navbar navbar-expand-md navbar-dark fixed-top bg-dark">
+      <div class="container-fluid">
+        <a class="navbar-brand" href="{% url 'home' %}">Meth</a>
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarCollapse"
+          aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarCollapse">
+          <ul class="navbar-nav mr-auto mb-2 mb-md-0">
+            <li class="nav-item active">
+              <a class="nav-link" aria-current="page" href="/admin">Admin</a>
+            </li>
+          </ul>
+
+          <form class="d-flex" action="{% url 'search' %}" method="POST">
+            {% csrf_token %}
+            <input class="form-control mr-2" type="search" id="query" name="query" placeholder="Search"
+              aria-label="Search" />
+            <button class="btn btn-outline-success" type="submit">
+              Search
+            </button>
+          </form>
         </div>
-      </nav>
-    </header>
-    <main>
-      {% block container %} {% endblock container %}
-    </main>
+      </div>
+    </nav>
+  </header>
+  <main>
+    {% block container %} {% endblock container %}
+  </main>
 
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/5.0.0-alpha1/js/bootstrap.min.js"></script>
-    <script src="{% static 'js/project.js' %}"></script>
-  </body>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/5.0.0-alpha1/js/bootstrap.min.js"></script>
+  <script src="{% static 'js/project.js' %}"></script>
+</body>
+
 </html>

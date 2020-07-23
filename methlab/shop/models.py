@@ -4,8 +4,15 @@ from colorfield.fields import ColorField
 
 from taggit.managers import TaggableManager
 
-from django.contrib.postgres.indexes import GinIndex
 import django.contrib.postgres.search as pg_search
+from django.contrib.postgres.indexes import GinIndex
+from django.contrib.postgres.search import (
+    SearchQuery,
+    SearchRank,
+    SearchVector,
+    TrigramSimilarity,
+)
+
 from django.contrib.postgres.fields import JSONField, ArrayField
 
 from django_better_admin_arrayfield.models.fields import ArrayField  # noqa
@@ -169,6 +176,22 @@ class MailManager(models.Manager):
     def get_queryset(self):
         return super().get_queryset().exclude(tags__name__in=["SecInc"])
 
+    def search(self, search_text):
+        search_vectors = SearchVector("body", weigth="A") + SearchVector(
+            "subject", weigth="B"
+        )
+        search_query = SearchQuery(search_text)
+        search_rank = SearchRank(search_vectors, search_query)
+        body_tr_sim = TrigramSimilarity("body", search_text)
+        subject_tr_si = TrigramSimilarity("subject", search_text)
+        qs = (
+            self.get_queryset()
+            .filter(search_vector=search_query)
+            .annotate(rank=search_rank, similarity=body_tr_sim + subject_tr_si)
+            .order_by("-rank")
+        )
+        return qs
+
 
 class Mail(models.Model):
     parent = models.ForeignKey("self", blank=True, null=True, on_delete=models.CASCADE)
@@ -197,6 +220,12 @@ class Mail(models.Model):
 
     objects = models.Manager()
     external_objects = MailManager()
+
+    def save(self, *args, **kwargs):
+        self.search_vector = SearchVector("body", weigth="A") + SearchVector(
+            "subject", weigth="B"
+        )
+        super().save(*args, **kwargs)
 
     class Meta:
         indexes = [GinIndex(fields=["search_vector"])]

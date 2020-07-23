@@ -169,10 +169,11 @@ def check_cortex(ioc, ioc_type, object_id, mail, is_mail=False):
     filter_type = ioc_type if not is_mail else "mail_obj"
     analyzers = Analyzer.objects.filter(
         disabled=False, supported_types__contains=[filter_type]
-    ).order_by("-priority")"
+    ).order_by("-priority")
 
     if ioc_type == "mail" and is_mail is False:
         content_type = Address
+        analyzers = analyzers.filter(onpremise=True)
     elif ioc_type == "mail" and is_mail is True:
         content_type = Mail
     elif ioc_type in ["url", "ip"]:
