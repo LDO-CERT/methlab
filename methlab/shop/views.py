@@ -4,7 +4,6 @@ from django.db.models import Count
 from taggit.models import Tag
 from methlab.shop.models import Mail, Whitelist
 from methlab.shop.tables import AttachmentTable, IocTable, MailTable, LatestMailTable
-from django.contrib.postgres.search import SearchQuery
 
 
 def home(request):
@@ -19,7 +18,7 @@ def home(request):
     malicious_tags = [x for x in tags if x.name.find("malicious") != -1]
     malicious = Mail.external_objects.filter(tags__name__in=malicious_tags).count()
 
-    table_l = table_m = LatestMailTable(
+    table_l = LatestMailTable(
         Mail.external_objects.prefetch_related(
             "addresses", "iocs", "attachments", "tags", "flags"
         )
@@ -92,18 +91,9 @@ def mail_detail(request, pk):
 
 
 def search(request):
-
     query = request.POST["query"]
+
     mails = Mail.external_objects.search(query)
-
-    results = [
-        {
-            "rank": mail.rank,
-            "similarity": mail.similarity,
-            "subject": mail.subject,
-            "body": mail.body,
-        }
-        for mail in mails
-    ]
-
-    return render(request, "pages/search.html", {"results": results, "query": query})
+    table_l = LatestMailTable(mails, prefix="l_",)
+    table_l.paginate(page=request.GET.get("l_page", 1), per_page=25)
+    return render(request, "pages/search.html", {"table_l": table_l, "query": query})

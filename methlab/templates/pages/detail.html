@@ -25,6 +25,10 @@
             aria-selected="false">Header</a>
         </li>
         {% endif %}
+        <li class="nav-item" role="presentation">
+          <a class="nav-link" id="body-tab" data-toggle="tab" href="#body" role="tab" aria-controls="body"
+            aria-selected="true">Body</a>
+        </li>
         {% if mail.received %}
         <li class="nav-item" role="presentation">
           <a class="nav-link" id="received-tab" data-toggle="tab" href="#received" role="tab" aria-controls="received"
@@ -96,6 +100,13 @@
           </div>
         </div>
         {% endif %}
+        <div class="tab-pane fade show" id="body" role="tabpanel" aria-labelledby="body-tab">
+          <div style="padding: 20px;">
+            <dl class="row">
+              <p class="col-sm-12">{{mail.body}}</p>
+            </dl>
+          </div>
+        </div>
         <div class="tab-pane fade show" id="addresses" role="tabpanel" aria-labelledby="addresses-tab">
           <div style="padding: 20px;">
             <dl class="row">

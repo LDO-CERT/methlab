@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import Value
 
 from colorfield.fields import ColorField
 
@@ -6,6 +7,7 @@ from taggit.managers import TaggableManager
 
 import django.contrib.postgres.search as pg_search
 from django.contrib.postgres.indexes import GinIndex
+from django.contrib.postgres.aggregates import StringAgg
 from django.contrib.postgres.search import (
     SearchQuery,
     SearchRank,
@@ -177,9 +179,10 @@ class MailManager(models.Manager):
         return super().get_queryset().exclude(tags__name__in=["SecInc"])
 
     def search(self, search_text):
-        search_vectors = SearchVector("body", weigth="A") + SearchVector(
-            "subject", weigth="B"
-        )
+        # Multiple language will be available in 3.1
+        search_vectors = SearchVector(
+            "body", weigth="A", config="english"
+        ) + SearchVector("subject", weigth="B", config="english")
         search_query = SearchQuery(search_text)
         search_rank = SearchRank(search_vectors, search_query)
         body_tr_sim = TrigramSimilarity("body", search_text)
@@ -222,9 +225,9 @@ class Mail(models.Model):
     external_objects = MailManager()
 
     def save(self, *args, **kwargs):
-        self.search_vector = SearchVector("body", weigth="A") + SearchVector(
-            "subject", weigth="B"
-        )
+        self.search_vector = SearchVector(
+            "body", weigth="A", config="english"
+        ) + SearchVector("subject", weigth="B", config="english")
         super().save(*args, **kwargs)
 
     class Meta:

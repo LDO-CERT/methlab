@@ -45,6 +45,7 @@ from imaplib import IMAP4  # noqa
 from dateutil.parser import parse  # noqa
 from tldextract import extract  # noqa
 from cortex4py.api import Api  # noqa
+from pymisp import PyMISP, MISPEvent  # noqa
 from ip2geotools.databases.noncommercial import DbIpCity  # noqa
 
 from ioc_finder import (  # noqa
@@ -81,10 +82,7 @@ try:
 except ObjectDoesNotExist:
     logging.error("missing information")
     sys.exit()
-except IMAP4.error:
-    logging.error("error connecting to imap")
-    sys.exit()
-except socket.gaierror:
+except (IMAP4.error, ConnectionRefusedError, socket.gaierror):
     logging.error("error connecting to imap")
     sys.exit()
 
@@ -98,6 +96,17 @@ if info.http_proxy and info.https_proxy:
     )
 else:
     cortex_api = Api(info.cortex_url, info.cortex_api, verify_cert=False)
+
+# MISP API
+if info.http_proxy and info.https_proxy:
+    misp_api = PyMISP(
+        info.misp_url,
+        info.misp_api,
+        proxies={"http": info.http_proxy, "https": info.https_proxy},
+        ssl=False,
+    )
+else:
+    misp_api = PyMISP(info.misp_url, info.misp_api, ssl=False)
 
 
 def store_attachments(msg):
@@ -579,9 +588,19 @@ def default(o):
         return list(o)
 
 
-def create_misp_event():
-    """ If mail is not safe store info in misp"""
-    return
+def create_misp_event(mail):
+    """ If mail is not safe store info in misp
+
+        arguments:
+        - mail: mail item
+    """
+    event = MISPEvent()
+    event.info("[METH]")
+    event.distribution = 0
+    event.threat_level_id = 2
+    event.analysis = 1
+    event.add_tag("tlp:white")
+    event.date = mail.date
 
 
 def process_mail(msg, parent_id=None, mail_filepath=None):
@@ -733,7 +752,7 @@ def process_mail(msg, parent_id=None, mail_filepath=None):
 
     # RUN ANALYZERS ON FULL EMAIL
     if check_cortex(mail_filepath, "file", mail, mail, is_mail=True):
-        create_misp_event()
+        create_misp_event(mail)
 
     # ADD ADDRESSES TO MAIL, CHECK IF HONEYPOT OR SECINC
     for addr_item, addr_type in addresses_list:
@@ -756,7 +775,7 @@ def process_mail(msg, parent_id=None, mail_filepath=None):
             )
         ):
             if check_cortex(addr_item.address, "mail", addr_item, mail, is_mail=False):
-                create_misp_event()
+                create_misp_event(mail)
 
     if mail.tags.count() == 0:
         mail.tags.add("Hunting")
@@ -767,7 +786,7 @@ def process_mail(msg, parent_id=None, mail_filepath=None):
         mf.save()
 
     if find_ioc(mail.body, mail):
-        create_misp_event()
+        create_misp_event(mail)
 
     # Save attachments
     random_path = store_attachments(msg)
@@ -785,7 +804,7 @@ def process_mail(msg, parent_id=None, mail_filepath=None):
             continue
 
         if process_attachment(filepath, mail, mess_att, parent_id):
-            create_misp_event()
+            create_misp_event(mail)
 
     # DELETE MAIL TEMP FILE, here should be safe
     clean_files((mail.eml_path, mail.attachments_path))
