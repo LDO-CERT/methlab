@@ -1,23 +1,27 @@
-from django.http import HttpResponse
+from django.http import HttpResponse, Http404
 from django.shortcuts import render, get_object_or_404
 from django.db.models import Count
 from taggit.models import Tag
-from methlab.shop.models import Mail, Whitelist
-from methlab.shop.tables import AttachmentTable, IocTable, MailTable, LatestMailTable
+from methlab.shop.models import Mail, Whitelist, Address
+from methlab.shop.tables import (
+    AttachmentTable,
+    IocTable,
+    MailTable,
+    LatestMailTable,
+    AddressTable,
+)
 
 
 def home(request):
-
+    # COUNT MAIL
     email_count = Mail.external_objects.count()
-
     tags = Tag.objects.all()
-
     suspicious_tags = [x for x in tags if x.name.find("suspicious") != -1]
     suspicious = Mail.external_objects.filter(tags__name__in=suspicious_tags).count()
-
     malicious_tags = [x for x in tags if x.name.find("malicious") != -1]
     malicious = Mail.external_objects.filter(tags__name__in=malicious_tags).count()
 
+    # PAGINATE LATEST EMAIL
     table_l = LatestMailTable(
         Mail.external_objects.prefetch_related(
             "addresses", "iocs", "attachments", "tags", "flags"
@@ -28,47 +32,11 @@ def home(request):
     )
     table_l.paginate(page=request.GET.get("l_page", 1), per_page=25)
 
-    table_m = MailTable(
-        Mail.external_objects.all()
-        .values("subject")
-        .annotate(total=Count("subject"))
-        .order_by("-total"),
-        prefix="m_",
-    )
-    table_m.paginate(page=request.GET.get("m_page", 1), per_page=10)
-
-    table_a = AttachmentTable(
-        Mail.external_objects.all()
-        .values("attachments__md5", "attachments__sha256")
-        .annotate(total=Count("attachments__md5"))
-        .order_by("-total"),
-        prefix="a_",
-    )
-    table_a.paginate(page=request.GET.get("a_page", 1), per_page=10)
-
-    iocs = (
-        Mail.external_objects.all()
-        .values("iocs__ip", "iocs__domain")
-        .annotate(total=Count("iocs"))
-        .order_by("-total")
-    )
-
-    wl = Whitelist.objects.values_list("value", flat=True)
-
-    table_i = IocTable(
-        [x for x in iocs if x["iocs__ip"] not in wl and x["iocs__domain"] not in wl],
-        prefix="i_",
-    )
-
-    table_i.paginate(page=request.GET.get("i_page", 1), per_page=10)
     return render(
         request,
         "pages/main.html",
         {
             "table_l": table_l,
-            "table_m": table_m,
-            "table_a": table_a,
-            "table_i": table_i,
             "email_count": email_count,
             "suspicious": suspicious,
             "malicious": malicious,
@@ -78,6 +46,66 @@ def home(request):
 
 def campaign_detail(request, pk):
     return HttpResponse(pk)
+
+
+def campaigns(request, type):
+    wl = Whitelist.objects.values_list("value", flat=True)
+
+    if type not in ("subject", "sender"):
+        raise Http404
+
+    if type == "subject":
+        # SORT BY SUBJECT
+        table = MailTable(
+            Mail.external_objects.all()
+            .values("subject")
+            .annotate(total=Count("subject"))
+            .filter(total__gt=2)
+            .order_by("-total"),
+        )
+        table.paginate(page=request.GET.get("page", 1), per_page=20)
+
+    elif type == "sender":
+        # SORT BY SUBJECT
+        table = AddressTable(
+            Address.objects.filter(mail_addresses__field="from")
+            .exclude(address__icontains="@leonardocompany.com")
+            .values("mail_addresses__address__address")
+            .annotate(total=Count("mail_addresses__address__address"))
+            .order_by("-total")
+            .filter(total__gt=2)
+        )
+        table.paginate(page=request.GET.get("page", 1), per_page=20)
+
+    return render(request, "pages/stats.html", {"table": table, "type": type},)
+
+
+def stats(request):
+    wl = Whitelist.objects.values_list("value", flat=True)
+
+    # SORT BY ATTACHMENTS
+    table = AttachmentTable(
+        Mail.external_objects.all()
+        .values("attachments__md5", "attachments__sha256")
+        .annotate(total=Count("attachments__md5"))
+        .order_by("-total"),
+    )
+    table.paginate(page=request.GET.get("page", 1), per_page=10)
+
+    # SORT BY IOC
+    iocs = (
+        Mail.external_objects.all()
+        .values("iocs__ip", "iocs__domain")
+        .annotate(total=Count("iocs"))
+        .order_by("-total")
+    )
+
+    table = IocTable(
+        [x for x in iocs if x["iocs__ip"] not in wl and x["iocs__domain"] not in wl],
+    )
+    table.paginate(page=request.GET.get("page", 1), per_page=10)
+
+    return render(request, "pages/stats.html", {"table": table, "type": type},)
 
 
 def mail_detail(request, pk):

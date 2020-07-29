@@ -156,14 +156,12 @@ class MailAdmin(LeafletGeoAdmin, DynamicArrayMixin):
     inlines = [AttachmentInline, AddressesInline, IocInline, FlagInline]
     list_display = (
         "short_id",
-        "parent",
         "short_subject",
         "count_attachments",
         "count_iocs",
         "tag_list",
         "flag_list",
         "geom",
-        "sender_ip_address",
     )
     search_fields = ["subject"]
 

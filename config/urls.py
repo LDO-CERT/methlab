@@ -3,7 +3,14 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
 from django.views import defaults as default_views
-from methlab.shop.views import home, mail_detail, campaign_detail, search
+from methlab.shop.views import (
+    home,
+    mail_detail,
+    campaign_detail,
+    search,
+    campaigns,
+    stats,
+)
 from methlab.shop.models import Mail
 from djgeojson.views import GeoJSONLayerView
 
@@ -11,6 +18,8 @@ from djgeojson.views import GeoJSONLayerView
 urlpatterns = [
     path("", home, name="home"),
     path("mail/<int:pk>/", mail_detail, name="mail_detail"),
+    path("campaigns/<str:type>/", campaigns, name="campaigns"),
+    path("stats/", stats, name="stats"),
     path("campaign/<int:pk>/", campaign_detail, name="campaign_detail"),
     path("search/", search, name="search"),
     path(settings.ADMIN_URL, admin.site.urls),

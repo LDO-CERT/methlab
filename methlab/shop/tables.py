@@ -1,6 +1,6 @@
 import django_tables2 as tables
 from django_tables2.utils import A
-from methlab.shop.models import Attachment, Ioc, Mail
+from methlab.shop.models import Attachment, Ioc, Mail, Address
 
 
 class MailTable(tables.Table):
@@ -47,3 +47,12 @@ class IocTable(tables.Table):
         model = Ioc
         template_name = "django_tables2/bootstrap4.html"
         fields = ("iocs__ip", "iocs__domain", "total")
+
+
+class AddressTable(tables.Table):
+    total = tables.Column(verbose_name="Total")
+
+    class Meta:
+        model = Address
+        template_name = "django_tables2/bootstrap4.html"
+        fields = ("mail_addresses__address__address", "total")

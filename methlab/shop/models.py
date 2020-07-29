@@ -1,10 +1,19 @@
 from django.db import models
-from django.db.models import Value
+from django.contrib.auth.models import User
+from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelation
+from django.contrib.contenttypes.models import ContentType
+from django.template.defaultfilters import truncatechars
 
+# CUSTOM FIELDS
+from djgeojson.fields import PointField
 from colorfield.fields import ColorField
+from django.contrib.postgres.fields import JSONField, ArrayField
+from django_better_admin_arrayfield.models.fields import ArrayField  # noqa
 
+# MANAGER
 from taggit.managers import TaggableManager
 
+# POSTGRES SWEETERS
 import django.contrib.postgres.search as pg_search
 from django.contrib.postgres.indexes import GinIndex
 from django.contrib.postgres.aggregates import StringAgg
@@ -14,17 +23,6 @@ from django.contrib.postgres.search import (
     SearchVector,
     TrigramSimilarity,
 )
-
-from django.contrib.postgres.fields import JSONField, ArrayField
-
-from django_better_admin_arrayfield.models.fields import ArrayField  # noqa
-
-from djgeojson.fields import PointField
-
-from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelation
-
-from django.contrib.contenttypes.models import ContentType
-from django.template.defaultfilters import truncatechars
 
 
 class InternalInfo(models.Model):
@@ -197,6 +195,7 @@ class MailManager(models.Manager):
 
 
 class Mail(models.Model):
+    assignee = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
     parent = models.ForeignKey("self", blank=True, null=True, on_delete=models.CASCADE)
     message_id = models.CharField(max_length=1000)
     subject = models.CharField(max_length=500)
@@ -232,6 +231,10 @@ class Mail(models.Model):
 
     class Meta:
         indexes = [GinIndex(fields=["search_vector"])]
+
+    @property
+    def sender(self):
+        return [x for x in self.mail_addresses_set.all() if x.field == "from"][0]
 
     @property
     def short_id(self):
@@ -274,6 +277,9 @@ class Mail_Addresses(models.Model):
     mail = models.ForeignKey(Mail, on_delete=models.CASCADE)
     address = models.ForeignKey(Address, on_delete=models.CASCADE)
     field = models.CharField(max_length=10, choices=FIELDS)
+
+    def __str__(self):
+        return "{}".format(self.address.address)
 
 
 class Mail_Flag(models.Model):
