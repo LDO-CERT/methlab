@@ -42,8 +42,24 @@ services:
     ports:
       - "0.0.0.0:80:80"
       - "0.0.0.0:443:443"
+      - "0.0.0.0:5555:5555"
 
   redis:
     image: redis:5.0
+
+  celeryworker:
+    <<: *django
+    image: methlab_production_celeryworker
+    command: /start-celeryworker
+
+  celerybeat:
+    <<: *django
+    image: methlab_production_celerybeat
+    command: /start-celerybeat
+
+  flower:
+    <<: *django
+    image: methlab_production_flower
+    command: /start-flower
 
   

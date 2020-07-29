@@ -113,7 +113,7 @@
               <dt class="col-sm-3">From:</dt>
               <dd class="col-sm-9">
                 {% for address in mail.mail_addresses_set.all %}{% if address.field == 'from' %}{{address.address.address}}
-                - {{address.address.name}}{% endif %}{% endfor%}</dd>
+                - {{address.address.name|join:","}}{% endif %}{% endfor%}</dd>
               <dt class="col-sm-3">MX:</dt>
               <dd class="col-sm-9">
                 {% for address in mail.mail_addresses_set.all %}{% if address.field == 'from' %}{{address.address.mx_check}}{% endif %}{% endfor%}
@@ -121,22 +121,22 @@
               <dt class="col-sm-3">To:</dt>
               <dd class="col-sm-9">
                 {% for address in mail.mail_addresses_set.all %}{% if address.field == 'to' %}{{address.address.address}}
-                - {{address.address.name}}<br />{% endif %}{% endfor%}</dd>
+                - {{address.address.name|join:","}}<br />{% endif %}{% endfor%}</dd>
               <dt class="col-sm-3">Cc:</dt>
               <dd class="col-sm-9">
                 {% for address in mail.mail_addresses_set.all %}{% if address.field == 'cc' %}{{address.address.address}}
-                - {{address.address.name}}<br />{% endif %}{% endfor%}</dd>
+                - {{address.address.name|join:","}}<br />{% endif %}{% endfor%}</dd>
               <dt class="col-sm-3">Bcc:</dt>
               <dd class="col-sm-9">
                 {% for address in mail.mail_addresses_set.all %}{% if address.field == 'bcc' %}{{address.address.address}}
-                - {{address.address.name}}<br />{% endif %}{% endfor%}</dd>
+                - {{address.address.name|join:","}}<br />{% endif %}{% endfor%}</dd>
               <dt class="col-sm-3">Reply to:</dt>
               <dd class="col-sm-9">
                 {% for address in mail.mail_addresses_set.all %}{% if address.field == 'reply_to' %}{{address.address.address}}
-                - {{address.address.name}}<br />{% endif %}{% endfor%}</dd>
+                - {{address.address.name|join:","}}<br />{% endif %}{% endfor%}</dd>
               {% if mail.to_domains%}
               <dt class="col-sm-3">To-domains:</dt>
-              <dd class="col-sm-9">{{mail.to_domains}}</dd>
+              <dd class="col-sm-9">{{mail.to_domains|join:","}}</dd>
               {% endif %}
               {% if mail.sender_ip_address%}
               <dt class="col-sm-3">Sender IP address:</dt>
@@ -159,6 +159,7 @@
               <thead>
                 <tr>
                   <td>Ioc</td>
+                  <td>Whois</td>
                   <td>Report</td>
                 </tr>
               </thead>
@@ -166,6 +167,7 @@
                 {% for ioc in mail.iocs.all %}
                 <tr>
                   <td>{{ioc}}</td>
+                  <td>{% if ioc.whois %}{{ioc.whois}}{% endif %}</td>
                   <td>
                     {% for report in ioc.reports.all %}
                     {{report.analyzer.name}} - {{report.analyzer.taxonomies}}<br />

@@ -1,24 +1,28 @@
 # https://github.com/stub42/pytz
 pytz==2020.1
 # https://github.com/un33k/python-slugify
-python-slugify==4.0.0
+python-slugify==4.0.1
+# https://github.com/ndparker/rcssmin
+rcssmin==1.0.6  
 # https://github.com/python-pillow/Pillow
 Pillow==7.2.0
 # https://github.com/hynek/argon2_cffi
-argon2-cffi==19.2.0
+argon2-cffi==20.1.0
 # https://github.com/evansd/whitenoise
 whitenoise==5.0.1
 # https://github.com/andymccurdy/redis-py
-redis==3.5.0
+redis==3.5.3
 # https://github.com/redis/hiredis-py
-hiredis==1.0.1
+hiredis==1.1.0
 # https://github.com/python-ldap/python-ldap
 python-ldap==3.2.0
+# https://github.com/encode/uvicorn
+uvicorn==0.11.6  
 
 # Django
 # ------------------------------------------------------------------------------
 # https://www.djangoproject.com/
-django==3.0.7
+django==3.0.8
 # https://github.com/joke2k/django-environ
 django-environ==0.4.5
 # https://github.com/jazzband/django-model-utils
@@ -47,6 +51,17 @@ jsonfield==3.1.0
 django-geojson==3.0.0
 # https://github.com/makinacorpus/django-leaflet
 django-leaflet==0.27.0
+# https://github.com/django-compressor/django-compressor
+django-compressor==2.4  
+
+# Celery
+# ------------------------------------------------------------------------------
+# https://github.com/celery/celery
+celery==4.4.6
+# https://github.com/celery/django-celery-beat
+django-celery-beat==2.0.0  
+# https://github.com/mher/flower
+flower==0.9.5  
 
 # Varie
 # ------------------------------------------------------------------------------

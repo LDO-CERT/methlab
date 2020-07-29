@@ -61,6 +61,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "django.contrib.admin",
     "django.forms",
+    "django_celery_beat",
     "crispy_forms",
     "colorfield",
     "django_better_admin_arrayfield",
@@ -234,6 +235,19 @@ LOGGING = {
     "root": {"level": "INFO", "handlers": ["console"]},
 }
 
+# CELERY
+# ------------------------------------------------------------------------------
+if USE_TZ:
+    CELERY_TIMEZONE = TIME_ZONE
+CELERY_BROKER_URL = env("CELERY_BROKER_URL")
+CELERY_RESULT_BACKEND = CELERY_BROKER_URL
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TASK_TIME_LIMIT = 5 * 60
+CELERY_TASK_SOFT_TIME_LIMIT = 60
+CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
+
 # LDAP
 # ------------------------------------------------------------------------------
 AUTH_LDAP_SERVER_URI = env("AUTH_LDAP_SERVER_URI")
@@ -245,7 +259,13 @@ AUTH_LDAP_USER_SEARCH = LDAPSearch(
     env("AUTH_LDAP_USER_SEARCH_ALIAS"),
 )
 
-# # LEAFLET
+# COMPRESSOR
+# ------------------------------------------------------------------------------
+INSTALLED_APPS += ["compressor"]
+STATICFILES_FINDERS += ["compressor.finders.CompressorFinder"]
+
+
+# LEAFLET
 # ------------------------------------------------------------------------------
 
 LEAFLET_CONFIG = {
