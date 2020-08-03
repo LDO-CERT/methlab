@@ -16,15 +16,19 @@ docker-compose -f local.yml run --rm django python manage.py migrate
 docker-compose -f local.yml run --rm django python manage.py createsuperuser
 ```
 
-### Add mail monitoring to crontab **
-```
-docker-compose -f local.yml run --rm django python manage.py monitor
-```
-
 ### Import Analyzers from cortex
 ```
 docker-compose -f local.yml run --rm django python manage.py cortex_import
 ```
+
+### Services and ports:
+```
+8000: meth gui
+5432: postgres 
+5555: flower
+6379: redis
+```
+
 
 # Thanks to:
 [ioc-fider](https://github.com/fhightower/ioc-finder)

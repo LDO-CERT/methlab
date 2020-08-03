@@ -27,7 +27,7 @@ def home(request):
             "addresses", "iocs", "attachments", "tags", "flags"
         )
         .all()
-        .order_by("-date"),
+        .order_by("-date")[:250],
         prefix="l_",
     )
     table_l.paginate(page=request.GET.get("l_page", 1), per_page=25)

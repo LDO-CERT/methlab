@@ -1,9 +1,10 @@
 """
 Base settings to build other settings files upon.
 """
-from pathlib import Path
 import ldap
 import environ
+from pathlib import Path
+from celery.schedules import crontab
 from django_auth_ldap.config import LDAPSearch
 
 ROOT_DIR = Path(__file__).resolve(strict=True).parent.parent.parent
@@ -247,6 +248,13 @@ CELERY_RESULT_SERIALIZER = "json"
 CELERY_TASK_TIME_LIMIT = 5 * 60
 CELERY_TASK_SOFT_TIME_LIMIT = 60
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
+CELERY_BEAT_SCHEDULE = {
+    "check_mail": {
+        "task": "methlab.shop.tasks.check_mails",
+        "schedule": crontab(minute="*/5"),
+    },
+}
+
 
 # LDAP
 # ------------------------------------------------------------------------------
