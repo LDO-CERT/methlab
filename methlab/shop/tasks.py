@@ -104,5 +104,5 @@ def check_mails():
             misp_api=misp_api,
             mail_filepath=filepath,
         )
-        # methmail.process_mail()
+        methmail.process_mail()
     return len(data_list)

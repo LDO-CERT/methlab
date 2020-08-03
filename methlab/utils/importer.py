@@ -96,6 +96,7 @@ class MethMail:
             pass
 
         self.store_info()
+
         # RUN ANALYZERS ON FULL EMAIL
         if self.check_cortex(self.mail_filepath, "file", self.db_mail, is_mail=True):
             self.create_misp_event(self.db_mail)

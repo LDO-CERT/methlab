@@ -231,9 +231,16 @@ LOGGING = {
             "level": "DEBUG",
             "class": "logging.StreamHandler",
             "formatter": "verbose",
-        }
+        },
+        "celery": {
+            "level": "WARNING",
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": "celery.log",
+            "formatter": "verbose",
+            "maxBytes": 1024 * 1024 * 10,
+        },
     },
-    "root": {"level": "INFO", "handlers": ["console"]},
+    "root": {"level": "INFO", "handlers": ["console", "celery"]},
 }
 
 # CELERY

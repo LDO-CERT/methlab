@@ -224,9 +224,10 @@ class Mail(models.Model):
     external_objects = MailManager()
 
     def save(self, *args, **kwargs):
-        self.search_vector = SearchVector(
-            "body", weigth="A", config="english"
-        ) + SearchVector("subject", weigth="B", config="english")
+        if self._state.adding is False:
+            self.search_vector = SearchVector(
+                "body", weigth="A", config="english"
+            ) + SearchVector("subject", weigth="B", config="english")
         super().save(*args, **kwargs)
 
     class Meta:
