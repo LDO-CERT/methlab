@@ -26,6 +26,11 @@ from taggit.models import Tag
 # ########################
 
 
+class WhitelistResource(resources.ModelResource):
+    class Meta:
+        model = Whitelist
+
+
 class FlagResource(resources.ModelResource):
     class Meta:
         model = Flag
@@ -219,7 +224,7 @@ class AnalyzerAdmin(admin.ModelAdmin, DynamicArrayMixin):
         return False
 
 
-class WhitelistAdmin(admin.ModelAdmin, DynamicArrayMixin):
+class WhitelistAdmin(ImportExportModelAdmin, DynamicArrayMixin):
     list_display = ("value", "type")
     list_filter = ("type",)
     search_fields = ["value"]

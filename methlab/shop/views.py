@@ -22,7 +22,9 @@ def home(request):
 
     # PAGINATE LATEST EMAIL
     table_l = LatestMailTable(
-        Mail.external_objects.prefetch_related("addresses", "iocs", "attachments")
+        Mail.external_objects.prefetch_related(
+            "addresses", "iocs", "attachments", "tags"
+        )
         .all()
         .order_by("-date")[:250],
         prefix="l_",

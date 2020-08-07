@@ -81,15 +81,6 @@ class Analyzer(models.Model):
 
 
 class Report(models.Model):
-
-    LEVEL = (
-        (0, "none"),
-        (1, "info"),
-        (2, "safe"),
-        (3, "suspicious"),
-        (4, "malicious"),
-    )
-
     response = models.JSONField(blank=True, null=True)
     analyzer = models.ForeignKey(
         Analyzer, on_delete=models.CASCADE, blank=True, null=True
@@ -99,6 +90,7 @@ class Report(models.Model):
     content_object = GenericForeignKey("content_type", "object_id")
     taxonomies = ArrayField(models.CharField(max_length=50), blank=True, null=True)
     success = models.BooleanField(default=False)
+    date = models.DateField(auto_now_add=True)
 
 
 class Address(models.Model):
@@ -151,8 +143,10 @@ class Flag(TagBase):
         return self.name
 
 
-class CustomTags(TaggedItemBase):
-    tag = models.ForeignKey(Flag, on_delete=models.CASCADE)
+class CustomTag(TaggedItemBase):
+    tag = models.ForeignKey(
+        Flag, related_name="%(app_label)s_%(class)ss", on_delete=models.CASCADE
+    )
     content_object = models.ForeignKey("Mail", on_delete=models.CASCADE)
     note = models.TextField(blank=True, null=True)
 
@@ -191,8 +185,8 @@ class MailManager(models.Manager):
     def search(self, search_text):
         # Multiple language will be available in 3.1
         search_vectors = SearchVector(
-            "body", weigth="A", config="english"
-        ) + SearchVector("subject", weigth="B", config="english")
+            "body", weight="A", config="english"
+        ) + SearchVector("subject", weight="B", config="english")
         search_query = SearchQuery(search_text)
         search_rank = SearchRank(search_vectors, search_query)
         body_tr_sim = TrigramSimilarity("body", search_text)
@@ -253,14 +247,14 @@ class Mail(models.Model):
 
     # ADDITIONAL FIELDS
     geom = PointField(blank=True, null=True)
-    # dig/mx/??
+    dmark = models.JSONField(blank=True, null=True)
 
     # IOC
     iocs = models.ManyToManyField(Ioc, related_name="iocs")
     attachments = models.ManyToManyField(Attachment, related_name="attachments")
 
     # TAGS
-    tags = TaggableManager(through=CustomTags)
+    tags = TaggableManager(through=CustomTag)
 
     # STORAGE INFO
     eml_path = models.CharField(max_length=500, blank=True, null=True)
@@ -279,8 +273,8 @@ class Mail(models.Model):
     def save(self, *args, **kwargs):
         if self._state.adding is False:
             self.search_vector = SearchVector(
-                "body", weigth="A", config="english"
-            ) + SearchVector("subject", weigth="B", config="english")
+                "body", weight="A", config="english"
+            ) + SearchVector("subject", weight="B", config="english")
         super().save(*args, **kwargs)
 
     class Meta:

@@ -8,7 +8,8 @@ from imaplib import IMAP4
 import mailparser
 
 from cortex4py.api import Api
-from pymisp import PyMISP
+
+# from pymisp import PyMISP
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ObjectDoesNotExist
@@ -65,19 +66,19 @@ def check_mails():
     except Exception:
         raise CeleryError
 
-    try:
-        if info.http_proxy and info.https_proxy:
-            misp_api = PyMISP(
-                info.misp_url,
-                info.misp_api,
-                proxies={"http": info.http_proxy, "https": info.https_proxy},
-                ssl=False,
-            )
-        else:
-            misp_api = PyMISP(info.misp_url, info.misp_api, ssl=False)
-    except Exception:
-        # raise CeleryError
-        misp_api = None
+    # try:
+    #    if info.http_proxy and info.https_proxy:
+    #        misp_api = PyMISP(
+    #            info.misp_url,
+    #            info.misp_api,
+    #            proxies={"http": info.http_proxy, "https": info.https_proxy},
+    #            ssl=False,
+    #        )
+    #    else:
+    #        misp_api = PyMISP(info.misp_url, info.misp_api, ssl=False)
+    # except Exception:
+    # raise CeleryError
+    misp_api = None
 
     _, data = inbox.search(None, "(UNSEEN)")
     email_list = list(data[0].split())

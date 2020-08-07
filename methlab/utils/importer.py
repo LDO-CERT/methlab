@@ -20,7 +20,9 @@ from ipwhois import IPWhois
 from zipfile import ZipFile, is_zipfile
 from dateutil.parser import parse
 from tldextract import extract
-from pymisp import MISPEvent
+from checkdmarc import check_domains, results_to_json
+
+# from pymisp import MISPEvent
 
 from glom import glom, PathAccessError
 from ip2geotools.databases.noncommercial import DbIpCity
@@ -35,8 +37,6 @@ from methlab.shop.models import (
     Mail,
     Attachment,
     Address,
-    Mail_Flag,
-    Flag,
     Ioc,
     Mail_Addresses,
     Analyzer,
@@ -78,7 +78,7 @@ class MethMail:
         self.misp_api = misp_api
         self.mail_filepath = mail_filepath
         self.parent_id = parent_id
-        self.db_mail = None
+        self.db_mail = None  # mail object in db
 
     def process_mail(self):
         """ Main workflow for single mail.
@@ -95,11 +95,11 @@ class MethMail:
         except Mail.DoesNotExist:
             pass
 
+        # CREATE OBJECT IN DB
         self.store_info()
 
         # RUN ANALYZERS ON FULL EMAIL
-        if self.check_cortex(self.mail_filepath, "file", self.db_mail, is_mail=True):
-            self.create_misp_event(self.db_mail)
+        self.check_cortex(self.mail_filepath, "file", self.db_mail, is_mail=True)
 
         # Save attachments
         random_path = self.store_attachments()
@@ -108,7 +108,6 @@ class MethMail:
 
         # PROCESS ATTACHMENTS
         for mess_att in self.msg.attachments:
-
             filepath = "{}/{}".format(random_path, mess_att["filename"])
 
             # I don't have payload or I don't understand type skip
@@ -116,8 +115,7 @@ class MethMail:
                 self.clean_files((self.db_mail.eml_path, self.db_mail.attachments_path))
                 continue
 
-            if self.process_attachment(filepath, mess_att):
-                self.create_misp_event()
+            self.process_attachment(filepath, mess_att)
 
         # DELETE MAIL TEMP FILE, here should be safe
         self.clean_files((self.db_mail.eml_path, self.db_mail.attachments_path))
@@ -130,10 +128,6 @@ class MethMail:
             - ioc_type: type of the ioc (generic_relation and cortex datatype)
             - object_id: item to attach report to
             - is_mail: ioc is a mail [mail datatype is for addresses and file is for mail]
-
-            returns:
-            - True: item is dangerous
-            - False: item is safe or no info
         """
 
         # Mail object is file in cortex
@@ -160,23 +154,35 @@ class MethMail:
             content_type=ContentType.objects.get_for_model(content_type),
             object_id=object_id.pk,
             success=True,
+            date__gte=datetime.datetime.today() - datetime.timedelta(days=30),
         )
 
         for analyzer in analyzers:
+
             # Check if item was already been processed
             for report in old_reports:
                 if report.analyzer == analyzer:
                     if "malicious" in report.taxonomies:
-                        self.db_mail.tags.add("{}: malicious".format(analyzer.name))
-                        return True
+                        self.db_mail.tags.add(
+                            "{}: malicious".format(analyzer.name),
+                            tag_kwargs={"color": "#FF0000"},
+                        )
+
                     elif "suspicious" in report.taxonomies:
-                        self.db_mail.tags.add("{}: suspicious".format(analyzer.name))
-                        return True
+                        self.db_mail.tags.add(
+                            "{}: suspicious".format(analyzer.name),
+                            tag_kwargs={"color": "#C15808"},
+                        )
+
                     elif "safe" in report.taxonomies:
-                        self.db_mail.tags.add("{}: safe".format(analyzer.name))
-                        return
+                        self.db_mail.tags.add(
+                            "{}: safe".format(analyzer.name),
+                            tag_kwargs={"color": "#00FF00"},
+                        )
+
                     continue
 
+            # If not rerun the analyzer
             try:
                 job = self.cortex_api.analyzers.run_by_name(
                     analyzer.name,
@@ -186,6 +192,7 @@ class MethMail:
                 while job.status not in ["Success", "Failure"]:
                     time.sleep(10)
                     job = self.cortex_api.jobs.get_report(job.id)
+
                 if job.status == "Success":
                     response = job.json()
                     try:
@@ -194,6 +201,7 @@ class MethMail:
                         )
                     except PathAccessError:
                         taxonomies = None
+
                     report = Report(
                         response=response,
                         content_object=object_id,
@@ -204,15 +212,22 @@ class MethMail:
                     report.save()
 
                     if "malicious" in taxonomies:
-                        self.db_mail.tags.add("{}: malicious".format(analyzer.name))
-                        return True
+                        self.db_mail.tags.add(
+                            "{}: malicious".format(analyzer.name),
+                            tag_kwargs={"color": "#FF0000"},
+                        )
+
                     elif "suspicious" in taxonomies:
-                        self.db_mail.tags.add("{}: suspicious".format(analyzer.name))
-                        return True
+                        self.db_mail.tags.add(
+                            "{}: suspicious".format(analyzer.name),
+                            tag_kwargs={"color": "#C15808"},
+                        )
+
                     elif "safe" in taxonomies:
-                        self.db_mail.tags.add("{}: safe".format(analyzer.name))
-                        # this will stop analysing this object but will continue analyze the mail
-                        return
+                        self.db_mail.tags.add(
+                            "{}: safe".format(analyzer.name),
+                            tag_kwargs={"color": "#00FF00"},
+                        )
 
                 elif job.status == "Failure":
                     report = Report(
@@ -230,27 +245,21 @@ class MethMail:
     def create_misp_event(self):
         """ If mail is not safe store info in misp
         """
+        return
         # self.misp_api
-        event = MISPEvent()
-        event.info("[METH]")
-        event.distribution = 0
-        event.threat_level_id = 2
-        event.analysis = 1
-        event.add_tag("tlp:white")
-        event.date = self.db_mail.date
-        pass
+        # event = MISPEvent()
+        # event.info("[METH]")
+        # event.distribution = 0
+        # event.threat_level_id = 2
+        # event.analysis = 1
+        # event.add_tag("tlp:white")
+        # event.date = self.db_mail.date
 
     def find_ioc(self, payload):
         """" Extracts url and ip from text.
 
             arguments:
             - payload: message body
-            - mail: mail item
-
-            returns:
-            - True: some iocs are dangerous
-            - False: all iocs are safe
-            - None: no info related to iocs
         """
         all_wl = Whitelist.objects.all()
 
@@ -261,6 +270,7 @@ class MethMail:
             domain = ".".join(part for part in extract(url) if part)
             if domain in [x.value for x in all_wl if x.type == "domain"]:
                 continue
+
             ioc, created = Ioc.objects.get_or_create(domain=domain,)
             if created:
                 try:
@@ -281,8 +291,7 @@ class MethMail:
             ioc.whois = whois_info
             ioc.save()
             self.db_mail.iocs.add(ioc)
-            if self.check_cortex(url, "url", ioc):
-                return True
+            self.check_cortex(url, "url", ioc)
 
         # EXTRACT IP, CHECK IF WL AND GET REPORT
         for ip in (
@@ -293,6 +302,7 @@ class MethMail:
             whois_info = None
             if ip in [x.value for x in all_wl if x.type == "ip"]:
                 continue
+
             ioc, created = Ioc.objects.get_or_create(ip=ip)
             if created:
                 try:
@@ -302,19 +312,18 @@ class MethMail:
             ioc.whois = whois_info
             ioc.save()
             self.db_mail.iocs.add(ioc)
-            if self.check_cortex(ip, "ip", ioc):
-                return True
-
-        # All IOC are safe or without info, return None
-        return False
+            self.check_cortex(ip, "ip", ioc)
 
     def store_info(self):
         """ Clean mail fields and create item in db
         """
         flags = []
         addresses_list = []
+
         mail_wl = Whitelist.objects.filter(type="address")
+
         geo_info = None
+        dmark_info = None
 
         # CHECK FROM ADDRESSES AND ASSIGN FLAGS
         for (name, address_from) in self.msg.from_:
@@ -332,6 +341,8 @@ class MethMail:
                 return
 
             address, _ = Address.objects.get_or_create(address=address_from)
+
+            # address could have multiple names
             if not address.name:
                 address.name = [name]
             elif name not in address.name:
@@ -351,24 +362,25 @@ class MethMail:
             address.save()
 
             # Check fake names and vip scam
+            # if there is an email in the mail name and is different from mail address
             addresses_list.append((address, "from"))
             other_addresses = parse_email_addresses(name)
             if len(other_addresses) > 0 and any(
                 [x != address_from for x in other_addresses]
             ):
-                flags.append((Flag.objects.get(name="Fake Real Name"), None))
+                flags.append(
+                    (
+                        "Fake Real Name",
+                        "Mail name contains mail different from mail address",
+                    )
+                )
             if self.info.vip_list:
                 for vip in self.info.vip_list:
                     if (
                         name.find(vip) != -1
                         and address_from.find(self.info.vip_domain) == -1
                     ):
-                        flags.append(
-                            (
-                                Flag.objects.get(name="Potenziale VIP SCAM"),
-                                "{} mail for {}".format(name, vip),
-                            )
-                        )
+                        flags.append(("VIP SCAM", "{} mail for {}".format(name, vip),))
 
         # clean TO, BCC, CC and REPLY_TO fields
         for (field_value, field_name) in zip(
@@ -411,6 +423,11 @@ class MethMail:
                 except Exception as e:
                     print(e)
 
+                try:
+                    dmark_info = results_to_json(check_domains(domain))
+                except Exception as e:
+                    print(e)
+
                 # SPF CHECK
                 domain = domain.split()[0]
                 sender = self.msg.from_[0][1]
@@ -418,8 +435,8 @@ class MethMail:
                 if spf_check[1] != 250:
                     flags.append(
                         (
-                            Flag.objects.get(name="SPF"),
-                            "Sender {0} non accettato via SPF sul server {1} ({2}): {3}. Hop considerato: {4}".format(
+                            "SPF",
+                            "Sender {0} rejected on {1} ({2}): {3}. Considered Hop: {4}".format(
                                 sender, domain, ip, spf_check[2], first_hop,
                             ),
                         )
@@ -434,7 +451,7 @@ class MethMail:
                     ]
                 )
             ):
-                flags.append((Flag.objects.get(name="Internal"), None))
+                flags.append(("Internal",))
 
         # DATE from mail, if error now()
         if not self.msg.date:
@@ -445,16 +462,18 @@ class MethMail:
             )
 
         self.db_mail = Mail(
-            parent=None if self.parent_id is None else Mail(self.parent_id),
+            parent=None if not self.parent_id else Mail(self.parent_id),
             message_id=self.msg.message_id,
             subject=self.msg.subject,
             date=date,
+            submission_date=None if not self.parent_id else Mail(self.parent_id).date,
             received=self.msg.received,
             headers=self.msg.headers,
             body=self.msg.body,
             sender_ip_address=self.msg.get_server_ipaddress(self.info.imap_server),
             to_domains=self.msg.to_domains,
             geom=geo_info,
+            dmark=dmark_info,
             # this is an .eml if parent is None otherwhise is the parent attachment folder
             eml_path=self.mail_filepath,
         )
@@ -482,6 +501,8 @@ class MethMail:
                     and addr_obj.address in self.info.security_emails
                 ):
                     self.db_mail.tags.add("SecInc")
+
+            # check from mail in not internal and not in wl
             elif addr_type == "from" and (
                 not self.info.internal_domains
                 or all(
@@ -491,21 +512,16 @@ class MethMail:
                     ]
                 )
             ):
-                if self.check_cortex(
-                    addr_item.address, "mail", addr_item, is_mail=False
-                ):
-                    self.create_misp_event()
+                self.check_cortex(addr_item.address, "mail", addr_item, is_mail=False)
 
         if self.db_mail.tags.count() == 0:
             self.db_mail.tags.add("Hunting")
 
-        if self.find_ioc(self.db_mail.body):
-            self.create_misp_event()
+        self.find_ioc(self.db_mail.body)
 
         # STORE FLAGS IN DB
         for flag, note in flags:
-            mf = Mail_Flag(mail=self.db_mail, flag=flag, note=note)
-            mf.save()
+            self.db_mail.tags.append(flag, tag_kwargs={"note": note})
 
     def store_attachments(self):
         """ Store attachment to disk.
@@ -579,10 +595,6 @@ class MethMail:
             arguments:
             - filepath: path of the attachment
             - mess_att: attachment obcject
-
-            returns:
-            - True: attachment is dangerous
-            - False: attachment is safe
         """
 
         all_wl = Whitelist.objects.all()
@@ -672,11 +684,6 @@ class MethMail:
             attachment.save()
             self.db_mail.attachments.add(attachment)
             # Check file in onprems sandboxes
-            if self.check_cortex(filepath, "file", attachment):
-                return True
+            self.check_cortex(filepath, "file", attachment)
             # Check hashes in cloud services
-            if self.check_cortex(attachment.sha256, "hash", attachment):
-                return True
-
-        # Attachment is safe or no info
-        return False
+            self.check_cortex(attachment.sha256, "hash", attachment)
