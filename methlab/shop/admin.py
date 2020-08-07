@@ -19,6 +19,8 @@ from django_better_admin_arrayfield.admin.mixins import DynamicArrayMixin
 from import_export.admin import ImportExportModelAdmin
 from leaflet.admin import LeafletGeoAdmin
 
+from taggit.models import Tag
+
 # ########################
 # ## TO IMPORT / EXPORT
 # ########################
@@ -92,11 +94,6 @@ class AttachmentInline(admin.StackedInline):
     extra = 0
 
 
-class FlagInline(admin.TabularInline):
-    model = Mail.flags.through
-    extra = 0
-
-
 class IocInline(admin.TabularInline):
     def has_add_permission(self, request, obj=None):
         return False
@@ -134,7 +131,6 @@ class MailAdmin(LeafletGeoAdmin, DynamicArrayMixin):
         "sender_ip_address",
         "to_domains",
         "attachments",
-        "flags",
     )
 
     exclude = (
@@ -150,17 +146,16 @@ class MailAdmin(LeafletGeoAdmin, DynamicArrayMixin):
         return (
             super()
             .get_queryset(request)
-            .prefetch_related("tags", "attachments", "flags", "iocs")
+            .prefetch_related("tags", "attachments", "iocs")
         )
 
-    inlines = [AttachmentInline, AddressesInline, IocInline, FlagInline]
+    inlines = [AttachmentInline, AddressesInline, IocInline]
     list_display = (
         "short_id",
         "short_subject",
         "count_attachments",
         "count_iocs",
         "tag_list",
-        "flag_list",
         "geom",
     )
     search_fields = ["subject"]
@@ -282,6 +277,7 @@ admin.site.register(Report, ReportAdmin)
 admin.site.register(Attachment, AttachmentAdmin)
 
 admin.site.unregister(Group)
+admin.site.unregister(Tag)
 
 admin.site.site_header = "MethLab Admin"
 admin.site.site_title = "MethLab Admin Portal"

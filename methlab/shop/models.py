@@ -3,15 +3,18 @@ from django.contrib.auth.models import User
 from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelation
 from django.contrib.contenttypes.models import ContentType
 from django.template.defaultfilters import truncatechars
+from django.utils.translation import ugettext_lazy as _
+
 
 # CUSTOM FIELDS
 from djgeojson.fields import PointField
 from colorfield.fields import ColorField
-from django.contrib.postgres.fields import JSONField, ArrayField
+from django.contrib.postgres.fields import ArrayField
 from django_better_admin_arrayfield.models.fields import ArrayField  # noqa
 
-# MANAGER
+# TAGS
 from taggit.managers import TaggableManager
+from taggit.models import TagBase, TaggedItemBase
 
 # POSTGRES SWEETERS
 import django.contrib.postgres.search as pg_search
@@ -87,7 +90,7 @@ class Report(models.Model):
         (4, "malicious"),
     )
 
-    response = JSONField(blank=True, null=True)
+    response = models.JSONField(blank=True, null=True)
     analyzer = models.ForeignKey(
         Analyzer, on_delete=models.CASCADE, blank=True, null=True
     )
@@ -136,13 +139,22 @@ class Attachment(models.Model):
         )
 
 
-class Flag(models.Model):
-    name = models.CharField(max_length=100)
-    color = ColorField()
+class Flag(TagBase):
+    color = ColorField(blank=True, null=True)
     visible = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = _("Tag")
+        verbose_name_plural = _("Tags")
 
     def __str__(self):
         return self.name
+
+
+class CustomTags(TaggedItemBase):
+    tag = models.ForeignKey(Flag, on_delete=models.CASCADE)
+    content_object = models.ForeignKey("Mail", on_delete=models.CASCADE)
+    note = models.TextField(blank=True, null=True)
 
 
 class Whitelist(models.Model):
@@ -164,7 +176,7 @@ class Ioc(models.Model):
     ip = models.GenericIPAddressField(blank=True, null=True)
     urls = ArrayField(models.CharField(max_length=500), blank=True, null=True)
     domain = models.CharField(max_length=200, blank=True, null=True)
-    whois = JSONField(blank=True, null=True)
+    whois = models.JSONField(blank=True, null=True)
 
     reports = GenericRelation(Report, related_name="iocs")
 
@@ -195,34 +207,75 @@ class MailManager(models.Manager):
 
 
 class Mail(models.Model):
+
+    PROGRESS = (
+        (0, "new"),
+        (1, "processing"),
+        (2, "done"),
+    )
+
+    RESPONSE = (
+        (0, "Unknown"),
+        (1, "SPAM"),
+        (2, "HAM"),
+        (3, "Phishing"),
+        (4, "Social Engineering"),
+        (5, "Reconnaissance"),
+        (6, "BlackMail"),
+        (7, "CEO SCAM"),
+        (10, "licit"),
+    )
+
+    # WORKFLOW
+    progress = models.PositiveIntegerField(choices=PROGRESS, default=0)
+    suggested_response = models.PositiveIntegerField(choices=RESPONSE, default=0)
+    official_response = models.PositiveIntegerField(choices=RESPONSE, default=0)
     assignee = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
+
+    # SUBMISSION INFO
     parent = models.ForeignKey("self", blank=True, null=True, on_delete=models.CASCADE)
+
+    # to sort by submission_date :)
+    submission_date = models.DateTimeField(blank=True, null=True)
+
+    # MAIL INFO
     message_id = models.CharField(max_length=1000)
     subject = models.CharField(max_length=500)
     date = models.DateTimeField(blank=True, null=True)
     addresses = models.ManyToManyField(
         Address, related_name="addresses", through="Mail_Addresses"
     )
-    received = JSONField(blank=True, null=True)
-    headers = JSONField(blank=True, null=True)
-    geom = PointField(blank=True, null=True)
+    received = models.JSONField(blank=True, null=True)
+    headers = models.JSONField(blank=True, null=True)
     body = models.TextField(blank=True, null=True)
     sender_ip_address = models.CharField(max_length=50, blank=True, null=True)
     to_domains = ArrayField(models.CharField(max_length=500), blank=True, null=True)
+
+    # ADDITIONAL FIELDS
+    geom = PointField(blank=True, null=True)
+    # dig/mx/??
+
+    # IOC
     iocs = models.ManyToManyField(Ioc, related_name="iocs")
     attachments = models.ManyToManyField(Attachment, related_name="attachments")
-    flags = models.ManyToManyField(Flag, related_name="flags", through="Mail_Flag")
+
+    # TAGS
+    tags = TaggableManager(through=CustomTags)
+
+    # STORAGE INFO
     eml_path = models.CharField(max_length=500, blank=True, null=True)
     attachments_path = models.CharField(max_length=500, blank=True, null=True)
-    tags = TaggableManager()
 
+    # ATTACHED REPORT
     reports = GenericRelation(Report, related_name="mails")
 
+    # SEARCH FIELD
     search_vector = pg_search.SearchVectorField(null=True)
 
     objects = models.Manager()
     external_objects = MailManager()
 
+    # Update search vectors works only in update
     def save(self, *args, **kwargs):
         if self._state.adding is False:
             self.search_vector = SearchVector(
@@ -235,7 +288,9 @@ class Mail(models.Model):
 
     @property
     def sender(self):
-        return [x for x in self.mail_addresses_set.all() if x.field == "from"][0]
+        return next(
+            iter([x for x in self.mail_addresses_set.all() if x.field == "from"]), None
+        )
 
     @property
     def short_id(self):
@@ -248,10 +303,6 @@ class Mail(models.Model):
     @property
     def tag_list(self):
         return u", ".join(x.name for x in self.tags.all())
-
-    @property
-    def flag_list(self):
-        return u", ".join([x.name for x in self.flags.all()])
 
     @property
     def count_attachments(self):
@@ -281,9 +332,3 @@ class Mail_Addresses(models.Model):
 
     def __str__(self):
         return "{}".format(self.address.address)
-
-
-class Mail_Flag(models.Model):
-    mail = models.ForeignKey(Mail, on_delete=models.CASCADE)
-    flag = models.ForeignKey(Flag, on_delete=models.CASCADE)
-    note = models.TextField(blank=True, null=True)

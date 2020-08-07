@@ -63,7 +63,14 @@ django-celery-beat==2.0.0
 # https://github.com/mher/flower
 flower==0.9.5  
 
-# Varie
+# MISP - Cortex
+# ------------------------------------------------------------------------------
+# https://github.com/MISP/PyMISP
+pymisp==2.4.128 
+# https://github.com/TheHive-Project/Cortex4py
+cortex4py==2.0.1
+
+# Dns & ioc check
 # ------------------------------------------------------------------------------
 # https://github.com/fhightower/ioc-finder
 ioc-finder==3.1.1
@@ -73,20 +80,8 @@ ioc-finder==3.1.1
 pyspf==2.0.14
 # https://github.com/john-kurkowski/tldextract
 tldextract==2.2.3
-# https://github.com/TheHive-Project/Cortex4py
-cortex4py==2.0.1
-# https://github.com/ahupp/python-magic
-python-magic==0.4.18
-# https://github.com/bamthomas/aioimaplib
-aioimaplib==0.7.18
-# https://github.com/koodaamo/tnefparse
-tnefparse==1.3.0
 # https://github.com/delimitry/compressed_rtf
 compressed_rtf==1.0.6
-# https://github.com/tqdm/tqdm
-tqdm==4.48.2
-# https://github.com/mahmoud/glom
-glom==20.7.0
 # https://github.com/rthalley/dnspython
 dnspython==2.0.0
 # https://github.com/tomas-net/ip2geotools
@@ -95,5 +90,14 @@ ip2geotools==0.1.5
 whois==0.9.7
 # https://github.com/secynic/ipwhois
 ipwhois==1.1.0
-# https://github.com/MISP/PyMISP
-pymisp==2.4.128 
+# https://github.com/ahupp/python-magic
+python-magic==0.4.18
+# https://github.com/domainaware/checkdmarc
+checkdmarc== 4.3.1
+
+# Util
+# ------------------------------------------------------------------------------
+# https://github.com/tqdm/tqdm
+tqdm==4.48.2
+# https://github.com/mahmoud/glom
+glom==20.7.0

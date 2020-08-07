@@ -1,8 +1,7 @@
 from django.http import HttpResponse, Http404
 from django.shortcuts import render, get_object_or_404
 from django.db.models import Count
-from taggit.models import Tag
-from methlab.shop.models import Mail, Whitelist, Address
+from methlab.shop.models import Mail, Whitelist, Address, Flag
 from methlab.shop.tables import (
     AttachmentTable,
     IocTable,
@@ -15,17 +14,15 @@ from methlab.shop.tables import (
 def home(request):
     # COUNT MAIL
     email_count = Mail.external_objects.count()
-    tags = Tag.objects.all()
-    suspicious_tags = [x for x in tags if x.name.find("suspicious") != -1]
+    flags = Flag.objects.all()
+    suspicious_tags = [x for x in flags if x.name.find("suspicious") != -1]
     suspicious = Mail.external_objects.filter(tags__name__in=suspicious_tags).count()
-    malicious_tags = [x for x in tags if x.name.find("malicious") != -1]
+    malicious_tags = [x for x in flags if x.name.find("malicious") != -1]
     malicious = Mail.external_objects.filter(tags__name__in=malicious_tags).count()
 
     # PAGINATE LATEST EMAIL
     table_l = LatestMailTable(
-        Mail.external_objects.prefetch_related(
-            "addresses", "iocs", "attachments", "tags", "flags"
-        )
+        Mail.external_objects.prefetch_related("addresses", "iocs", "attachments")
         .all()
         .order_by("-date")[:250],
         prefix="l_",
@@ -49,8 +46,6 @@ def campaign_detail(request, pk):
 
 
 def campaigns(request, type):
-    wl = Whitelist.objects.values_list("value", flat=True)
-
     if type not in ("subject", "sender"):
         raise Http404
 
@@ -110,9 +105,7 @@ def stats(request):
 
 def mail_detail(request, pk):
     mail = get_object_or_404(
-        Mail.objects.prefetch_related(
-            "addresses", "iocs", "attachments", "tags", "flags"
-        ),
+        Mail.objects.prefetch_related("addresses", "iocs", "attachments", "tags"),
         pk=pk,
     )
     return render(request, "pages/detail.html", {"mail": mail})

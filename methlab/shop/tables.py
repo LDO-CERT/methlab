@@ -20,7 +20,6 @@ class LatestMailTable(tables.Table):
         template_name = "django_tables2/bootstrap4.html"
         fields = (
             "short_subject",
-            "flag_list",
             "tag_list",
             "count_attachments",
             "count_iocs",
