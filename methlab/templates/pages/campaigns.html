@@ -8,18 +8,16 @@
 {% endblock extra_css %}
 
 {% block container %}
-
 <div class="album py-5 bg-light">
     <div class="container">
         <div class="col">
             <div class="card shadow-sm h-100">
                 <div class="card-body">
-                    <h5 class="card-title">Common {{type}}</h5>
+                    <h5 class="card-title">Common {{campaign_type}}</h5>
                     {% render_table table %}
                 </div>
             </div>
         </div>
     </div>
-</div>
 </div>
 {% endblock container %}

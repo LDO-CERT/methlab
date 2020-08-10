@@ -1,9 +1,12 @@
 import django_tables2 as tables
+from django.utils.html import format_html_join
+
 from django_tables2.utils import A
-from methlab.shop.models import Attachment, Ioc, Mail, Address
+from methlab.shop.models import Mail, Address
 
 
 class MailTable(tables.Table):
+    subject = tables.Column(verbose_name="Subject")
     total = tables.Column(verbose_name="Total")
 
     class Meta:
@@ -14,16 +17,28 @@ class MailTable(tables.Table):
 
 class LatestMailTable(tables.Table):
     link = tables.LinkColumn("mail_detail", text=">>>", args=[A("pk")], orderable=False)
+    short_subject = tables.Column(orderable=False)
+    count_attachments = tables.Column(orderable=False)
+    count_iocs = tables.Column(orderable=False)
+    tags = tables.Column(orderable=False)
 
     class Meta:
         model = Mail
         template_name = "django_tables2/bootstrap4.html"
         fields = (
             "short_subject",
-            "tag_list",
+            "tags",
             "count_attachments",
             "count_iocs",
         )
+
+    def render_tags(self, value, record):
+        html = format_html_join(
+            "\n",
+            """<span class='badge' style='background-color:{}'>{}</span>""",
+            ((x.color, x.name) for x in value.all()),
+        )
+        return html
 
 
 class AttachmentTable(tables.Table):
@@ -32,7 +47,7 @@ class AttachmentTable(tables.Table):
     attachments__sha256 = tables.Column(verbose_name="SHA256")
 
     class Meta:
-        model = Attachment
+        model = Mail
         template_name = "django_tables2/bootstrap4.html"
         fields = ("attachments__md5", "attachments__sha256", "total")
 
@@ -43,7 +58,7 @@ class IocTable(tables.Table):
     iocs__domain = tables.Column(verbose_name="Domain")
 
     class Meta:
-        model = Ioc
+        model = Mail
         template_name = "django_tables2/bootstrap4.html"
         fields = ("iocs__ip", "iocs__domain", "total")
 

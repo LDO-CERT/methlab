@@ -18,7 +18,7 @@ from djgeojson.views import GeoJSONLayerView
 urlpatterns = [
     path("", home, name="home"),
     path("mail/<int:pk>/", mail_detail, name="mail_detail"),
-    path("campaigns/<str:type>/", campaigns, name="campaigns"),
+    path("campaigns/<str:campaign_type>/", campaigns, name="campaigns"),
     path("stats/", stats, name="stats"),
     path("campaign/<int:pk>/", campaign_detail, name="campaign_detail"),
     path("search/", search, name="search"),

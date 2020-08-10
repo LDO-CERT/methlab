@@ -451,7 +451,7 @@ class MethMail:
                     ]
                 )
             ):
-                flags.append(("Internal",))
+                flags.append(("Internal", ""))
 
         # DATE from mail, if error now()
         if not self.msg.date:
@@ -466,7 +466,7 @@ class MethMail:
             message_id=self.msg.message_id,
             subject=self.msg.subject,
             date=date,
-            submission_date=None if not self.parent_id else Mail(self.parent_id).date,
+            submission_date=date if not self.parent_id else Mail(self.parent_id).date,
             received=self.msg.received,
             headers=self.msg.headers,
             body=self.msg.body,
@@ -521,7 +521,7 @@ class MethMail:
 
         # STORE FLAGS IN DB
         for flag, note in flags:
-            self.db_mail.tags.append(flag, tag_kwargs={"note": note})
+            self.db_mail.tags.add(flag)  # , tag_kwargs={"note": note})
 
     def store_attachments(self):
         """ Store attachment to disk.

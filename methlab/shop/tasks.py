@@ -11,12 +11,9 @@ from cortex4py.api import Api
 
 # from pymisp import PyMISP
 
-from django.contrib.auth import get_user_model
 from django.core.exceptions import ObjectDoesNotExist
 from methlab.shop.models import InternalInfo
 from methlab.utils.importer import MethMail
-
-User = get_user_model()
 
 
 class CeleryError(Exception):

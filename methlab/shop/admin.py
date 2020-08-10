@@ -19,6 +19,14 @@ from django_better_admin_arrayfield.admin.mixins import DynamicArrayMixin
 from import_export.admin import ImportExportModelAdmin
 from leaflet.admin import LeafletGeoAdmin
 
+from django_celery_beat.models import (
+    IntervalSchedule,
+    CrontabSchedule,
+    PeriodicTask,
+    SolarSchedule,
+    ClockedSchedule,
+)
+
 from taggit.models import Tag
 
 # ########################
@@ -283,6 +291,12 @@ admin.site.register(Attachment, AttachmentAdmin)
 
 admin.site.unregister(Group)
 admin.site.unregister(Tag)
+admin.site.unregister(IntervalSchedule)
+admin.site.unregister(CrontabSchedule)
+admin.site.unregister(PeriodicTask)
+admin.site.unregister(SolarSchedule)
+admin.site.unregister(ClockedSchedule)
+
 
 admin.site.site_header = "MethLab Admin"
 admin.site.site_title = "MethLab Admin Portal"

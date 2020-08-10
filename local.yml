@@ -13,7 +13,7 @@ services:
         - http_proxy
         - https_proxy
     image: methlab_local_django
-    container_name: django
+    container_name: methlab_django
     depends_on:
       - postgres
     volumes:
@@ -34,7 +34,7 @@ services:
         - http_proxy
         - https_proxy
     image: methlab_production_postgres
-    container_name: postgres
+    container_name: methlab_postgres
     volumes:
       - local_postgres_data:/var/lib/postgresql/data
       - local_postgres_data_backups:/backups
@@ -43,12 +43,12 @@ services:
       
   redis:
     image: redis:5.0
-    container_name: redis
+    container_name: methlab_redis
 
   celeryworker:
     <<: *django
     image: methlab_local_celeryworker
-    container_name: celeryworker
+    container_name: methlab_celeryworker
     depends_on:
       - redis
       - postgres
@@ -58,7 +58,7 @@ services:
   celerybeat:
     <<: *django
     image: methlab_local_celerybeat
-    container_name: celerybeat
+    container_name: methlab_celerybeat
     depends_on:
       - redis
       - postgres
@@ -68,7 +68,7 @@ services:
   flower:
     <<: *django
     image: methlab_local_flower
-    container_name: flower
+    container_name: methlab_flower
     ports:
       - "5555:5555"
     command: /start-flower
