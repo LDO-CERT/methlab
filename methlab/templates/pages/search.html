@@ -5,9 +5,11 @@
 <section class="py-5 container">
   <div class="row py-lg-5">
     <div class="col">
+      {% if query %}
       Query: {{query}}
       <hr />
-      {% render_table table_l %}
+      {% endif %}
+      {% render_table table %}
     </div>
   </div>
 </section>

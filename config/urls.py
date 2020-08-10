@@ -18,12 +18,13 @@ from djgeojson.views import GeoJSONLayerView
 urlpatterns = [
     path("", home, name="home"),
     path("mail/<int:pk>/", mail_detail, name="mail_detail"),
-    path("campaigns/<str:campaign_type>/", campaigns, name="campaigns"),
     path("stats/", stats, name="stats"),
+    path("campaigns/<str:campaign_type>/", campaigns, name="campaigns"),
     path("campaign/<int:pk>/", campaign_detail, name="campaign_detail"),
     path("search/", search, name="search"),
-    path(settings.ADMIN_URL, admin.site.urls),
+    path("search/<str:slug_subject>", search, name="search"),
     path("data.geojson", GeoJSONLayerView.as_view(model=Mail), name="data",),
+    path(settings.ADMIN_URL, admin.site.urls),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 

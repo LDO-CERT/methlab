@@ -128,7 +128,7 @@ def campaigns(request, campaign_type):
         # SORT BY SUBJECT
         mails = (
             Mail.external_objects.all()
-            .values("subject")
+            .values("subject", "slug_subject")
             .annotate(total=Count("subject"))
             .filter(total__gt=2)
             .order_by(sort_by)
@@ -211,10 +211,13 @@ def mail_detail(request, pk):
     return render(request, "pages/detail.html", {"mail": mail})
 
 
-def search(request):
-    query = request.POST["query"]
-
-    mails = Mail.external_objects.search(query)
-    table_l = LatestMailTable(mails, prefix="l_",)
-    table_l.paginate(page=request.GET.get("l_page", 1), per_page=25)
-    return render(request, "pages/search.html", {"table_l": table_l, "query": query})
+def search(request, slug_subject=None):
+    if slug_subject:
+        query = None
+        mails = Mail.external_objects.filter(slug_subject=slug_subject)
+    else:
+        query = request.POST["query"]
+        mails = Mail.external_objects.search(query)
+    table = LatestMailTable(mails)
+    table.paginate(page=request.GET.get("page", 1), per_page=25)
+    return render(request, "pages/search.html", {"table": table, "query": query})

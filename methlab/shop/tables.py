@@ -6,13 +6,16 @@ from methlab.shop.models import Mail, Address
 
 
 class MailTable(tables.Table):
+    link = tables.LinkColumn(
+        "search", text=">>>", args=[A("slug_subject")], orderable=False
+    )
     subject = tables.Column(verbose_name="Subject")
     total = tables.Column(verbose_name="Total")
 
     class Meta:
         model = Mail
         template_name = "django_tables2/bootstrap4.html"
-        fields = ("subject", "total")
+        fields = ("subject", "total", "link")
 
 
 class LatestMailTable(tables.Table):
@@ -64,9 +67,15 @@ class IocTable(tables.Table):
 
 
 class AddressTable(tables.Table):
+    link = tables.LinkColumn(
+        "search",
+        text=">>>",
+        args=[A("mail_addresses__address__address")],
+        orderable=False,
+    )
     total = tables.Column(verbose_name="Total")
 
     class Meta:
         model = Address
         template_name = "django_tables2/bootstrap4.html"
-        fields = ("mail_addresses__address__address", "total")
+        fields = ("mail_addresses__address__address", "total", "link")

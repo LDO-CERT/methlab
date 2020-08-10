@@ -4,6 +4,7 @@ from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelatio
 from django.contrib.contenttypes.models import ContentType
 from django.template.defaultfilters import truncatechars
 from django.utils.translation import ugettext_lazy as _
+from django.utils.text import slugify
 
 
 # CUSTOM FIELDS
@@ -235,6 +236,7 @@ class Mail(models.Model):
     # MAIL INFO
     message_id = models.CharField(max_length=1000)
     subject = models.CharField(max_length=500)
+    slug_subject = models.SlugField(max_length=500, editable=False, default="")
     date = models.DateTimeField(blank=True, null=True)
     addresses = models.ManyToManyField(
         Address, related_name="addresses", through="Mail_Addresses"
@@ -275,6 +277,7 @@ class Mail(models.Model):
             self.search_vector = SearchVector(
                 "body", weight="A", config="english"
             ) + SearchVector("subject", weight="B", config="english")
+        self.slug_subject = slugify(self.subject, allow_unicode=True)
         super().save(*args, **kwargs)
 
     class Meta:
