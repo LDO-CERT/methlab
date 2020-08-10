@@ -22,7 +22,7 @@ urlpatterns = [
     path("campaigns/<str:campaign_type>/", campaigns, name="campaigns"),
     path("campaign/<int:pk>/", campaign_detail, name="campaign_detail"),
     path("search/", search, name="search"),
-    path("search/<str:slug_subject>", search, name="search"),
+    path("search/<str:method>/<str:search_object>", search, name="search"),
     path("data.geojson", GeoJSONLayerView.as_view(model=Mail), name="data",),
     path(settings.ADMIN_URL, admin.site.urls),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

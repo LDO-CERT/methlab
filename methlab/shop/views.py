@@ -211,10 +211,17 @@ def mail_detail(request, pk):
     return render(request, "pages/detail.html", {"mail": mail})
 
 
-def search(request, slug_subject=None):
-    if slug_subject:
+def search(request, method=None, search_object=None):
+    if search_object:
         query = None
-        mails = Mail.external_objects.filter(slug_subject=slug_subject)
+        if method == "mail":
+            mails = Mail.external_objects.filter(
+                addresses__address__address=search_object
+            )
+        elif method == "subject":
+            mails = Mail.external_objects.filter(slug_subject=search_object)
+        else:
+            raise Http404("404")
     else:
         query = request.POST["query"]
         mails = Mail.external_objects.search(query)

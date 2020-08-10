@@ -7,7 +7,7 @@ from methlab.shop.models import Mail, Address
 
 class MailTable(tables.Table):
     link = tables.LinkColumn(
-        "search", text=">>>", args=[A("slug_subject")], orderable=False
+        "search", text=">>>", args=["subject", A("slug_subject")], orderable=False
     )
     subject = tables.Column(verbose_name="Subject")
     total = tables.Column(verbose_name="Total")
@@ -70,7 +70,7 @@ class AddressTable(tables.Table):
     link = tables.LinkColumn(
         "search",
         text=">>>",
-        args=[A("mail_addresses__address__address")],
+        args=["mail", A("mail_addresses__address__address")],
         orderable=False,
     )
     total = tables.Column(verbose_name="Total")
