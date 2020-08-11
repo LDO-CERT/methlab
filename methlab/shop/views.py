@@ -1,9 +1,12 @@
 from django.utils import timezone
 from datetime import timedelta
+
 from django.http import HttpResponse, Http404
 from django.shortcuts import render, get_object_or_404
 from django.db.models import Count, Case, When, IntegerField
 from django.db.models.functions import TruncHour
+from django.contrib.postgres.search import SearchQuery, SearchVector, TrigramSimilarity
+
 from methlab.shop.models import Mail, Whitelist, Address, Flag
 from methlab.shop.tables import (
     AttachmentTable,
@@ -125,19 +128,19 @@ def campaigns(request, campaign_type):
         sort_by = "-{}".format(sort_by)
 
     if campaign_type == "subject":
-        # SORT BY SUBJECT
+        # BY SUBJECT
         mails = (
             Mail.external_objects.all()
             .values("subject", "slug_subject")
             .annotate(total=Count("subject"))
-            .filter(total__gt=2)
+            .filter(total__gte=2)
             .order_by(sort_by)
         )
         table = MailTable(mails)
         table.paginate(page=request.GET.get("page", 1), per_page=20)
 
     elif campaign_type == "sender":
-        # SORT BY SUBJECT
+        # BY FROM MAIL ADDRESS
         table = AddressTable(
             Address.objects.filter(mail_addresses__field="from")
             .exclude(address__icontains="@leonardocompany.com")
@@ -215,11 +218,22 @@ def search(request, method=None, search_object=None):
     if search_object:
         query = None
         if method == "mail":
-            mails = Mail.external_objects.filter(
-                addresses__address__address=search_object
-            )
+            query = "[MAIL] {}".format(search_object)
+            mails = []
+            for address in Address.objects.filter(
+                mail_addresses__field="from", address=search_object
+            ).distinct():
+                for mail in address.addresses.all():
+                    mails.append(mail)
         elif method == "subject":
-            mails = Mail.external_objects.filter(slug_subject=search_object)
+            query = "[SUBJECT] {}".format(search_object)
+            mails = (
+                Mail.external_objects.annotate(
+                    similarity=TrigramSimilarity("slug_subject", search_object)
+                )
+                .filter(similarity__gt=0.3)
+                .order_by("-similarity")
+            )
         else:
             raise Http404("404")
     else:
