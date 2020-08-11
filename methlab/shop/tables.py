@@ -20,6 +20,7 @@ class MailTable(tables.Table):
 
 class LatestMailTable(tables.Table):
     link = tables.LinkColumn("mail_detail", text=">>>", args=[A("pk")], orderable=False)
+    assignee = tables.Column(orderable=False)
     short_subject = tables.Column(orderable=False)
     count_attachments = tables.Column(orderable=False)
     count_iocs = tables.Column(orderable=False)
@@ -30,6 +31,7 @@ class LatestMailTable(tables.Table):
         template_name = "django_tables2/bootstrap4.html"
         fields = (
             "short_subject",
+            "assignee",
             "tags",
             "count_attachments",
             "count_iocs",

@@ -470,7 +470,7 @@ class MethMail:
             received=self.msg.received,
             headers=self.msg.headers,
             body=self.msg.body,
-            sender_ip_address=self.msg.get_server_ipaddress(self.info.imap_server),
+            sender_ip_address=self.msg.get_server_ipaddress(domain) if domain else None\,
             to_domains=self.msg.to_domains,
             geom=geo_info,
             dmark=dmark_info,

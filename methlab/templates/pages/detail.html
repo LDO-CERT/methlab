@@ -60,6 +60,8 @@
       </ul>
 
       <div class="tab-content">
+
+        <!--- INFO -->
         <div class="tab-pane fade show active" id="info" role="tabpanel" aria-labelledby="info-tab">
           <div style="padding: 20px;">
             <dl class="row">
@@ -72,17 +74,20 @@
               <dt class="col-sm-3">Submission Date:</dt>
               <dd class="col-sm-9">{{mail.submission_date}}</dd>
               <hr />
-
-              {% if mail.tags.all %}
               <dt class="col-sm-3">Tags:</dt>
-              <dd class="col-sm-9">{% for tag in mail.tags.all %}<span class="badge"
-                  style="background-color: {{tag.color}};">{{tag}}</span>{% endfor %}
+              <dd class="col-sm-9">
+                {% if mail.tags.all %}
+                {% for tag in mail.tags.all %}
+                <span class="badge" style="background-color: {{tag.color}};">{{tag}}</span>
+                {% endfor %}
+                {% endif %}
+                <button class="btn btn-sm btn-success" id="add_tag">+</button>
               </dd>
-              {% endif %}
-
             </dl>
           </div>
         </div>
+
+        <!--- RECEIVED -->
         {% if mail.received %}
         <div class="tab-pane fade show" id="received" role="tabpanel" aria-labelledby="received-tab">
           <div style="padding: 20px;">
@@ -90,6 +95,8 @@
           </div>
         </div>
         {% endif %}
+
+        <!--- HEADER -->
         {% if mail.header %}
         <div class="tab-pane fade show" id="header" role="tabpanel" aria-labelledby="header-tab">
           <div style="padding: 20px;">
@@ -97,6 +104,8 @@
           </div>
         </div>
         {% endif %}
+
+        <!--- BODY -->
         <div class="tab-pane fade show" id="body" role="tabpanel" aria-labelledby="body-tab">
           <div style="padding: 20px;">
             <dl class="row">
@@ -104,44 +113,92 @@
             </dl>
           </div>
         </div>
+
+        <!-- ADDRESSES -->
         <div class="tab-pane fade show" id="addresses" role="tabpanel" aria-labelledby="addresses-tab">
           <div style="padding: 20px;">
             <dl class="row">
               <dt class="col-sm-3">From:</dt>
               <dd class="col-sm-9">
-                {% for address in mail.mail_addresses_set.all %}{% if address.field == 'from' %}{{address.address.address}}
-                - {{address.address.name|join:","}}{% endif %}{% endfor%}</dd>
+                {% for address in mail.mail_addresses_set.all %}
+                {% if address.field == 'from' %}
+                {{address.address.address}}
+                <button class="btn btn-sm btn-success" data-pk="{{address.pk}}" data-type="address">+</button>
+                <br />
+                [{{address.address.name|join:","}}]
+                {% endif %}
+                {% endfor%}
+              </dd>
               <dt class="col-sm-3">MX:</dt>
               <dd class="col-sm-9">
-                {% for address in mail.mail_addresses_set.all %}{% if address.field == 'from' %}{{address.address.mx_check}}{% endif %}{% endfor%}
+                {% for address in mail.mail_addresses_set.all %}
+                {% if address.field == 'from' %}
+                {{address.address.mx_check}}
+                {% endif %}
+                {% endfor%}
               </dd>
+              <hr />
               <dt class="col-sm-3">To:</dt>
               <dd class="col-sm-9">
-                {% for address in mail.mail_addresses_set.all %}{% if address.field == 'to' %}{{address.address.address}}
-                - {{address.address.name|join:","}}<br />{% endif %}{% endfor%}</dd>
+                {% for address in mail.mail_addresses_set.all %}
+                {% if address.field == 'to' %}
+                {{address.address.address}}
+                <button class="btn btn-sm btn-success" data-pk="{{address.pk}}" data-type="address">+</button>
+                <br />
+                [{{address.address.name|join:","}}]
+                {% endif %}
+                {% endfor%}
+              </dd>
+              <hr />
               <dt class="col-sm-3">Cc:</dt>
               <dd class="col-sm-9">
-                {% for address in mail.mail_addresses_set.all %}{% if address.field == 'cc' %}{{address.address.address}}
-                - {{address.address.name|join:","}}<br />{% endif %}{% endfor%}</dd>
+                {% for address in mail.mail_addresses_set.all %}
+                {% if address.field == 'cc' %}
+                {{address.address.address}}
+                <button class="btn btn-sm btn-success" data-pk="{{address.pk}}" data-type="address">+</button>
+                <br />
+                [{{address.address.name|join:","}}]
+                {% endif %}
+                {% endfor%}
+              </dd>
               <dt class="col-sm-3">Bcc:</dt>
               <dd class="col-sm-9">
-                {% for address in mail.mail_addresses_set.all %}{% if address.field == 'bcc' %}{{address.address.address}}
-                - {{address.address.name|join:","}}<br />{% endif %}{% endfor%}</dd>
+                {% for address in mail.mail_addresses_set.all %}
+                {% if address.field == 'bcc' %}
+                {{address.address.address}}
+                <button class="btn btn-sm btn-success" data-pk="{{address.pk}}" data-type="address">+</button>
+                <br />
+                [{{address.address.name|join:","}}]
+                {% endif %}
+                {% endfor%}
+              </dd>
+              <hr />
               <dt class="col-sm-3">Reply to:</dt>
               <dd class="col-sm-9">
-                {% for address in mail.mail_addresses_set.all %}{% if address.field == 'reply_to' %}{{address.address.address}}
-                - {{address.address.name|join:","}}<br />{% endif %}{% endfor%}</dd>
+                {% for address in mail.mail_addresses_set.all %}
+                {% if address.field == 'reply_to' %}
+                {{address.address.address}}
+                <button class="btn btn-sm btn-success" data-pk="{{address.pk}}" data-type="address">+</button>
+                <br />
+                [{{address.address.name|join:","}}]
+                {% endif %}
+                {% endfor%}
+              </dd>
               {% if mail.to_domains%}
+              <hr />
               <dt class="col-sm-3">To-domains:</dt>
-              <dd class="col-sm-9">{{mail.to_domains|join:","}}</dd>
+              <dd class="col-sm-9">{{mail.to_domains|join:"<br>"}}</dd>
               {% endif %}
               {% if mail.sender_ip_address%}
+              <hr />
               <dt class="col-sm-3">Sender IP address:</dt>
               <dd class="col-sm-9">{{mail.sender_ip_address}}</dd>
               {% endif %}
             </dl>
           </div>
         </div>
+
+        <!--- MAP -->
         {% if mail.geom %}
         <div class="tab-pane fade show" id="location" role="tabpanel" aria-labelledby="location-tab">
           <div style="padding: 20px;">
@@ -149,6 +206,8 @@
           </div>
         </div>
         {% endif %}
+
+        <!--- IOCS -->
         {% if mail.iocs.all %}
         <div class="tab-pane fade show" id="iocs" role="tabpanel" aria-labelledby="iocs-tab">
           <div style="padding: 20px;">
@@ -158,17 +217,50 @@
                   <td>Ioc</td>
                   <td>Whois</td>
                   <td>Report</td>
+                  <td>Whitelist</td>
                 </tr>
               </thead>
               <tbody>
                 {% for ioc in mail.iocs.all %}
                 <tr>
                   <td>{{ioc}}</td>
-                  <td>{% if ioc.whois %}{{ioc.whois}}{% endif %}</td>
                   <td>
-                    {% for report in ioc.reports.all %}
-                    {{report.analyzer.name}} - {{report.analyzer.taxonomies}}<br />
-                    {% endfor %}</td>
+                    {% if ioc.whois.name and ioc.whois.status %}
+                    <dl class="row">
+                      <dt class="col-sm-3">Name:</dt>
+                      <dd class="col-sm-9">{{ioc.whois.name}}</dd>
+                      <dt class="col-sm-3">Name Servers:</dt>
+                      <dd class="col-sm-9">{{ioc.whois.name_servers|join:", "}}</dd>
+                      <dt class="col-sm-3">Status:</dt>
+                      <dd class="col-sm-9">{{ioc.whois.status}}</dd>
+                      <dt class="col-sm-3">Registrar:</dt>
+                      <dd class="col-sm-9">{{ioc.whois.registrar}}</dd>
+                      <dt class="col-sm-3">Creation Date:</dt>
+                      <dd class="col-sm-9">{{ioc.whois.creation_date}}</dd>
+                      <dt class="col-sm-3">Expiration Date:</dt>
+                      <dd class="col-sm-9">{{ioc.whois.expiration_date}}</dd>
+                    </dl>
+                    {% elif not ioc.whois %}
+                    -
+                    {% else %}
+                    {{ioc.whois}}
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if ioc.reports.all %}
+                    <dl class="row">
+                      {% for report in ioc.reports.all %}
+                      <dt class="col-sm-3">{{report.analyzer.name}}</dt>
+                      <dd class="col-sm-9">{{report.analyzer.taxonomies}}</dd>
+                      {% endfor %}
+                    </dl>
+                    {% else %}
+                    -
+                    {% endif %}
+                  </td>
+                  <td>
+                    <button class="btn btn-sm btn-success" data-pk="{{ioc.pk}}" data-type="ioc">+</button>
+                  </td>
                 </tr>
                 {% endfor %}
               </tbody>
@@ -176,6 +268,8 @@
           </div>
         </div>
         {% endif %}
+
+        <!--- ATTACHMENTS -->
         {% if mail.attachments.all %}
         <div class="tab-pane fade show" id="attachments" role="tabpanel" aria-labelledby="attachments-tab">
           <div style="padding: 20px;">
@@ -186,6 +280,7 @@
                   <td>md5</td>
                   <td>sha256</td>
                   <td>Report</td>
+                  <td>Whitelist</td>
                 </tr>
               </thead>
               <tbody>
@@ -195,9 +290,20 @@
                   <td>{{attachment.md5}}</td>
                   <td>{{attachment.sha256}}</td>
                   <td>
-                    {% for report in attachment.reports.all %}
-                    {{report.analyzer.name}} - {{report.analyzer.taxonomies}}<br />
-                    {% endfor %}</td>
+                    {% if attachment.reports.all %}
+                    <dl class="row">
+                      {% for report in attachment.reports.all %}
+                      <dt class="col-sm-3">{{report.analyzer.name}}</dt>
+                      <dd class="col-sm-9">{{report.analyzer.taxonomies}}</dd>
+                      {% endfor %}
+                    </dl>
+                    {% else %}
+                    -
+                    {% endif %}
+                  </td>
+                  <td>
+                    <button class="btn btn-sm btn-success" data-pk="{{attachment.pk}}" data-type="attachment">+</button>
+                  </td>
                 </tr>
                 {% endfor %}
               </tbody>
@@ -212,7 +318,7 @@
   <script>
     const options = {
       mode: 'code',
-      modes: ['text', 'code'],
+      modes: ['text', 'code', 'view'],
       onEditable: function (node) {
         if (!node.path) { return false; }
       }
@@ -232,6 +338,12 @@
       L.geoJson({{ mail.geom | safe }}).addTo(map);
         }
     {% endif %}
+
+    $(document).on('click', '#add_tag', function () {
+      bootbox.prompt("Add tag to mail!", function (result) {
+        console.log(result);
+      });
+    });
   </script>
 
 </section>
