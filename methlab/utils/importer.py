@@ -101,7 +101,7 @@ class MethMail:
             return
 
         # RUN ANALYZERS ON FULL EMAIL
-        self.check_cortex(self.mail_filepath, "mail", self.db_mail, is_mail=True)
+        self.check_cortex(self.mail_filepath, "file", self.db_mail, is_mail=True)
 
         # Save attachments
         try:
@@ -331,6 +331,8 @@ class MethMail:
 
         geo_info = None
         dmark_info = None
+        dkim_info = False
+        spf_info = None
 
         # CHECK FROM ADDRESSES AND ASSIGN FLAGS
         for (name, address_from) in self.msg.from_:
@@ -375,19 +377,14 @@ class MethMail:
             if len(other_addresses) > 0 and any(
                 [x != address_from for x in other_addresses]
             ):
-                flags.append(
-                    (
-                        "Fake Real Name",
-                        "Mail name contains mail different from mail address",
-                    )
-                )
+                flags.append("Fake Real Name")
             if self.info.vip_list:
                 for vip in self.info.vip_list:
                     if (
                         name.find(vip) != -1
                         and address_from.find(self.info.vip_domain) == -1
                     ):
-                        flags.append(("VIP SCAM", "{} mail for {}".format(name, vip),))
+                        flags.append("VIP SCAM")
 
         # clean TO, BCC, CC and REPLY_TO fields
         for (field_value, field_name) in zip(
@@ -447,13 +444,9 @@ class MethMail:
                 sender = self.msg.from_[0][1]
                 spf_check = spf.check(s=sender, i=ip, h=domain)
                 if spf_check[1] != 250:
-                    flags.append(
-                        (
-                            "SPF",
-                            "Sender {0} rejected on {1} ({2}): {3}. Considered Hop: {4}".format(
-                                sender, domain, ip, spf_check[2], first_hop,
-                            ),
-                        )
+                    flags.append("SPF")
+                    spf_info = "Sender {0} rejected on {1} ({2}): {3}. Considered Hop: {4}".format(
+                        sender, domain, ip, spf_check[2], first_hop,
                     )
             if (
                 domain
@@ -465,7 +458,7 @@ class MethMail:
                     ]
                 )
             ):
-                flags.append(("Internal", ""))
+                flags.append("Internal")
 
         # DATE from mail, if error now()
         if not self.msg.date:
@@ -489,6 +482,7 @@ class MethMail:
             geom=geo_info,
             dmark=dmark_info,
             dkim=dkim_info,
+            spf=spf_info,
             # this is an .eml if parent is None otherwhise is the parent attachment folder
             eml_path=self.mail_filepath,
         )
@@ -535,8 +529,8 @@ class MethMail:
         self.find_ioc(self.db_mail.body)
 
         # STORE FLAGS IN DB
-        for flag, note in flags:
-            self.db_mail.tags.add(flag)  # , tag_kwargs={"note": note})
+        for flag in flags:
+            self.db_mail.tags.add(flag)
 
         return self.db_mail.pk
 

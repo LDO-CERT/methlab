@@ -42,16 +42,15 @@ def home(request):
             submission_date__gte=timezone.now() - timedelta(days=30)
         )
         .annotate(thour=TruncHour("submission_date"))
-        .order_by("-submission_date")
+        .order_by()
     )
 
     record_by_time = pivot(
         qs,
         "thour",
         "official_response",
-        Value(1, IntegerField()),
-        default=0,
-        aggregation=Sum,
+        "pk",
+        aggregation=Count,
         display_transform=lambda x: x.lower().replace(" ", "_"),
     )
 

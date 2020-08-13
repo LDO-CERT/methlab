@@ -173,7 +173,7 @@ class MailAdmin(LeafletGeoAdmin, DynamicArrayMixin):
         "tag_list",
         "dmark",
     )
-    list_filter = ("submission_date", "official_response")
+    list_filter = ("submission_date", "official_response", "progress")
     search_fields = ["subject"]
 
 

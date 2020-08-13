@@ -24,6 +24,7 @@ urlpatterns = [
     path("search/", search, name="search"),
     path("search/<str:method>/<str:search_object>", search, name="search"),
     path("data.geojson", GeoJSONLayerView.as_view(model=Mail), name="data",),
+    path("accounts/", include("django.contrib.auth.urls")),
     path(settings.ADMIN_URL, admin.site.urls),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 

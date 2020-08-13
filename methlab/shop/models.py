@@ -16,7 +16,7 @@ from django_better_admin_arrayfield.models.fields import ArrayField  # noqa
 
 # TAGS
 from taggit.managers import TaggableManager
-from taggit.models import TagBase, TaggedItemBase
+from taggit.models import TagBase, GenericTaggedItemBase
 
 # POSTGRES SWEETERS
 import django.contrib.postgres.search as pg_search
@@ -134,32 +134,10 @@ class Flag(TagBase):
         return self.name
 
 
-class MailTag(TaggedItemBase):
+class CustomTag(GenericTaggedItemBase):
     tag = models.ForeignKey(
         Flag, related_name="%(app_label)s_%(class)ss", on_delete=models.CASCADE
     )
-    content_object = models.ForeignKey("Mail", on_delete=models.CASCADE)
-
-
-class IocTag(TaggedItemBase):
-    tag = models.ForeignKey(
-        Flag, related_name="%(app_label)s_%(class)ss", on_delete=models.CASCADE
-    )
-    content_object = models.ForeignKey("Ioc", on_delete=models.CASCADE)
-
-
-class AttachmentTag(TaggedItemBase):
-    tag = models.ForeignKey(
-        Flag, related_name="%(app_label)s_%(class)ss", on_delete=models.CASCADE
-    )
-    content_object = models.ForeignKey("Attachment", on_delete=models.CASCADE)
-
-
-class AddressTag(TaggedItemBase):
-    tag = models.ForeignKey(
-        Flag, related_name="%(app_label)s_%(class)ss", on_delete=models.CASCADE
-    )
-    content_object = models.ForeignKey("Address", on_delete=models.CASCADE)
 
 
 class Attachment(models.Model):
@@ -176,7 +154,7 @@ class Attachment(models.Model):
     sha256 = models.CharField(max_length=64, blank=True, null=True, unique=True)
 
     reports = GenericRelation(Report, related_name="attachments")
-    tags = TaggableManager(through=AttachmentTag)
+    tags = TaggableManager(through=CustomTag)
 
     @property
     def is_whitelisted(self):
@@ -203,7 +181,7 @@ class Address(models.Model):
     mx_check = models.TextField(blank=True, null=True)
 
     reports = GenericRelation(Report, related_name="addresses")
-    tags = TaggableManager(through=AddressTag)
+    tags = TaggableManager(through=CustomTag)
 
     class Meta:
         verbose_name_plural = "addresses"
@@ -219,7 +197,7 @@ class Ioc(models.Model):
     whois = models.JSONField(blank=True, null=True)
 
     reports = GenericRelation(Report, related_name="iocs")
-    tags = TaggableManager(through=IocTag)
+    tags = TaggableManager(through=CustomTag)
 
     @property
     def value(self):
@@ -299,13 +277,14 @@ class Mail(models.Model):
     geom = PointField(blank=True, null=True)
     dmark = models.JSONField(blank=True, null=True)
     dkim = models.BooleanField(default=False)
+    spf = models.TextField(blank=True, null=True)
 
     # IOC
     iocs = models.ManyToManyField(Ioc, related_name="iocs")
     attachments = models.ManyToManyField(Attachment, related_name="attachments")
 
     # TAGS
-    tags = TaggableManager(through=MailTag)
+    tags = TaggableManager(through=CustomTag)
 
     # STORAGE INFO
     eml_path = models.CharField(max_length=500, blank=True, null=True)

@@ -40,9 +40,22 @@
             <li class="nav-item active">
               <a class="nav-link" aria-current="page" href="{% url 'stats' %}">Stats</a>
             </li>
-            <li class="nav-item active">
-              <a class="nav-link" aria-current="page" href="/admin">Admin</a>
+
+            {% if user.is_authenticated %}
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-toggle="dropdown"
+                aria-expanded="false">
+                🧑‍💻 {{user.username}}
+              </a>
+              <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
+                <li><a class="dropdown-item" href="/admin">Admin</a></li>
+                <li><a class="dropdown-item" href="{% url 'logout' %}">{% trans "Sign Out" %}</a></li>
+              </ul>
             </li>
+            {% else %}
+            <a id="log-in-link" class="nav-link navbar-link" href="{% url 'login' %}">{% trans "Sign In" %}</a>
+            {% endif %}
+
           </ul>
 
           <form class="d-flex" action="{% url 'search' %}" method="POST">
@@ -53,6 +66,9 @@
               Search
             </button>
           </form>
+
+
+
         </div>
       </div>
     </nav>

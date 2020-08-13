@@ -75,15 +75,32 @@
               <dd class="col-sm-9">{{mail.submission_date}}</dd>
               <dt class="col-sm-3">Assignee:</dt>
               <dd class="col-sm-9">
+                {% if user.is_authenticated %}
                 <select class="form-control" id="change-assignee">
                   <option {% if not mail.assignee %}selected='selected' {% endif %}>--</option>
                   {% for user in users %}
                   <option {% if user == mail.assignee %}selected='selected' {% endif %}>{{user}}</option>
                   {% endfor %}
                 </select>
+                {% else %}
+                {% if mail.assignee %}{{mail.assignee}}{% else %}-{% endif %}
+                {% endif %}
+              </dd>
+              <dt class="col-sm-3">Response:</dt>
+              <dd class="col-sm-9">
+                {% if user.is_authenticated %}
+                <select class="form-control" id="change-response">
+                  {% for response in responses %}
+                  <option {% if mail.official_response == response %}selected='selected' {% endif %}>{{response}}
+                  </option>
+                  {% endfor %}
+                </select>
+                {% else %}
+                {{mail.get_official_response_display}}
+                {% endif %}
               </dd>
               <hr />
-              {% if mail.dmark or mail.dkim %}
+              {% if mail.dmark or mail.dkim or mail.spf %}
               {% if mail.dmark %}
               <dt class="col-sm-3">Dmark:</dt>
               <dd class="col-sm-9">{{mail.dmark}}</dd>
@@ -91,6 +108,10 @@
               {% if mail.dkim %}
               <dt class="col-sm-3">Dkim Check:</dt>
               <dd class="col-sm-9">{{mail.dkim}}</dd>
+              {% endif %}
+              {% if mail.spf %}
+              <dt class="col-sm-3">SPF Check:</dt>
+              <dd class="col-sm-9">{{mail.spf}}</dd>
               {% endif %}
               <hr />
               {% endif %}
@@ -101,17 +122,9 @@
                 <span class="badge" style="background-color: {{tag.color}};">{{tag}}</span>
                 {% endfor %}
                 {% endif %}
+                {% if user.is_authenticated %}
                 <button class="btn btn-sm btn-success" id="add_tag">+</button>
-              </dd>
-              <hr />
-              <dt class="col-sm-3">Response:</dt>
-              <dd class="col-sm-9">
-                <select class="form-control" id="change-response">
-                  {% for response in responses %}
-                  <option {% if mail.official_response == response %}selected='selected' {% endif %}>{{response}}
-                  </option>
-                  {% endfor %}
-                </select>
+                {% endif %}
               </dd>
             </dl>
           </div>
