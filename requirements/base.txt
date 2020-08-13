@@ -104,4 +104,4 @@ dkimpy==1.0.5
 # https://github.com/tqdm/tqdm
 tqdm==4.48.2
 # https://github.com/mahmoud/glom
-glom==20.7.0
+glom==20.8.0
