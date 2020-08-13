@@ -16,6 +16,7 @@ from django.utils import timezone
 from django.core.serializers.json import DjangoJSONEncoder
 from django.contrib.contenttypes.models import ContentType
 
+import dkim
 from ipwhois import IPWhois
 from zipfile import ZipFile, is_zipfile
 from dateutil.parser import parse
@@ -96,28 +97,34 @@ class MethMail:
             pass
 
         # CREATE OBJECT IN DB
-        self.store_info()
+        if self.store_info() == -1:
+            return
 
         # RUN ANALYZERS ON FULL EMAIL
-        self.check_cortex(self.mail_filepath, "file", self.db_mail, is_mail=True)
+        self.check_cortex(self.mail_filepath, "mail", self.db_mail, is_mail=True)
 
         # Save attachments
-        random_path = self.store_attachments()
-        self.db_mail.attachments_path = random_path
-        self.db_mail.save()
+        try:
+            random_path = self.store_attachments()
+            self.db_mail.attachments_path = random_path
+            self.db_mail.save()
 
-        # PROCESS ATTACHMENTS
-        for mess_att in self.msg.attachments:
-            filepath = "{}/{}".format(random_path, mess_att["filename"])
+            # PROCESS ATTACHMENTS
+            for mess_att in self.msg.attachments:
+                filepath = "{}/{}".format(random_path, mess_att["filename"])
 
-            # I don't have payload or I don't understand type skip
-            if not mess_att["mail_content_type"] or not mess_att["payload"]:
-                self.clean_files((self.db_mail.eml_path, self.db_mail.attachments_path))
-                continue
+                # I don't have payload or I don't understand type skip
+                if not mess_att["mail_content_type"] or not mess_att["payload"]:
+                    self.clean_files(
+                        (self.db_mail.eml_path, self.db_mail.attachments_path)
+                    )
+                    continue
 
-            self.process_attachment(filepath, mess_att)
+                self.process_attachment(filepath, mess_att)
+        except Exception as excp:
+            print(excp)
 
-        # DELETE MAIL TEMP FILE, here should be safe
+        # DELETE MAIL TEMP FILE
         self.clean_files((self.db_mail.eml_path, self.db_mail.attachments_path))
 
     def check_cortex(self, ioc, ioc_type, object_id, is_mail=False):
@@ -148,7 +155,7 @@ class MethMail:
             content_type = Attachment
             analyzers = analyzers.filter(onpremise=True)
         else:
-            return False
+            return
 
         old_reports = Report.objects.filter(
             content_type=ContentType.objects.get_for_model(content_type),
@@ -163,19 +170,19 @@ class MethMail:
             for report in old_reports:
                 if report.analyzer == analyzer:
                     if "malicious" in report.taxonomies:
-                        self.db_mail.tags.add(
+                        object_id.tags.add(
                             "{}: malicious".format(analyzer.name),
                             tag_kwargs={"color": "#FF0000"},
                         )
 
                     elif "suspicious" in report.taxonomies:
-                        self.db_mail.tags.add(
+                        object_id.tags.add(
                             "{}: suspicious".format(analyzer.name),
                             tag_kwargs={"color": "#C15808"},
                         )
 
                     elif "safe" in report.taxonomies:
-                        self.db_mail.tags.add(
+                        object_id.tags.add(
                             "{}: safe".format(analyzer.name),
                             tag_kwargs={"color": "#00FF00"},
                         )
@@ -212,19 +219,19 @@ class MethMail:
                     report.save()
 
                     if "malicious" in taxonomies:
-                        self.db_mail.tags.add(
+                        object_id.tags.add(
                             "{}: malicious".format(analyzer.name),
                             tag_kwargs={"color": "#FF0000"},
                         )
 
                     elif "suspicious" in taxonomies:
-                        self.db_mail.tags.add(
+                        object_id.tags.add(
                             "{}: suspicious".format(analyzer.name),
                             tag_kwargs={"color": "#C15808"},
                         )
 
                     elif "safe" in taxonomies:
-                        self.db_mail.tags.add(
+                        object_id.tags.add(
                             "{}: safe".format(analyzer.name),
                             tag_kwargs={"color": "#00FF00"},
                         )
@@ -338,7 +345,7 @@ class MethMail:
             # if address in wl clean and skip
             if address_from in [x.value for x in mail_wl]:
                 self.clean_files((self.mail_filepath))
-                return
+                return -1
 
             address, _ = Address.objects.get_or_create(address=address_from)
 
@@ -424,9 +431,16 @@ class MethMail:
                     print(e)
 
                 try:
-                    dmark_info = results_to_json(check_domains(domain))
+                    dmark_result = results_to_json(check_domains(domain))
+                    dmark_info = (
+                        dmark_result if dmark_result not in [[], "[]"] else None
+                    )
                 except Exception as e:
                     print(e)
+
+                with open(self.mail_filepath, "rb") as f:
+                    message = f.read()
+                    dkim_info = dkim.DKIM(message).verify()
 
                 # SPF CHECK
                 domain = domain.split()[0]
@@ -470,10 +484,11 @@ class MethMail:
             received=self.msg.received,
             headers=self.msg.headers,
             body=self.msg.body,
-            sender_ip_address=self.msg.get_server_ipaddress(domain) if domain else None\,
+            sender_ip_address=self.msg.get_server_ipaddress(domain) if domain else None,
             to_domains=self.msg.to_domains,
             geom=geo_info,
             dmark=dmark_info,
+            dkim=dkim_info,
             # this is an .eml if parent is None otherwhise is the parent attachment folder
             eml_path=self.mail_filepath,
         )
@@ -522,6 +537,8 @@ class MethMail:
         # STORE FLAGS IN DB
         for flag, note in flags:
             self.db_mail.tags.add(flag)  # , tag_kwargs={"note": note})
+
+        return self.db_mail.pk
 
     def store_attachments(self):
         """ Store attachment to disk.

@@ -1,3 +1,11 @@
+table{
+  font-size: 13px;
+}
+
+table a{
+  text-decoration: none;
+}
+
 .leaflet-container {
   /* all maps */
   width: 100%;

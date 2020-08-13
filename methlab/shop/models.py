@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import Q
 from django.contrib.auth.models import User
 from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelation
 from django.contrib.contenttypes.models import ContentType
@@ -26,6 +27,18 @@ from django.contrib.postgres.search import (
     SearchRank,
     SearchVector,
     TrigramSimilarity,
+)
+
+RESPONSE = (
+    (0, "Unknown"),
+    (1, "SPAM"),
+    (2, "HAM"),
+    (3, "Phishing"),
+    (4, "Social Engineering"),
+    (5, "Reconnaissance"),
+    (6, "BlackMail"),
+    (7, "CEO SCAM"),
+    (10, "Safe"),
 )
 
 
@@ -94,19 +107,59 @@ class Report(models.Model):
     date = models.DateField(auto_now_add=True)
 
 
-class Address(models.Model):
-    name = ArrayField(models.CharField(max_length=500), blank=True, null=True)
-    address = models.EmailField(unique=True)
-    domain = models.CharField(max_length=500)
-    mx_check = models.TextField(blank=True, null=True)
-
-    reports = GenericRelation(Report, related_name="addresses")
-
-    class Meta:
-        verbose_name_plural = "addresses"
+class Whitelist(models.Model):
+    WL_TYPE = (
+        ("address", "address"),
+        ("domain", "domain"),
+        ("ip", "ip"),
+        ("md5", "md5"),
+        ("sha256", "sha256"),
+    )
+    value = models.CharField(max_length=500)
+    type = models.CharField(max_length=8, choices=WL_TYPE)
 
     def __str__(self):
-        return self.address if self.address else ""
+        return "[{}] {}".format(self.type, self.value)
+
+
+class Flag(TagBase):
+    color = ColorField(blank=True, null=True)
+    visible = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = _("Tag")
+        verbose_name_plural = _("Tags")
+
+    def __str__(self):
+        return self.name
+
+
+class MailTag(TaggedItemBase):
+    tag = models.ForeignKey(
+        Flag, related_name="%(app_label)s_%(class)ss", on_delete=models.CASCADE
+    )
+    content_object = models.ForeignKey("Mail", on_delete=models.CASCADE)
+
+
+class IocTag(TaggedItemBase):
+    tag = models.ForeignKey(
+        Flag, related_name="%(app_label)s_%(class)ss", on_delete=models.CASCADE
+    )
+    content_object = models.ForeignKey("Ioc", on_delete=models.CASCADE)
+
+
+class AttachmentTag(TaggedItemBase):
+    tag = models.ForeignKey(
+        Flag, related_name="%(app_label)s_%(class)ss", on_delete=models.CASCADE
+    )
+    content_object = models.ForeignKey("Attachment", on_delete=models.CASCADE)
+
+
+class AddressTag(TaggedItemBase):
+    tag = models.ForeignKey(
+        Flag, related_name="%(app_label)s_%(class)ss", on_delete=models.CASCADE
+    )
+    content_object = models.ForeignKey("Address", on_delete=models.CASCADE)
 
 
 class Attachment(models.Model):
@@ -123,6 +176,17 @@ class Attachment(models.Model):
     sha256 = models.CharField(max_length=64, blank=True, null=True, unique=True)
 
     reports = GenericRelation(Report, related_name="attachments")
+    tags = TaggableManager(through=AttachmentTag)
+
+    @property
+    def is_whitelisted(self):
+        return (
+            Whitelist.objects.filter(
+                (Q(type="sha256") & Q(value=self.sha256))
+                | (Q(type="md5") & Q(value=self.md5))
+            ).count()
+            > 0
+        )
 
     def __str__(self):
         return (
@@ -132,39 +196,20 @@ class Attachment(models.Model):
         )
 
 
-class Flag(TagBase):
-    color = ColorField(blank=True, null=True)
-    visible = models.BooleanField(default=True)
+class Address(models.Model):
+    name = ArrayField(models.CharField(max_length=500), blank=True, null=True)
+    address = models.EmailField(unique=True)
+    domain = models.CharField(max_length=500)
+    mx_check = models.TextField(blank=True, null=True)
+
+    reports = GenericRelation(Report, related_name="addresses")
+    tags = TaggableManager(through=AddressTag)
 
     class Meta:
-        verbose_name = _("Tag")
-        verbose_name_plural = _("Tags")
+        verbose_name_plural = "addresses"
 
     def __str__(self):
-        return self.name
-
-
-class CustomTag(TaggedItemBase):
-    tag = models.ForeignKey(
-        Flag, related_name="%(app_label)s_%(class)ss", on_delete=models.CASCADE
-    )
-    content_object = models.ForeignKey("Mail", on_delete=models.CASCADE)
-    note = models.TextField(blank=True, null=True)
-
-
-class Whitelist(models.Model):
-    WL_TYPE = (
-        ("address", "address"),
-        ("domain", "domain"),
-        ("ip", "ip"),
-        ("md5", "md5"),
-        ("sha256", "sha256"),
-    )
-    value = models.CharField(max_length=500)
-    type = models.CharField(max_length=8, choices=WL_TYPE)
-
-    def __str__(self):
-        return "[{}] {}".format(self.type, self.value)
+        return self.address if self.address else ""
 
 
 class Ioc(models.Model):
@@ -174,6 +219,21 @@ class Ioc(models.Model):
     whois = models.JSONField(blank=True, null=True)
 
     reports = GenericRelation(Report, related_name="iocs")
+    tags = TaggableManager(through=IocTag)
+
+    @property
+    def value(self):
+        return self.domain if self.domain else self.ip
+
+    @property
+    def is_whitelisted(self):
+        return (
+            Whitelist.objects.filter(
+                (Q(type="domain") & Q(value=self.domain))
+                | (Q(type="ip") & Q(value=self.ip))
+            ).count()
+            > 0
+        )
 
     def __str__(self):
         return self.ip if self.ip else self.domain
@@ -209,18 +269,6 @@ class Mail(models.Model):
         (2, "done"),
     )
 
-    RESPONSE = (
-        (0, "Unknown"),
-        (1, "SPAM"),
-        (2, "HAM"),
-        (3, "Phishing"),
-        (4, "Social Engineering"),
-        (5, "Reconnaissance"),
-        (6, "BlackMail"),
-        (7, "CEO SCAM"),
-        (10, "licit"),
-    )
-
     # WORKFLOW
     progress = models.PositiveIntegerField(choices=PROGRESS, default=0)
     suggested_response = models.PositiveIntegerField(choices=RESPONSE, default=0)
@@ -250,13 +298,14 @@ class Mail(models.Model):
     # ADDITIONAL FIELDS
     geom = PointField(blank=True, null=True)
     dmark = models.JSONField(blank=True, null=True)
+    dkim = models.BooleanField(default=False)
 
     # IOC
     iocs = models.ManyToManyField(Ioc, related_name="iocs")
     attachments = models.ManyToManyField(Attachment, related_name="attachments")
 
     # TAGS
-    tags = TaggableManager(through=CustomTag)
+    tags = TaggableManager(through=MailTag)
 
     # STORAGE INFO
     eml_path = models.CharField(max_length=500, blank=True, null=True)

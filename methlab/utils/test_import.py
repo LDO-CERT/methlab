@@ -1,12 +1,26 @@
+import os
+import sys
+import django
+
+sys.path.append("/app")
+
+os.environ["DATABASE_URL"] = "postgres://{}:{}@{}:{}/{}".format(
+    os.environ["POSTGRES_USER"],
+    os.environ["POSTGRES_PASSWORD"],
+    os.environ["POSTGRES_HOST"],
+    os.environ["POSTGRES_PORT"],
+    os.environ["POSTGRES_DB"],
+)
+
+os.environ["CELERY_BROKER_URL"] = "redis://redis:6379/0"
+
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.local")
+django.setup()
+
 import uuid
-import logging
-
-from config import celery_app
-
 import socket
 from imaplib import IMAP4
 import mailparser
-
 from cortex4py.api import Api
 
 # from pymisp import PyMISP
@@ -16,7 +30,7 @@ from methlab.shop.models import InternalInfo
 from methlab.utils.importer import MethMail
 
 
-class CeleryError(Exception):
+class Error(Exception):
     pass
 
 
@@ -35,8 +49,7 @@ def store_mail(content):
     return eml_path
 
 
-@celery_app.task(soft_time_limit=240, time_limit=300)
-def check_mails():
+if __name__ == "__main__":
     try:
         info = InternalInfo.objects.first()
         inbox = IMAP4(info.imap_server)
@@ -44,11 +57,9 @@ def check_mails():
         inbox.login(info.imap_username, info.imap_password)
         inbox.select(info.imap_folder)
     except ObjectDoesNotExist:
-        logging.error("missing information")
-        raise CeleryError
+        raise Error
     except (IMAP4.error, ConnectionRefusedError, socket.gaierror):
-        logging.error("error connecting to imap")
-        raise CeleryError
+        raise Error
 
     try:
         if info.http_proxy and info.https_proxy:
@@ -61,26 +72,14 @@ def check_mails():
         else:
             cortex_api = Api(info.cortex_url, info.cortex_api, verify_cert=False)
     except Exception:
-        raise CeleryError
+        raise Error
 
-    # try:
-    #    if info.http_proxy and info.https_proxy:
-    #        misp_api = PyMISP(
-    #            info.misp_url,
-    #            info.misp_api,
-    #            proxies={"http": info.http_proxy, "https": info.https_proxy},
-    #            ssl=False,
-    #        )
-    #    else:
-    #        misp_api = PyMISP(info.misp_url, info.misp_api, ssl=False)
-    # except Exception:
-    # raise CeleryError
     misp_api = None
 
-    _, data = inbox.search(None, "(UNSEEN)")
+    _, data = inbox.search(None, "(ALL)")
     email_list = list(data[0].split())
     data_list = []
-    for number in email_list:
+    for number in email_list[50:160]:
         _, data = inbox.fetch(number, "(RFC822)")
         data_list.append(data[0][1])
     inbox.close()
@@ -92,9 +91,8 @@ def check_mails():
             filepath = store_mail(content)
             msg = mailparser.parse_from_bytes(content)
         except Exception as e:
-            logging.error(e)
+            print(e)
             continue
-        logging.debug("PARSING MAIL {}".format(number))
         methmail = MethMail(
             msg,
             info=info,
@@ -103,4 +101,4 @@ def check_mails():
             mail_filepath=filepath,
         )
         methmail.process_mail()
-    return len(data_list)
+    print(len(data_list))

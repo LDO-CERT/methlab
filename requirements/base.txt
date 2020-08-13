@@ -53,6 +53,8 @@ django-geojson==3.0.0
 django-leaflet==0.27.1
 # https://github.com/django-compressor/django-compressor
 django-compressor==2.4  
+# https://github.com/martsberger/django-pivot
+django-pivot==1.8.1
 
 # Celery
 # ------------------------------------------------------------------------------
@@ -94,6 +96,8 @@ ipwhois==1.1.0
 python-magic==0.4.18
 # https://github.com/domainaware/checkdmarc
 checkdmarc== 4.3.1
+# https://pypi.org/project/dkimpy/
+dkimpy==1.0.5
 
 # Util
 # ------------------------------------------------------------------------------

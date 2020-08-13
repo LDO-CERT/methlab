@@ -77,34 +77,40 @@
                   align: 'right',
                   verticalAlign: 'middle'
                 },
+                xAxis: {
+                  type: 'datetime',
+                  labels: {
+                    format: '{value:%m/%d [h: %H]}',
+                  },
+                },
                 series: [
                   {
                     name: 'Unknown',
-                    data: [{% for item in groups %}{{ item.unknown }}{% if not forloop.last %}, {% endif %} {% endfor %}],
+                    data: [{% for item in groups %}[new Date({{ item.thour |date:"U" }}*1000).getTime(), {{ item.unknown }}]{% if not forloop.last %}, {% endif %} {% endfor %}],
                   }, {
                 name: 'Spam',
-                  data: [{% for item in groups %}{{ item.spam }}{% if not forloop.last %}, {% endif %} {% endfor %}],
+                  data: [{% for item in groups %}[new Date({{ item.thour |date:"U" }}*1000).getTime(), {{ item.spam }}]{% if not forloop.last %}, {% endif %} {% endfor %}],
                   }, {
                 name: 'Ham',
-                  data: [{% for item in groups %}{{ item.ham }}{% if not forloop.last %}, {% endif %} {% endfor %}],
+                  data: [{% for item in groups %}[new Date({{ item.thour |date:"U" }}*1000).getTime(), {{ item.ham }}]{% if not forloop.last %}, {% endif %} {% endfor %}],
                   }, {
                 name: 'Phishing',
-                  data: [{% for item in groups %}{{ item.phishing }}{% if not forloop.last %}, {% endif %} {% endfor %}],
+                  data: [{% for item in groups %}[new Date({{ item.thour |date:"U" }}*1000).getTime(), {{ item.phishing }}]{% if not forloop.last %}, {% endif %} {% endfor %}],
                   }, {
                 name: 'Social Engineering',
-                  data: [{% for item in groups %}{{ item.social_engineering }}{% if not forloop.last %}, {% endif %} {% endfor %}],
+                  data: [{% for item in groups %}[new Date({{ item.thour |date:"U" }}*1000).getTime(), {{ item.social_engineering }}]{% if not forloop.last %}, {% endif %} {% endfor %}],
                   }, {
                 name: 'Reconnaissance',
-                  data: [{% for item in groups %}{{ item.reconnaissance }}{% if not forloop.last %}, {% endif %} {% endfor %}],
+                  data: [{% for item in groups %}[new Date({{ item.thour |date:"U" }}*1000).getTime(), {{ item.reconnaissance }}]{% if not forloop.last %}, {% endif %} {% endfor %}],
                   }, {
                 name: 'Blackmail',
-                  data: [{% for item in groups %}{{ item.blackmail }}{% if not forloop.last %}, {% endif %} {% endfor %}],
+                  data: [{% for item in groups %}[new Date({{ item.thour |date:"U" }}*1000).getTime(), {{ item.blackmail }}]{% if not forloop.last %}, {% endif %} {% endfor %}],
                   }, {
                 name: 'Ceo Scam',
-                  data: [{% for item in groups %}{{ item.ceo_scam }}{% if not forloop.last %}, {% endif %} {% endfor %}],
+                  data: [{% for item in groups %}[new Date({{ item.thour |date:"U" }}*1000).getTime(), {{ item.ceo_scam }}]{% if not forloop.last %}, {% endif %} {% endfor %}],
                   }, {
                 name: 'Licit',
-                  data: [{% for item in groups %}{{ item.licit }}{% if not forloop.last %}, {% endif %} {% endfor %}],
+                  data: [{% for item in groups %}[new Date({{ item.thour |date:"U" }}*1000).getTime(), {{ item.safe }}]{% if not forloop.last %}, {% endif %} {% endfor %}],
                   }
                 ]
 

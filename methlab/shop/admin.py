@@ -144,6 +144,7 @@ class MailAdmin(LeafletGeoAdmin, DynamicArrayMixin):
         "sender_ip_address",
         "to_domains",
         "attachments",
+        "dmark",
     )
 
     exclude = (
@@ -164,13 +165,15 @@ class MailAdmin(LeafletGeoAdmin, DynamicArrayMixin):
 
     inlines = [AttachmentInline, AddressesInline, IocInline]
     list_display = (
+        "submission_date",
         "short_id",
         "short_subject",
         "count_attachments",
         "count_iocs",
         "tag_list",
-        "geom",
+        "dmark",
     )
+    list_filter = ("submission_date", "official_response")
     search_fields = ["subject"]
 
 
@@ -263,7 +266,7 @@ class ReportAdmin(admin.ModelAdmin, DynamicArrayMixin):
     list_display = ("analyzer", "content_type", "object_id", "taxonomies", "success")
 
 
-class AttachmentAdmin(admin.ModelAdmin):
+class AttachmentAdmin(admin.ModelAdmin, DynamicArrayMixin):
     actions = ["add_to_wl"]
 
     def add_to_wl(self, request, queryset):

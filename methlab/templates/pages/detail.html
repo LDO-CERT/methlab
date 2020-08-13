@@ -73,7 +73,27 @@
               <dd class="col-sm-9">{{mail.date}}</dd>
               <dt class="col-sm-3">Submission Date:</dt>
               <dd class="col-sm-9">{{mail.submission_date}}</dd>
+              <dt class="col-sm-3">Assignee:</dt>
+              <dd class="col-sm-9">
+                <select class="form-control" id="change-assignee">
+                  <option {% if not mail.assignee %}selected='selected' {% endif %}>--</option>
+                  {% for user in users %}
+                  <option {% if user == mail.assignee %}selected='selected' {% endif %}>{{user}}</option>
+                  {% endfor %}
+                </select>
+              </dd>
               <hr />
+              {% if mail.dmark or mail.dkim %}
+              {% if mail.dmark %}
+              <dt class="col-sm-3">Dmark:</dt>
+              <dd class="col-sm-9">{{mail.dmark}}</dd>
+              {% endif %}
+              {% if mail.dkim %}
+              <dt class="col-sm-3">Dkim Check:</dt>
+              <dd class="col-sm-9">{{mail.dkim}}</dd>
+              {% endif %}
+              <hr />
+              {% endif %}
               <dt class="col-sm-3">Tags:</dt>
               <dd class="col-sm-9">
                 {% if mail.tags.all %}
@@ -82,6 +102,16 @@
                 {% endfor %}
                 {% endif %}
                 <button class="btn btn-sm btn-success" id="add_tag">+</button>
+              </dd>
+              <hr />
+              <dt class="col-sm-3">Response:</dt>
+              <dd class="col-sm-9">
+                <select class="form-control" id="change-response">
+                  {% for response in responses %}
+                  <option {% if mail.official_response == response %}selected='selected' {% endif %}>{{response}}
+                  </option>
+                  {% endfor %}
+                </select>
               </dd>
             </dl>
           </div>
@@ -223,8 +253,19 @@
               <tbody>
                 {% for ioc in mail.iocs.all %}
                 <tr>
-                  <td>{{ioc}}</td>
                   <td>
+                    {% if ioc.is_whitelisted %}
+                    <span class="badge bg-success">
+                      {% endif %}
+                      {{ioc}}
+                      {% if ioc.is_whitelisted %}
+                    </span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if ioc.is_whitelisted %}
+                    -
+                    {% else %}
                     {% if ioc.whois.name and ioc.whois.status %}
                     <dl class="row">
                       <dt class="col-sm-3">Name:</dt>
@@ -245,21 +286,30 @@
                     {% else %}
                     {{ioc.whois}}
                     {% endif %}
+                    {% endif %}
                   </td>
                   <td>
+                    {% if ioc.is_whitelisted %}
+                    -
+                    {% else %}
                     {% if ioc.reports.all %}
                     <dl class="row">
                       {% for report in ioc.reports.all %}
                       <dt class="col-sm-3">{{report.analyzer.name}}</dt>
-                      <dd class="col-sm-9">{{report.analyzer.taxonomies}}</dd>
+                      <dd class="col-sm-9">{{report.taxonomies}}</dd>
                       {% endfor %}
                     </dl>
                     {% else %}
                     -
                     {% endif %}
+                    {% endif %}
                   </td>
                   <td>
+                    {% if ioc.is_whitelisted %}
+                    <button class="btn btn-sm btn-danger" data-pk="{{ioc.pk}}" data-type="ioc">-</button>
+                    {% else %}
                     <button class="btn btn-sm btn-success" data-pk="{{ioc.pk}}" data-type="ioc">+</button>
+                    {% endif %}
                   </td>
                 </tr>
                 {% endfor %}
@@ -276,9 +326,7 @@
             <table class="table">
               <thead>
                 <tr>
-                  <td>Filename</td>
-                  <td>md5</td>
-                  <td>sha256</td>
+                  <td>Info</td>
                   <td>Report</td>
                   <td>Whitelist</td>
                 </tr>
@@ -286,15 +334,22 @@
               <tbody>
                 {% for attachment in mail.attachments.all %}
                 <tr>
-                  <td>{{attachment.filename}}</td>
-                  <td>{{attachment.md5}}</td>
-                  <td>{{attachment.sha256}}</td>
+                  <td>
+                    <dl class="row">
+                      <dt class="col-sm-3">Filenames</dt>
+                      <dd class="col-sm-9">{{attachment.filename|join:"<br/>"}}</dd>
+                      <dt class="col-sm-3">md5</dt>
+                      <dd class="col-sm-9">{{attachment.md5}}</dd>
+                      <dt class="col-sm-3">sha256</dt>
+                      <dd class="col-sm-9">{{attachment.sha256}}</dd>
+                    </dl>
+                  </td>
                   <td>
                     {% if attachment.reports.all %}
                     <dl class="row">
                       {% for report in attachment.reports.all %}
                       <dt class="col-sm-3">{{report.analyzer.name}}</dt>
-                      <dd class="col-sm-9">{{report.analyzer.taxonomies}}</dd>
+                      <dd class="col-sm-9">{{report.taxonomies}}</dd>
                       {% endfor %}
                     </dl>
                     {% else %}
@@ -302,7 +357,11 @@
                     {% endif %}
                   </td>
                   <td>
+                    {% if attachment.is_whitelisted %}
+                    <button class="btn btn-sm btn-danger" data-pk="{{attachment.pk}}" data-type="attachment">-</button>
+                    {% else %}
                     <button class="btn btn-sm btn-success" data-pk="{{attachment.pk}}" data-type="attachment">+</button>
+                    {% endif %}
                   </td>
                 </tr>
                 {% endfor %}
