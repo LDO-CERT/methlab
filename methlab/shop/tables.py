@@ -92,16 +92,16 @@ class AttachmentTable(tables.Table):
 
 class IpTable(tables.Table):
     link = tables.LinkColumn(
-        "search", text=">>>", args=["ioc", A("iocs__ip")], orderable=False,
+        "search", text=">>>", args=["ip", A("iocs__ip")], orderable=False,
     )
     total = tables.Column(verbose_name="Total")
     iocs__ip = tables.Column(verbose_name="Ip")
-    tags = tables.Column(orderable=False)
+    iocs__tags = tables.Column(orderable=False, verbose_name="Tags")
 
     class Meta:
         model = Mail
         template_name = "django_tables2/bootstrap4.html"
-        fields = ("iocs__ip", "total", "tags", "link")
+        fields = ("iocs__ip", "total", "iocs__tags", "link")
 
     def render_tags(self, value, record):
         html = format_html_join(
@@ -114,16 +114,16 @@ class IpTable(tables.Table):
 
 class DomainTable(tables.Table):
     link = tables.LinkColumn(
-        "search", text=">>>", args=["ioc", A("iocs__domain")], orderable=False,
+        "search", text=">>>", args=["domain", A("iocs__domain")], orderable=False,
     )
     total = tables.Column(verbose_name="Total")
     iocs__domain = tables.Column(verbose_name="Domain")
-    tags = tables.Column(orderable=False)
+    iocs__tags = tables.Column(orderable=False, verbose_name="Tags")
 
     class Meta:
         model = Mail
         template_name = "django_tables2/bootstrap4.html"
-        fields = ("iocs__domain", "total", "tags", "link")
+        fields = ("iocs__domain", "total", "iocs__tags", "link")
 
     def render_tags(self, value, record):
         html = format_html_join(

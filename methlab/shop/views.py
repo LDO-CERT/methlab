@@ -134,7 +134,7 @@ def stats(request):
     attachments = (
         Mail.external_objects.exclude(attachments__sha256__in=att_wl)
         .exclude(attachments__sha256__isnull=True)
-        .values("attachments__md5", "attachments__sha256")
+        .values("attachments__md5", "attachments__sha256", "attachments__tags")
         .annotate(total=Count("attachments__md5"))
         .order_by(a_sort_by)
     )
@@ -146,8 +146,8 @@ def stats(request):
     if i_sort_by == "total":
         i_sort_by = "-{}".format(i_sort_by)
     i_iocs = (
-        Mail.external_objects.exclude(iocs__ip__isnull=True)
-        .values("iocs__ip")
+        Mail.external_objects.filter(iocs__ip__isnull=False)
+        .values("iocs__ip", "iocs__tags")
         .annotate(total=Count("iocs"))
         .order_by(i_sort_by)
     )
@@ -161,7 +161,7 @@ def stats(request):
         d_sort_by = "-{}".format(d_sort_by)
     d_iocs = (
         Mail.external_objects.exclude(iocs__domain__isnull=True)
-        .values("iocs__domain")
+        .values("iocs__domain", "iocs__tags")
         .annotate(total=Count("iocs"))
         .order_by(d_sort_by)
     )
@@ -218,8 +218,14 @@ def search(request, method=None, search_object=None):
             ).distinct():
                 for mail in attachment.attachments(manager="external_objects").all():
                     mails.append(mail)
-        elif method == "ioc":
-            query = "[ioc] {}".format(search_object)
+        elif method == "ip":
+            query = "[ip] {}".format(search_object)
+            mails = []
+            for ioc in Ioc.objects.filter(ip=search_object).distinct():
+                for mail in ioc.iocs(manager="external_objects").all():
+                    mails.append(mail)
+        elif method == "domain":
+            query = "[domain] {}".format(search_object)
             mails = []
             for ioc in Ioc.objects.filter(domain=search_object).distinct():
                 for mail in ioc.iocs(manager="external_objects").all():
