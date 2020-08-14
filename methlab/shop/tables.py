@@ -1,5 +1,5 @@
 import django_tables2 as tables
-from django.utils.html import format_html_join
+from django.utils.html import format_html_join, format_html
 
 from django_tables2.utils import A
 from methlab.shop.models import Mail, Address
@@ -24,17 +24,19 @@ class LatestMailTable(tables.Table):
         "search", text="🔎", args=["subject", A("slug_subject")], orderable=False
     )
     submission_date = tables.DateTimeColumn(orderable=False, format="M d Y, h:i A")
-    official_response = tables.Column(orderable=False)
+    official_response = tables.Column(orderable=False, verbose_name="Response")
     assignee = tables.Column(orderable=False)
-    short_subject = tables.Column(orderable=False)
-    count_attachments = tables.Column(orderable=False)
-    count_iocs = tables.Column(orderable=False)
+    short_subject = tables.Column(orderable=False, verbose_name="Subject")
+    count_attachments = tables.Column(orderable=False, verbose_name="Attachments")
+    count_iocs = tables.Column(orderable=False, verbose_name="Iocs")
     tags = tables.Column(orderable=False)
+    progress = tables.Column(orderable=False, verbose_name="Status")
 
     class Meta:
         model = Mail
         template_name = "django_tables2/bootstrap4.html"
         fields = (
+            "progress",
             "submission_date",
             "short_subject",
             "official_response",
@@ -45,6 +47,13 @@ class LatestMailTable(tables.Table):
             "link",
             "similar",
         )
+
+    def render_progress(self, value, record):
+        if value != "done":
+            html = format_html("""<span class='badge bg-danger'>{}</span>""", value)
+        else:
+            html = format_html("""<span class='badge bg-success'>{}</span>""", value)
+        return html
 
     def render_tags(self, value, record):
         html = format_html_join(
@@ -65,25 +74,64 @@ class AttachmentTable(tables.Table):
     total = tables.Column(verbose_name="Total")
     attachments__md5 = tables.Column(verbose_name="MD5")
     attachments__sha256 = tables.Column(verbose_name="SHA256")
+    tags = tables.Column(orderable=False)
 
     class Meta:
         model = Mail
         template_name = "django_tables2/bootstrap4.html"
-        fields = ("attachments__md5", "attachments__sha256", "total", "link")
+        fields = ("attachments__md5", "attachments__sha256", "total", "tags", "link")
+
+    def render_tags(self, value, record):
+        html = format_html_join(
+            "\n",
+            """<span class='badge' style='background-color:{}'>{}</span>""",
+            ((x.color, x.name) for x in value.all()),
+        )
+        return html
 
 
-class IocTable(tables.Table):
+class IpTable(tables.Table):
+    link = tables.LinkColumn(
+        "search", text=">>>", args=["ioc", A("iocs__ip")], orderable=False,
+    )
+    total = tables.Column(verbose_name="Total")
+    iocs__ip = tables.Column(verbose_name="Ip")
+    tags = tables.Column(orderable=False)
+
+    class Meta:
+        model = Mail
+        template_name = "django_tables2/bootstrap4.html"
+        fields = ("iocs__ip", "total", "tags", "link")
+
+    def render_tags(self, value, record):
+        html = format_html_join(
+            "\n",
+            """<span class='badge' style='background-color:{}'>{}</span>""",
+            ((x.color, x.name) for x in value.all()),
+        )
+        return html
+
+
+class DomainTable(tables.Table):
     link = tables.LinkColumn(
         "search", text=">>>", args=["ioc", A("iocs__domain")], orderable=False,
     )
     total = tables.Column(verbose_name="Total")
-    iocs__ip = tables.Column(verbose_name="Ip")
     iocs__domain = tables.Column(verbose_name="Domain")
+    tags = tables.Column(orderable=False)
 
     class Meta:
         model = Mail
         template_name = "django_tables2/bootstrap4.html"
-        fields = ("iocs__ip", "iocs__domain", "total", "link")
+        fields = ("iocs__domain", "total", "tags", "link")
+
+    def render_tags(self, value, record):
+        html = format_html_join(
+            "\n",
+            """<span class='badge' style='background-color:{}'>{}</span>""",
+            ((x.color, x.name) for x in value.all()),
+        )
+        return html
 
 
 class AddressTable(tables.Table):
@@ -93,9 +141,18 @@ class AddressTable(tables.Table):
         args=["mail", A("mail_addresses__address__address")],
         orderable=False,
     )
+    tags = tables.Column(orderable=False)
     total = tables.Column(verbose_name="Total")
 
     class Meta:
         model = Address
         template_name = "django_tables2/bootstrap4.html"
-        fields = ("mail_addresses__address__address", "total", "link")
+        fields = ("mail_addresses__address__address", "total", "tags", "link")
+
+    def render_tags(self, value, record):
+        html = format_html_join(
+            "\n",
+            """<span class='badge' style='background-color:{}'>{}</span>""",
+            ((x.color, x.name) for x in value.all()),
+        )
+        return html

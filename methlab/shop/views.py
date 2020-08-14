@@ -1,12 +1,14 @@
 from django.utils import timezone
 from datetime import timedelta
 
-from django.http import HttpResponse, Http404
+from django.http import Http404, JsonResponse
 from django.shortcuts import render, get_object_or_404
-from django.db.models import Sum, IntegerField, Value, Count
+from django.db.models import Count
 from django.db.models.functions import TruncHour
 from django.contrib.postgres.search import TrigramSimilarity
 from django.contrib.auth import get_user_model
+from django.contrib.auth.decorators import login_required
+
 
 from django_pivot.pivot import pivot
 
@@ -21,7 +23,8 @@ from methlab.shop.models import (
 )
 from methlab.shop.tables import (
     AttachmentTable,
-    IocTable,
+    IpTable,
+    DomainTable,
     MailTable,
     LatestMailTable,
     AddressTable,
@@ -52,7 +55,7 @@ def home(request):
         "pk",
         aggregation=Count,
         display_transform=lambda x: x.lower().replace(" ", "_"),
-    )
+    ).order_by("thour")
 
     # PAGINATE LATEST EMAIL
     table = LatestMailTable(
@@ -78,13 +81,9 @@ def home(request):
     )
 
 
-def campaign_detail(request, pk):
-    return HttpResponse(pk)
-
-
 def campaigns(request, campaign_type):
     if campaign_type not in ("subject", "sender"):
-        raise Http404
+        raise Http404("404")
 
     sort_by = request.GET.get("sort", "-total")
     if sort_by == "total":
@@ -97,7 +96,7 @@ def campaigns(request, campaign_type):
             .exclude(subject="")
             .annotate(total=Count("subject"))
             .values("subject", "slug_subject", "total")
-            .filter(total__gt=2)
+            # .filter(total__gt=2)
             .order_by(sort_by)
         )
         table = MailTable(mails)
@@ -110,7 +109,7 @@ def campaigns(request, campaign_type):
             .exclude(address__icontains="@leonardocompany.com")
             .values("mail_addresses__address__address")
             .annotate(total=Count("mail_addresses__address__address"))
-            .filter(total__gt=2)
+            # .filter(total__gt=2)
             .order_by(sort_by)
         )
         table.paginate(page=request.GET.get("page", 1), per_page=20)
@@ -142,31 +141,39 @@ def stats(request):
     table_a = AttachmentTable(attachments, prefix="a-",)
     table_a.paginate(page=request.GET.get("a-page", 1), per_page=10)
 
-    # SORT BY IOC
+    # SORT BY IP
     i_sort_by = request.GET.get("i-sort", "-total")
     if i_sort_by == "total":
         i_sort_by = "-{}".format(i_sort_by)
-    iocs = (
-        Mail.external_objects.all()
-        .exclude(iocs__domain__isnull=True, iocs__ip__isnull=True)
-        .values("iocs__ip", "iocs__domain")
+    i_iocs = (
+        Mail.external_objects.exclude(iocs__ip__isnull=True)
+        .values("iocs__ip")
         .annotate(total=Count("iocs"))
         .order_by(i_sort_by)
     )
 
-    table_i = IocTable(
-        [
-            x
-            for x in iocs
-            if x["iocs__ip"] not in ioc_wl and x["iocs__domain"] not in ioc_wl
-        ],
-        prefix="i-",
-    )
-
+    table_i = IpTable([x for x in i_iocs if x["iocs__ip"] not in ioc_wl], prefix="i-",)
     table_i.paginate(page=request.GET.get("i-page", 1), per_page=10)
 
+    # SORT BY DOMAIN
+    d_sort_by = request.GET.get("d-sort", "-total")
+    if d_sort_by == "total":
+        d_sort_by = "-{}".format(d_sort_by)
+    d_iocs = (
+        Mail.external_objects.exclude(iocs__domain__isnull=True)
+        .values("iocs__domain")
+        .annotate(total=Count("iocs"))
+        .order_by(d_sort_by)
+    )
+    table_d = DomainTable(
+        [x for x in d_iocs if x["iocs__domain"] not in ioc_wl], prefix="d-",
+    )
+    table_d.paginate(page=request.GET.get("d-page", 1), per_page=10)
+
     return render(
-        request, "pages/stats.html", {"table_a": table_a, "table_i": table_i},
+        request,
+        "pages/stats.html",
+        {"table_a": table_a, "table_i": table_i, "table_d": table_d},
     )
 
 
@@ -176,11 +183,10 @@ def mail_detail(request, pk):
         pk=pk,
     )
     users = get_user_model().objects.all()
-    responses = [x[1] for x in RESPONSE]
     return render(
         request,
         "pages/detail.html",
-        {"mail": mail, "users": users, "responses": responses},
+        {"mail": mail, "users": users, "responses": RESPONSE},
     )
 
 
@@ -226,3 +232,85 @@ def search(request, method=None, search_object=None):
     table = LatestMailTable(mails)
     table.paginate(page=request.GET.get("page", 1), per_page=25)
     return render(request, "pages/search.html", {"table": table, "query": query})
+
+
+@login_required
+def tag(request):
+    if request.is_ajax():
+        mail = request.POST.get("mail")
+        tag = request.POST.get("tag")
+        op = request.POST.get("op")
+        mail = get_object_or_404(Mail, pk=mail)
+        if op == "ADD":
+            mail.tags.add(tag)
+        elif op == "REMOVE":
+            mail.tags.remove(tag)
+        else:
+            raise Http404("404")
+        return JsonResponse({"ok": True})
+    raise Http404("404")
+
+
+@login_required
+def response(request):
+    if request.is_ajax():
+        mail = request.POST.get("mail")
+        response = request.POST.get("response")
+        mail = get_object_or_404(Mail, pk=mail)
+        mail.official_response = response
+        mail.save()
+        return JsonResponse({"ok": True})
+    raise Http404("404")
+
+
+@login_required
+def assignee(request):
+    if request.is_ajax():
+        mail = request.POST.get("mail")
+        assignee = request.POST.get("assignee")
+        mail = get_object_or_404(Mail, pk=mail)
+        user = get_object_or_404(get_user_model(), pk=assignee)
+        mail.assignee = user
+        mail.save()
+        return JsonResponse({"ok": True})
+    raise Http404("404")
+
+
+@login_required
+def progress(request):
+    if request.is_ajax():
+        mail = request.POST.get("mail")
+        progress = request.POST.get("progress")
+        mail = get_object_or_404(Mail, pk=mail)
+        mail.progress = progress
+        mail.save()
+        return JsonResponse({"ok": True})
+    raise Http404("404")
+
+
+@login_required
+def whitelist(request):
+    if request.is_ajax():
+        item = request.POST.get("item")
+        item_type = request.POST.get("item_type")
+        op = request.POST.get("op")
+        if item_type == "sha256":
+            item = get_object_or_404(Attachment, pk=item)
+            value = item.sha256
+        elif item_type == "domain":
+            item = get_object_or_404(Ioc, pk=item)
+            value = item.domain
+        elif item_type == "ip":
+            item = get_object_or_404(Ioc, pk=item)
+            value = item.ip
+        else:
+            raise Http404("404")
+        if op == "ADD":
+            wl, created = Whitelist.objects.get_or_create(value=value, type=item_type)
+        elif op == "REMOVE":
+            wl = get_object_or_404(Whitelist, value=value, type=item_type)
+            wl.delete()
+        else:
+            raise Http404("404")
+        return JsonResponse({"ok": True})
+    raise Http404("404")

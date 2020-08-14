@@ -123,7 +123,7 @@ class Whitelist(models.Model):
 
 
 class Flag(TagBase):
-    color = ColorField(blank=True, null=True)
+    color = ColorField(default="#30357B")
     visible = models.BooleanField(default=True)
 
     class Meta:

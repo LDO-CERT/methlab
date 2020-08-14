@@ -6,10 +6,14 @@ from django.views import defaults as default_views
 from methlab.shop.views import (
     home,
     mail_detail,
-    campaign_detail,
     search,
     campaigns,
     stats,
+    tag,
+    response,
+    assignee,
+    progress,
+    whitelist,
 )
 from methlab.shop.models import Mail
 from djgeojson.views import GeoJSONLayerView
@@ -20,7 +24,11 @@ urlpatterns = [
     path("mail/<int:pk>/", mail_detail, name="mail_detail"),
     path("stats/", stats, name="stats"),
     path("campaigns/<str:campaign_type>/", campaigns, name="campaigns"),
-    path("campaign/<int:pk>/", campaign_detail, name="campaign_detail"),
+    path("tag", tag, name="tag"),
+    path("response", response, name="response"),
+    path("assignee", assignee, name="assignee"),
+    path("progress", progress, name="progress"),
+    path("whitelist", whitelist, name="whitelist"),
     path("search/", search, name="search"),
     path("search/<str:method>/<str:search_object>", search, name="search"),
     path("data.geojson", GeoJSONLayerView.as_view(model=Mail), name="data",),

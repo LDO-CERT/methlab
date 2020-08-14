@@ -2,7 +2,7 @@ table{
   font-size: 13px;
 }
 
-table a{
+table a, a.similar{
   text-decoration: none;
 }
 
@@ -17,6 +17,10 @@ table a{
   width: 100%;
 }
 
-.py-5 {
+.py-5, .py-2-first {
   padding-top: 4.5em!important;
+}
+
+#btn_close{
+  margin-left: 35px;
 }
