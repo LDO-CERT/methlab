@@ -13,7 +13,7 @@ from .models import (
     Address,
     Attachment,
 )
-from django.contrib.postgres import fields
+from django.db import models
 from django_json_widget.widgets import JSONEditorWidget
 from django_better_admin_arrayfield.admin.mixins import DynamicArrayMixin
 from import_export.admin import ImportExportModelAdmin
@@ -132,7 +132,7 @@ class AddressesInline(admin.TabularInline, DynamicArrayMixin):
 class MailAdmin(LeafletGeoAdmin, DynamicArrayMixin):
 
     formfield_overrides = {
-        fields.JSONField: {"widget": JSONEditorWidget()},
+        models.JSONField: {"widget": JSONEditorWidget()},
     }
 
     readonly_fields = (
@@ -184,7 +184,7 @@ class MailAdmin(LeafletGeoAdmin, DynamicArrayMixin):
 
 class ReportInline(GenericTabularInline):
     formfield_overrides = {
-        fields.JSONField: {"widget": JSONEditorWidget()},
+        models.JSONField: {"widget": JSONEditorWidget()},
     }
 
     def has_add_permission(self, request, obj=None):
@@ -200,7 +200,7 @@ class ReportInline(GenericTabularInline):
 class IocAdmin(admin.ModelAdmin, DynamicArrayMixin):
     actions = ["add_to_wl"]
     formfield_overrides = {
-        fields.JSONField: {"widget": JSONEditorWidget()},
+        models.JSONField: {"widget": JSONEditorWidget()},
     }
 
     def add_to_wl(self, request, queryset):
@@ -260,7 +260,7 @@ class AddressesAdmin(admin.ModelAdmin, DynamicArrayMixin):
 class ReportAdmin(admin.ModelAdmin, DynamicArrayMixin):
 
     formfield_overrides = {
-        fields.JSONField: {"widget": JSONEditorWidget()},
+        models.JSONField: {"widget": JSONEditorWidget()},
     }
 
     list_display = ("analyzer", "content_type", "object_id", "taxonomies", "success")

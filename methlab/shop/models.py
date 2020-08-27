@@ -1,6 +1,6 @@
 from django.db import models
 from django.db.models import Q
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelation
 from django.contrib.contenttypes.models import ContentType
 from django.template.defaultfilters import truncatechars
@@ -251,7 +251,9 @@ class Mail(models.Model):
     progress = models.PositiveIntegerField(choices=PROGRESS, default=0)
     suggested_response = models.PositiveIntegerField(choices=RESPONSE, default=0)
     official_response = models.PositiveIntegerField(choices=RESPONSE, default=0)
-    assignee = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
+    assignee = models.ForeignKey(
+        get_user_model(), on_delete=models.CASCADE, null=True, blank=True
+    )
 
     # SUBMISSION INFO
     parent = models.ForeignKey("self", blank=True, null=True, on_delete=models.CASCADE)
