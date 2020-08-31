@@ -70,7 +70,13 @@
             <div id="hc_container"></div>
             <script>
               Highcharts.chart('hc_container', {
-                title: { text: "Mail type by hour [30days]" },
+                chart: { type: 'column' },
+                plotOptions: {
+                  series: {
+                    stacking: 'normal'
+                  }
+                },
+                title: { text: "Mail type by hour [10days]" },
                 yAxis: { title: { text: 'Number of emails' } },
                 legend: {
                   layout: 'vertical',
@@ -79,6 +85,7 @@
                 },
                 xAxis: {
                   type: 'datetime',
+                  ordinal: false,
                   labels: {
                     format: '{value:%m/%d [h: %H]}',
                   },

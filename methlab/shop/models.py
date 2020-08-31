@@ -12,7 +12,6 @@ from django.utils.text import slugify
 from djgeojson.fields import PointField
 from colorfield.fields import ColorField
 from django.contrib.postgres.fields import ArrayField
-from django_better_admin_arrayfield.models.fields import ArrayField  # noqa
 
 # TAGS
 from taggit.managers import TaggableManager

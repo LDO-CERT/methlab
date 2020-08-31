@@ -42,7 +42,7 @@ def home(request):
 
     qs = (
         Mail.external_objects.filter(
-            submission_date__gte=timezone.now() - timedelta(days=30)
+            submission_date__gte=timezone.now() - timedelta(days=10)
         )
         .annotate(thour=TruncHour("submission_date"))
         .order_by()
@@ -94,6 +94,7 @@ def campaigns(request, campaign_type):
         mails = (
             Mail.external_objects.exclude(subject__isnull=True)
             .exclude(subject="")
+            .values("subject")
             .annotate(total=Count("subject"))
             .values("subject", "slug_subject", "total")
             # .filter(total__gt=2)
