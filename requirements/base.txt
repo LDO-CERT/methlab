@@ -22,7 +22,7 @@ uvicorn==0.11.8
 # Django
 # ------------------------------------------------------------------------------
 # https://www.djangoproject.com/
-django==3.1
+django==3.1.1
 # https://github.com/joke2k/django-environ
 django-environ==0.4.5
 # https://github.com/jazzband/django-model-utils
@@ -68,14 +68,14 @@ flower==0.9.5
 # MISP - Cortex
 # ------------------------------------------------------------------------------
 # https://github.com/MISP/PyMISP
-pymisp==2.4.128 
+pymisp==2.4.130 
 # https://github.com/TheHive-Project/Cortex4py
 cortex4py==2.0.1
 
 # Dns & ioc check
 # ------------------------------------------------------------------------------
 # https://github.com/fhightower/ioc-finder
-ioc-finder==3.1.1
+ioc-finder==3.1.2
 # mail-parser==3.12.0  # https://github.com/SpamScope/mail-parser
 -e git+https://github.com/dadokkio/mail-parser.git#egg=mail-parser
 # https://github.com/sdgathman/pyspf
