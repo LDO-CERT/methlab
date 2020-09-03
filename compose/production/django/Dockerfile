@@ -7,7 +7,17 @@ RUN apt-get update \
   # dependencies for building Python packages
   && apt-get install -y build-essential \
   # libmagic for cortex
-  && apt-get install -y python3-magic \  
+  && apt-get install -y python3-magic \
+  # ldap
+  && apt-get install -y libsasl2-dev libldap2-dev libssl-dev \
+  # git for cloning
+  && apt-get install -y git curl unzip \ 
+  # geo
+  && apt-get install -y binutils libproj-dev gdal-bin \
+  # whois
+  && apt-get install -y whois \    
+  # msg support
+  && apt-get install -y libemail-outlook-message-perl \
   # psycopg2 dependencies
   && apt-get install -y libpq-dev \
   # Translations dependencies

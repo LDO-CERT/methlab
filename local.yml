@@ -16,6 +16,7 @@ services:
     container_name: methlab_django
     depends_on:
       - postgres
+      - redis
     volumes:
       - ./samples:/tmp
       - .:/app
