@@ -14,12 +14,16 @@
 {% block container%}
 <section class="py-5 container">
   <div class="row py-lg-5">
-    <div class="col">
+    <div class="col shadow p-3 mb-5 bg-white rounded">
 
       <ul class="nav nav-pills" role="tablist">
         <li class="nav-item" role="presentation">
           <a class="nav-link active" id="info-tab" data-toggle="tab" href="#info" role="tab" aria-controls="info"
             aria-selected="true">Mail Info</a>
+        </li>
+        <li class="nav-item" role="presentation">
+          <a class="nav-link" id="checks-tab" data-toggle="tab" href="#checks" role="tab" aria-controls="checks"
+            aria-selected="true">Checks</a>
         </li>
         {% if mail.header %}
         <li class="nav-item" role="presentation">
@@ -109,21 +113,6 @@
                 {% endif %}
               </dd>
               <hr />
-              {% if mail.dmark or mail.dkim or mail.spf %}
-              {% if mail.dmark %}
-              <dt class="col-sm-3">Dmark:</dt>
-              <dd class="col-sm-9">{{mail.dmark}}</dd>
-              {% endif %}
-              {% if mail.dkim %}
-              <dt class="col-sm-3">Dkim Check:</dt>
-              <dd class="col-sm-9">{{mail.dkim}}</dd>
-              {% endif %}
-              {% if mail.spf %}
-              <dt class="col-sm-3">SPF Check:</dt>
-              <dd class="col-sm-9">{{mail.spf}}</dd>
-              {% endif %}
-              <hr />
-              {% endif %}
               <dt class="col-sm-3">
                 Tags:
                 {% if user.is_authenticated and mail.progress != 2 %}
@@ -137,6 +126,37 @@
                 {% endfor %}
                 {% endif %}
               </dd>
+            </dl>
+          </div>
+        </div>
+
+        <!-- CHECKS -->
+        <div class="tab-pane fade show" id="checks" role="tabpanel" aria-labelledby="checks-tab">
+          <div style="padding: 20px">
+            <dl class="row">
+              {% if mail.dmark %}
+              <dt class="col-sm-3">Dmark:</dt>
+              <dd class="col-sm-9 text-danger">{{mail.dmark}}</dd>
+              {% else%}
+              <dt class="col-sm-3">Dmark:</dt>
+              <dd class="col-sm-9 text-success">🟢</dd>
+              {% endif %}
+
+              {% if mail.dkim %}
+              <dt class="col-sm-3">Dkim Check:</dt>
+              <dd class="col-sm-9 text-danger">{{mail.dkim}}</dd>
+              {% else %}
+              <dt class="col-sm-3">Dkim Check:</dt>
+              <dd class="col-sm-9 text-success">🟢</dd>
+              {% endif %}
+
+              {% if mail.spf %}
+              <dt class="col-sm-3">SPF Check:</dt>
+              <dd class="col-sm-9 text-danger">{{mail.spf}}</dd>
+              {% else %}
+              <dt class="col-sm-3">SPF Check:</dt>
+              <dd class="col-sm-9 text-success">🟢</dd>
+              {% endif %}
             </dl>
           </div>
         </div>
@@ -162,9 +182,31 @@
         <!--- BODY -->
         <div class="tab-pane fade show" id="body" role="tabpanel" aria-labelledby="body-tab">
           <div style="padding: 20px;">
-            <dl class="row">
-              <p class="col-sm-12">{{mail.body}}</p>
-            </dl>
+            {% if mail.text_plain %}
+            <div class="row">
+              <h4>Text Plain</h4>
+              <hr>
+              <p class="col-sm-12">
+              <pre><code>{{mail.text_plain}}</code></pre>
+              </p>
+            </div>
+            {% endif %}
+            {% if mail.text_html %}
+            <div class="row">
+              <h4>Text Html</h4>
+              <p class="col-sm-12">
+              <pre><code>{{mail.text_html}}</code></pre>
+              </p>
+            </div>
+            {% endif %}
+            {% if mail.text_not_managed %}
+            <div class="row">
+              <h4>Text Not Managed</h4>
+              <p class="col-sm-12">
+              <pre><code>{{mail.text_not_managed}}</code></pre>
+              </p>
+            </div>
+            {% endif %}
           </div>
         </div>
 
@@ -199,6 +241,7 @@
                 {{address.address.address}}
                 <br />
                 [{{address.address.name|join:","}}]
+                <br />
                 {% endif %}
                 {% endfor%}
               </dd>
@@ -210,6 +253,7 @@
                 {{address.address.address}}
                 <br />
                 [{{address.address.name|join:","}}]
+                <br />
                 {% endif %}
                 {% endfor%}
               </dd>

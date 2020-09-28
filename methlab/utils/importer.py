@@ -2,7 +2,6 @@ import os
 import json
 import shutil
 import pathlib
-import time
 import uuid
 import spf
 import datetime
@@ -11,22 +10,21 @@ import magic
 import hashlib
 import whois
 import dns.resolver
+import logging
 
 from django.utils import timezone
 from django.core.serializers.json import DjangoJSONEncoder
-from django.contrib.contenttypes.models import ContentType
+
+from zipfile import ZipFile, is_zipfile
 
 import dkim
 from ipwhois import IPWhois
-from zipfile import ZipFile, is_zipfile
 from dateutil.parser import parse
 from tldextract import extract
 from checkdmarc import check_domains, results_to_json
 
-# from pymisp import MISPEvent
-
-from glom import glom, PathAccessError
 from ip2geotools.databases.noncommercial import DbIpCity
+
 from ioc_finder import (
     parse_urls,
     parse_ipv4_addresses,
@@ -34,14 +32,13 @@ from ioc_finder import (
     parse_ipv6_addresses,
     parse_email_addresses,
 )
+
 from methlab.shop.models import (
     Mail,
     Attachment,
     Address,
     Ioc,
     Mail_Addresses,
-    Analyzer,
-    Report,
     Whitelist,
 )
 
@@ -62,46 +59,47 @@ def default(o):
 
 
 class MethMail:
-    def __init__(self, msg, info, cortex_api, misp_api, mail_filepath, parent_id=None):
+    def __init__(self, msg, info, cortex_api, mail_filepath, parent_id=None):
         """
             MethMail main mail class
             arguments:
             - msg: mail object
             - info: info regarding whitelist and vip
             - cortex_api: object to connect to cortex
-            - misp_api: object to connect to misp
             - mail_filepath: phisycal path of the mail
             - parent_id: parent id of the mail if processed mail was an attachment
         """
         self.msg = msg
         self.info = info
         self.cortex_api = cortex_api
-        self.misp_api = misp_api
         self.mail_filepath = mail_filepath
         self.parent_id = parent_id
         self.db_mail = None  # mail object in db
+        self.tasks = []
 
     def process_mail(self):
         """ Main workflow for single mail.
         """
 
-        # IF MAIL WAS ALREADY PROCESSED IGNORE
+        # IF MAIL WAS ALREADY PROCESSED CLEAN AND IGNORE
         try:
             old_mail = Mail.objects.get(
                 message_id=self.msg.message_id, parent_id__pk=self.parent_id
             )
             self.clean_files((self.mail_filepath))
             del old_mail
-            return
+            logging.error("Mail already present in db - SKIPPING")
+            return False
         except Mail.DoesNotExist:
             pass
 
         # CREATE OBJECT IN DB
-        if self.store_info() == -1:
-            return
+        if self.store_info():
+            logging.error("Error processing mail - SKIPPING")
+            return False
 
-        # RUN ANALYZERS ON FULL EMAIL
-        self.check_cortex(self.mail_filepath, "file", self.db_mail, is_mail=True)
+        # ANALYZERS ON FULL EMAIL
+        self.tasks.append((self.mail_filepath, "file", self.db_mail, True))
 
         # Save attachments
         try:
@@ -121,146 +119,13 @@ class MethMail:
                     continue
 
                 self.process_attachment(filepath, mess_att)
-        except Exception as excp:
-            print(excp)
+        except Exception:
+            logging.error("Error processing attachments - SKIPPING")
+            return False
 
         # DELETE MAIL TEMP FILE
         self.clean_files((self.db_mail.eml_path, self.db_mail.attachments_path))
-
-    def check_cortex(self, ioc, ioc_type, object_id, is_mail=False):
-        """ Run all available analyzer for ioc.
-
-            arguments:
-            - ioc: value/path of item we need to check on cortex
-            - ioc_type: type of the ioc (generic_relation and cortex datatype)
-            - object_id: item to attach report to
-            - is_mail: ioc is a mail [mail datatype is for addresses and file is for mail]
-        """
-
-        # Mail object is file in cortex
-        # need to save mail object analyzer as mail_obj to discriminate them
-        filter_type = ioc_type if not is_mail else "mail_obj"
-        analyzers = Analyzer.objects.filter(
-            disabled=False, supported_types__contains=[filter_type]
-        ).order_by("-priority")
-
-        if ioc_type == "mail" and is_mail is False:
-            content_type = Address
-            analyzers = analyzers.filter(onpremise=True)
-        elif ioc_type == "mail" and is_mail is True:
-            content_type = Mail
-        elif ioc_type in ["url", "ip"]:
-            content_type = Ioc
-        elif ioc_type == "file":
-            content_type = Attachment
-            analyzers = analyzers.filter(onpremise=True)
-        else:
-            return
-
-        old_reports = Report.objects.filter(
-            content_type=ContentType.objects.get_for_model(content_type),
-            object_id=object_id.pk,
-            success=True,
-            date__gte=datetime.datetime.today() - datetime.timedelta(days=30),
-        )
-
-        for analyzer in analyzers:
-
-            # Check if item was already been processed
-            for report in old_reports:
-                if report.analyzer == analyzer:
-                    if "malicious" in report.taxonomies:
-                        object_id.tags.add(
-                            "{}: malicious".format(analyzer.name),
-                            tag_kwargs={"color": "#FF0000"},
-                        )
-
-                    elif "suspicious" in report.taxonomies:
-                        object_id.tags.add(
-                            "{}: suspicious".format(analyzer.name),
-                            tag_kwargs={"color": "#C15808"},
-                        )
-
-                    elif "safe" in report.taxonomies:
-                        object_id.tags.add(
-                            "{}: safe".format(analyzer.name),
-                            tag_kwargs={"color": "#00FF00"},
-                        )
-
-                    continue
-
-            # If not rerun the analyzer
-            try:
-                job = self.cortex_api.analyzers.run_by_name(
-                    analyzer.name,
-                    {"data": ioc, "dataType": ioc_type, "tlp": 1},
-                    force=1,
-                )
-                while job.status not in ["Success", "Failure"]:
-                    time.sleep(10)
-                    job = self.cortex_api.jobs.get_report(job.id)
-
-                if job.status == "Success":
-                    response = job.json()
-                    try:
-                        taxonomies = glom(
-                            response, ("report.summary.taxonomies", ["level"])
-                        )
-                    except PathAccessError:
-                        taxonomies = None
-
-                    report = Report(
-                        response=response,
-                        content_object=object_id,
-                        analyzer=analyzer,
-                        taxonomies=taxonomies,
-                        success=True,
-                    )
-                    report.save()
-
-                    if "malicious" in taxonomies:
-                        object_id.tags.add(
-                            "{}: malicious".format(analyzer.name),
-                            tag_kwargs={"color": "#FF0000"},
-                        )
-
-                    elif "suspicious" in taxonomies:
-                        object_id.tags.add(
-                            "{}: suspicious".format(analyzer.name),
-                            tag_kwargs={"color": "#C15808"},
-                        )
-
-                    elif "safe" in taxonomies:
-                        object_id.tags.add(
-                            "{}: safe".format(analyzer.name),
-                            tag_kwargs={"color": "#00FF00"},
-                        )
-
-                elif job.status == "Failure":
-                    report = Report(
-                        content_object=object_id, analyzer=analyzer, success=False,
-                    )
-                    report.save()
-
-            except Exception as excp:
-                print(
-                    "ERROR running analyzer {} for {}: {}".format(
-                        analyzer.name, ioc, excp
-                    )
-                )
-
-    def create_misp_event(self):
-        """ If mail is not safe store info in misp
-        """
-        return
-        # self.misp_api
-        # event = MISPEvent()
-        # event.info("[METH]")
-        # event.distribution = 0
-        # event.threat_level_id = 2
-        # event.analysis = 1
-        # event.add_tag("tlp:white")
-        # event.date = self.db_mail.date
+        return self.tasks
 
     def find_ioc(self, payload):
         """" Extracts url and ip from text.
@@ -288,8 +153,8 @@ class MethMail:
                             default=default,
                         )
                     )
-                except Exception as e:
-                    print(e)
+                except Exception:
+                    pass
 
             if ioc.urls and url not in ioc.urls:
                 ioc.urls.append(url)
@@ -298,7 +163,7 @@ class MethMail:
             ioc.whois = whois_info
             ioc.save()
             self.db_mail.iocs.add(ioc)
-            self.check_cortex(url, "url", ioc)
+            self.tasks.append((url, "url", ioc, False))
 
         # EXTRACT IP, CHECK IF WL AND GET REPORT
         for ip in (
@@ -316,10 +181,11 @@ class MethMail:
                     whois_info = IPWhois(ip).lookup_rdap(depth=1)
                 except Exception:
                     pass
+
             ioc.whois = whois_info
             ioc.save()
             self.db_mail.iocs.add(ioc)
-            self.check_cortex(ip, "ip", ioc)
+            self.tasks.append((ip, "ip", ioc, False))
 
     def store_info(self):
         """ Clean mail fields and create item in db
@@ -347,7 +213,8 @@ class MethMail:
             # if address in wl clean and skip
             if address_from in [x.value for x in mail_wl]:
                 self.clean_files((self.mail_filepath))
-                return -1
+                logging.error("From address in whitelist - SKIPPING")
+                return False
 
             address, _ = Address.objects.get_or_create(address=address_from)
 
@@ -424,16 +291,16 @@ class MethMail:
                             geo_info_json["latitude"],
                         ],
                     }
-                except Exception as e:
-                    print(e)
+                except Exception:
+                    pass
 
                 try:
                     dmark_result = results_to_json(check_domains(domain))
                     dmark_info = (
                         dmark_result if dmark_result not in [[], "[]"] else None
                     )
-                except Exception as e:
-                    print(e)
+                except Exception:
+                    pass
 
                 with open(self.mail_filepath, "rb") as f:
                     message = f.read()
@@ -476,7 +343,9 @@ class MethMail:
             submission_date=date if not self.parent_id else Mail(self.parent_id).date,
             received=self.msg.received,
             headers=self.msg.headers,
-            body=self.msg.body,
+            text_plain=self.msg.text_plain,
+            text_html=self.msg.text_html,
+            text_not_managed=self.msg.text_not_managed,
             sender_ip_address=self.msg.get_server_ipaddress(domain) if domain else None,
             to_domains=self.msg.to_domains,
             geom=geo_info,
@@ -521,12 +390,14 @@ class MethMail:
                     ]
                 )
             ):
-                self.check_cortex(addr_item.address, "mail", addr_item, is_mail=False)
+                self.tasks.append((addr_item.address, "mail", addr_item, False))
 
         if self.db_mail.tags.count() == 0:
             self.db_mail.tags.add("Hunting")
 
-        self.find_ioc(self.db_mail.body)
+        self.find_ioc(self.db_mail.text_html)
+        self.find_ioc(self.db_mail.text_plain)
+        self.find_ioc(self.db_mail.text_not_managed)
 
         # STORE FLAGS IN DB
         for flag in flags:
@@ -558,7 +429,7 @@ class MethMail:
                 elif os.path.isfile(filepath):
                     os.remove(filepath)
         except Exception as e:
-            print(e)
+            logging.error("Error deleting files {}".format(e))
 
     def is_whitelisted(self, content_type, mimetype_whitelist=None):
         """" Checks if content_type is whitelisted.
@@ -659,7 +530,6 @@ class MethMail:
                 internal_message,
                 info=self.info,
                 cortex_api=self.cortex_api,
-                misp_api=self.misp_api,
                 mail_filepath=filepath,
             )
             internal_methmail.process_mail()
@@ -695,6 +565,6 @@ class MethMail:
             attachment.save()
             self.db_mail.attachments.add(attachment)
             # Check file in onprems sandboxes
-            self.check_cortex(filepath, "file", attachment)
+            self.tasks.append((attachment.filepath, "file", attachment, False))
             # Check hashes in cloud services
-            self.check_cortex(attachment.sha256, "hash", attachment)
+            self.tasks.append((attachment.sha256, "file", attachment, False))

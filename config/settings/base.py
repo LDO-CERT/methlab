@@ -213,7 +213,7 @@ CELERY_TASK_TIME_LIMIT = 5 * 60
 CELERY_TASK_SOFT_TIME_LIMIT = 60
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 CELERY_BEAT_SCHEDULE = {
-    "check_mail": {
+    "check_mails": {
         "task": "methlab.shop.tasks.check_mails",
         "schedule": crontab(minute="*/5"),
     },

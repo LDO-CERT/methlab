@@ -30,11 +30,11 @@ services:
   postgres:
     build:
       context: .
-      dockerfile: ./compose/production/postgres/Dockerfile
+      dockerfile: ./compose/local/postgres/Dockerfile
       args:
         - http_proxy
         - https_proxy
-    image: methlab_production_postgres
+    image: methlab_local_postgres
     container_name: methlab_postgres
     volumes:
       - local_postgres_data:/var/lib/postgresql/data

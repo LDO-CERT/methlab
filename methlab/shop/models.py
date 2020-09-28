@@ -11,7 +11,10 @@ from django.utils.text import slugify
 # CUSTOM FIELDS
 from djgeojson.fields import PointField
 from colorfield.fields import ColorField
-from django.contrib.postgres.fields import ArrayField
+
+# from django.contrib.postgres.fields import ArrayField
+from django_better_admin_arrayfield.models.fields import ArrayField
+
 
 # TAGS
 from taggit.managers import TaggableManager
@@ -20,7 +23,6 @@ from taggit.models import TagBase, GenericTaggedItemBase
 # POSTGRES SWEETERS
 import django.contrib.postgres.search as pg_search
 from django.contrib.postgres.indexes import GinIndex
-from django.contrib.postgres.aggregates import StringAgg
 from django.contrib.postgres.search import (
     SearchQuery,
     SearchRank,
@@ -270,7 +272,9 @@ class Mail(models.Model):
     )
     received = models.JSONField(blank=True, null=True)
     headers = models.JSONField(blank=True, null=True)
-    body = models.TextField(blank=True, null=True)
+    text_plain = models.TextField(blank=True, null=True)
+    text_html = models.TextField(blank=True, null=True)
+    text_not_managed = models.TextField(blank=True, null=True)
     sender_ip_address = models.CharField(max_length=50, blank=True, null=True)
     to_domains = ArrayField(models.CharField(max_length=500), blank=True, null=True)
 
