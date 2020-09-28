@@ -6,19 +6,19 @@ Wanna cook?
 
 ### Run docker image
 ```
-docker-compose -f local.yml up
+docker-compose up
 ```
 
 ### Execute managment commands
 ```
-docker-compose -f local.yml run --rm django python manage.py makemigrations
-docker-compose -f local.yml run --rm django python manage.py migrate
-docker-compose -f local.yml run --rm django python manage.py createsuperuser
+docker-compose run --rm django python manage.py makemigrations
+docker-compose run --rm django python manage.py migrate
+docker-compose run --rm django python manage.py createsuperuser
 ```
 
 ### Import Analyzers from cortex
 ```
-docker-compose -f local.yml run --rm django python manage.py cortex_import
+docker-compose run --rm django python manage.py cortex_import
 ```
 
 ### Services and ports:
