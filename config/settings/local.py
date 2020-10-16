@@ -8,7 +8,7 @@ SECRET_KEY = env(
     "DJANGO_SECRET_KEY",
     default="cuPnldUNbcJpXe03LH0emKsCA79ocnHYv10erf3IdliHOnnuKAAh2Ok9f2p5fgcr",
 )
-ALLOWED_HOSTS = env.str("ALLOWED_HOSTS").split(","
+ALLOWED_HOSTS = env.str("ALLOWED_HOSTS").split(",")
 
 # CACHES
 # ------------------------------------------------------------------------------
