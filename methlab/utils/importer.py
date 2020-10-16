@@ -342,10 +342,6 @@ class MethMail:
                     "{} {}".format(self.msg.date, self.msg.timezone.replace(".", ":"))
                 )
 
-            logging.error(
-                "AAAAAAAAAAAAAAAAAA {} - SKIPPING".format(type(self.msg.text_html))
-            )
-
             self.db_mail = Mail.objects.create(
                 parent=None if not self.parent_id else Mail(self.parent_id),
                 message_id=self.msg.message_id,
@@ -429,11 +425,7 @@ class MethMail:
         - random_path: path on disk containing attachments
         """
         random_path = "/tmp/{}".format(uuid.uuid4())
-        logging.error("##########################################")
-        logging.error("##########################################")
         logging.error("{}".format(random_path))
-        logging.error("##########################################")
-        logging.error("##########################################")
         os.makedirs(random_path)
         self.msg.write_attachments(random_path)
         return random_path
