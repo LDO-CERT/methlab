@@ -186,25 +186,33 @@
             <div class="row">
               <h4>Text Plain</h4>
               <hr>
+              {% for text in mail.text_plain %}
               <p class="col-sm-12">
-              <pre><code>{{mail.text_plain}}</code></pre>
+              <pre><code>{{text}}</code></pre>
               </p>
+              {% endfor %}
             </div>
             {% endif %}
             {% if mail.text_html %}
             <div class="row">
               <h4>Text Html</h4>
+              <hr />
+              {% for text in mail.text_html %}
               <p class="col-sm-12">
-              <pre><code>{{mail.text_html}}</code></pre>
+              <pre><code>{{text}}</code></pre>
               </p>
+              {% endfor %}
             </div>
             {% endif %}
             {% if mail.text_not_managed %}
             <div class="row">
               <h4>Text Not Managed</h4>
+              <hr />
+              {% for text in mail.text_not_managed %}
               <p class="col-sm-12">
-              <pre><code>{{mail.text_not_managed}}</code></pre>
+              <pre><code>{{text}}</code></pre>
               </p>
+              {% endfor %}
             </div>
             {% endif %}
           </div>

@@ -2,6 +2,10 @@ table{
   font-size: 13px;
 }
 
+html{
+  background-color: #F8F9FA;
+}
+
 table a, a.similar{
   text-decoration: none;
 }

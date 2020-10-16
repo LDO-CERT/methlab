@@ -12,6 +12,7 @@ import whois
 import dns.resolver
 import logging
 
+from django.db import transaction
 from django.utils import timezone
 from django.core.serializers.json import DjangoJSONEncoder
 
@@ -44,13 +45,13 @@ from methlab.shop.models import (
 
 
 def default(o):
-    """ helpers to store item in json
+    """helpers to store item in json
 
-        arguments:
-        - o: field of the object to serialize
+    arguments:
+    - o: field of the object to serialize
 
-        returns:
-        - valid serialized value for unserializable fields
+    returns:
+    - valid serialized value for unserializable fields
     """
     if isinstance(o, (datetime.date, datetime.datetime)):
         return o.isoformat()
@@ -61,13 +62,13 @@ def default(o):
 class MethMail:
     def __init__(self, msg, info, cortex_api, mail_filepath, parent_id=None):
         """
-            MethMail main mail class
-            arguments:
-            - msg: mail object
-            - info: info regarding whitelist and vip
-            - cortex_api: object to connect to cortex
-            - mail_filepath: phisycal path of the mail
-            - parent_id: parent id of the mail if processed mail was an attachment
+        MethMail main mail class
+        arguments:
+        - msg: mail object
+        - info: info regarding whitelist and vip
+        - cortex_api: object to connect to cortex
+        - mail_filepath: phisycal path of the mail
+        - parent_id: parent id of the mail if processed mail was an attachment
         """
         self.msg = msg
         self.info = info
@@ -78,8 +79,7 @@ class MethMail:
         self.tasks = []
 
     def process_mail(self):
-        """ Main workflow for single mail.
-        """
+        """Main workflow for single mail."""
 
         # IF MAIL WAS ALREADY PROCESSED CLEAN AND IGNORE
         try:
@@ -93,13 +93,13 @@ class MethMail:
         except Mail.DoesNotExist:
             pass
 
-        # CREATE OBJECT IN DB
-        if self.store_info():
-            logging.error("Error processing mail - SKIPPING")
+        # CREATE OBJECT IN DB, returns PK or None if failed
+        stored = self.store_info()
+        if not stored:
             return False
 
         # ANALYZERS ON FULL EMAIL
-        self.tasks.append((self.mail_filepath, "file", self.db_mail, True))
+        self.tasks.append((self.mail_filepath, "file", self.db_mail.pk, True))
 
         # Save attachments
         try:
@@ -119,8 +119,8 @@ class MethMail:
                     continue
 
                 self.process_attachment(filepath, mess_att)
-        except Exception:
-            logging.error("Error processing attachments - SKIPPING")
+        except Exception as e:
+            logging.error("Error processing attachments. {} - SKIPPING".format(e))
             return False
 
         # DELETE MAIL TEMP FILE
@@ -128,10 +128,10 @@ class MethMail:
         return self.tasks
 
     def find_ioc(self, payload):
-        """" Extracts url and ip from text.
+        """Extracts url and ip from text.
 
-            arguments:
-            - payload: message body
+        arguments:
+        - payload: message body
         """
         all_wl = Whitelist.objects.all()
 
@@ -142,28 +142,30 @@ class MethMail:
             domain = ".".join(part for part in extract(url) if part)
             if domain in [x.value for x in all_wl if x.type == "domain"]:
                 continue
-
-            ioc, created = Ioc.objects.get_or_create(domain=domain,)
-            if created:
-                try:
-                    whois_info = json.loads(
-                        json.dumps(
-                            whois.query(domain).__dict__,
-                            cls=DjangoJSONEncoder,
-                            default=default,
+            with transaction.atomic():
+                ioc, created = Ioc.objects.get_or_create(
+                    domain=domain,
+                )
+                if created:
+                    try:
+                        whois_info = json.loads(
+                            json.dumps(
+                                whois.query(domain).__dict__,
+                                cls=DjangoJSONEncoder,
+                                default=default,
+                            )
                         )
-                    )
-                except Exception:
-                    pass
+                    except Exception:
+                        pass
 
-            if ioc.urls and url not in ioc.urls:
-                ioc.urls.append(url)
-            elif not ioc.urls:
-                ioc.urls = [url]
-            ioc.whois = whois_info
-            ioc.save()
-            self.db_mail.iocs.add(ioc)
-            self.tasks.append((url, "url", ioc, False))
+                if ioc.urls and url not in ioc.urls:
+                    ioc.urls.append(url)
+                elif not ioc.urls:
+                    ioc.urls = [url]
+                ioc.whois = whois_info
+                ioc.save()
+                self.db_mail.iocs.add(ioc)
+                self.tasks.append((url, "url", ioc.pk, False))
 
         # EXTRACT IP, CHECK IF WL AND GET REPORT
         for ip in (
@@ -175,252 +177,272 @@ class MethMail:
             if ip in [x.value for x in all_wl if x.type == "ip"]:
                 continue
 
-            ioc, created = Ioc.objects.get_or_create(ip=ip)
-            if created:
-                try:
-                    whois_info = IPWhois(ip).lookup_rdap(depth=1)
-                except Exception:
-                    pass
+            with transaction.atomic():
+                ioc, created = Ioc.objects.get_or_create(ip=ip)
+                if created:
+                    try:
+                        whois_info = IPWhois(ip).lookup_rdap(depth=1)
+                    except Exception:
+                        pass
 
-            ioc.whois = whois_info
-            ioc.save()
+                ioc.whois = whois_info
+                ioc.save()
             self.db_mail.iocs.add(ioc)
-            self.tasks.append((ip, "ip", ioc, False))
+            self.tasks.append((ip, "ip", ioc.pk, False))
 
     def store_info(self):
-        """ Clean mail fields and create item in db
-        """
-        flags = []
-        addresses_list = []
+        """Clean mail fields and create item in db"""
+        with transaction.atomic():
+            flags = []
+            addresses_list = []
 
-        mail_wl = Whitelist.objects.filter(type="address")
+            mail_wl = Whitelist.objects.filter(type="address")
 
-        geo_info = None
-        dmark_info = None
-        dkim_info = False
-        spf_info = None
+            geo_info = None
+            dmark_info = None
+            dkim_info = False
+            spf_info = None
 
-        # CHECK FROM ADDRESSES AND ASSIGN FLAGS
-        for (name, address_from) in self.msg.from_:
+            # CHECK FROM ADDRESSES AND ASSIGN FLAGS
+            for (name, address_from) in self.msg.from_:
 
-            # if address is not valid skip object
-            if address_from == "":
-                continue
-
-            name = name.capitalize()
-            address_from = address_from.lower()
-
-            # if address in wl clean and skip
-            if address_from in [x.value for x in mail_wl]:
-                self.clean_files((self.mail_filepath))
-                logging.error("From address in whitelist - SKIPPING")
-                return False
-
-            address, _ = Address.objects.get_or_create(address=address_from)
-
-            # address could have multiple names
-            if not address.name:
-                address.name = [name]
-            elif name not in address.name:
-                address.name.append(name)
-
-            # MX check on address domain
-            address.domain = address_from.split("@")[-1]
-            try:
-                address.mx_check = "\n".join(
-                    [
-                        "{}: {}".format(rdata.exchange, rdata.preference)
-                        for rdata in dns.resolver.resolve(address.domain, "MX")
-                    ]
-                )
-            except Exception:
-                pass
-            address.save()
-
-            # Check fake names and vip scam
-            # if there is an email in the mail name and is different from mail address
-            addresses_list.append((address, "from"))
-            other_addresses = parse_email_addresses(name)
-            if len(other_addresses) > 0 and any(
-                [x != address_from for x in other_addresses]
-            ):
-                flags.append("Fake Real Name")
-            if self.info.vip_list:
-                for vip in self.info.vip_list:
-                    if (
-                        name.find(vip) != -1
-                        and address_from.find(self.info.vip_domain) == -1
-                    ):
-                        flags.append("VIP SCAM")
-
-        # clean TO, BCC, CC and REPLY_TO fields
-        for (field_value, field_name) in zip(
-            [self.msg.to, self.msg.bcc, self.msg.cc, self.msg.reply_to],
-            ["to", "bcc", "cc", "reply_to"],
-        ):
-            for (name, address_value) in field_value:
-                if address_value == "":
+                # if address is not valid skip object
+                if address_from == "":
                     continue
+
                 name = name.capitalize()
-                address_value = address_value.lower()
-                address, _ = Address.objects.get_or_create(address=address_value)
+                address_from = address_from.lower()
+
+                # if address in wl clean and skip
+                if address_from in [x.value for x in mail_wl]:
+                    self.clean_files((self.mail_filepath))
+                    logging.error("From address in whitelist - SKIPPING")
+                    return False
+
+                address, _ = Address.objects.get_or_create(address=address_from)
+
+                # address could have multiple names
                 if not address.name:
                     address.name = [name]
                 elif name not in address.name:
                     address.name.append(name)
-                address.domain = address_value.split("@")[-1]
+
+                # MX check on address domain
+                address.domain = address_from.split("@")[-1]
+                try:
+                    address.mx_check = "\n".join(
+                        [
+                            "{}: {}".format(rdata.exchange, rdata.preference)
+                            for rdata in dns.resolver.resolve(address.domain, "MX")
+                        ]
+                    )
+                except Exception:
+                    pass
                 address.save()
-                addresses_list.append((address, field_name))
 
-        # CHECK SPF & INTERNAL FROM FIRST HOP & GET MAP COORDINATES
-        first_hop = next(iter(self.msg.received), None)
-        if first_hop:
-            ip = parse_ipv4_addresses(first_hop.get("from", []))
-            domain = first_hop.get("by", None)
+                # Check fake names and vip scam
+                # if there is an email in the mail name and is different from mail address
+                addresses_list.append((address, "from"))
+                other_addresses = parse_email_addresses(name)
+                if len(other_addresses) > 0 and any(
+                    [x != address_from for x in other_addresses]
+                ):
+                    flags.append("Fake Real Name")
+                if self.info.vip_list:
+                    for vip in self.info.vip_list:
+                        if (
+                            name.find(vip) != -1
+                            and address_from.find(self.info.vip_domain) == -1
+                        ):
+                            flags.append("VIP SCAM")
 
-            if len(ip) > 0 and domain:
-                ip = ip[0]
-                try:
-                    geo_info_json = json.loads(
-                        DbIpCity.get(ip, api_key="free").to_json()
-                    )
-                    geo_info = {
-                        "type": "Point",
-                        "coordinates": [
-                            geo_info_json["longitude"],
-                            geo_info_json["latitude"],
-                        ],
-                    }
-                except Exception:
-                    pass
-
-                try:
-                    dmark_result = results_to_json(check_domains(domain))
-                    dmark_info = (
-                        dmark_result if dmark_result not in [[], "[]"] else None
-                    )
-                except Exception:
-                    pass
-
-                with open(self.mail_filepath, "rb") as f:
-                    message = f.read()
-                    dkim_info = dkim.DKIM(message).verify()
-
-                # SPF CHECK
-                domain = domain.split()[0]
-                sender = self.msg.from_[0][1]
-                spf_check = spf.check(s=sender, i=ip, h=domain)
-                if spf_check[1] != 250:
-                    flags.append("SPF")
-                    spf_info = "Sender {0} rejected on {1} ({2}): {3}. Considered Hop: {4}".format(
-                        sender, domain, ip, spf_check[2], first_hop,
-                    )
-            if (
-                domain
-                and self.info.internal_domains
-                and any(
-                    [
-                        domain.find(internal) != -1
-                        for internal in self.info.internal_domains
-                    ]
-                )
+            # clean TO, BCC, CC and REPLY_TO fields
+            for (field_value, field_name) in zip(
+                [self.msg.to, self.msg.bcc, self.msg.cc, self.msg.reply_to],
+                ["to", "bcc", "cc", "reply_to"],
             ):
-                flags.append("Internal")
+                for (name, address_value) in field_value:
+                    if address_value == "":
+                        continue
+                    name = name.capitalize()
+                    address_value = address_value.lower()
+                    address, _ = Address.objects.get_or_create(address=address_value)
+                    if not address.name:
+                        address.name = [name]
+                    elif name not in address.name:
+                        address.name.append(name)
+                    address.domain = address_value.split("@")[-1]
+                    address.save()
+                    addresses_list.append((address, field_name))
 
-        # DATE from mail, if error now()
-        if not self.msg.date:
-            date = timezone.now()
-        else:
-            date = parse(
-                "{} {}".format(self.msg.date, self.msg.timezone.replace(".", ":"))
+            # CHECK SPF & INTERNAL FROM FIRST HOP & GET MAP COORDINATES
+            first_hop = next(iter(self.msg.received), None)
+            if first_hop:
+                ip = parse_ipv4_addresses(first_hop.get("from", []))
+                domain = first_hop.get("by", None)
+
+                if len(ip) > 0 and domain:
+                    ip = ip[0]
+                    try:
+                        geo_info_json = json.loads(
+                            DbIpCity.get(ip, api_key="free").to_json()
+                        )
+                        geo_info = {
+                            "type": "Point",
+                            "coordinates": [
+                                geo_info_json["longitude"],
+                                geo_info_json["latitude"],
+                            ],
+                        }
+                    except Exception:
+                        pass
+
+                    try:
+                        dmark_result = results_to_json(check_domains(domain))
+                        dmark_info = (
+                            dmark_result if dmark_result not in [[], "[]"] else None
+                        )
+                    except Exception:
+                        pass
+
+                    with open(self.mail_filepath, "rb") as f:
+                        message = f.read()
+                        dkim_info = dkim.DKIM(message).verify()
+
+                    # SPF CHECK
+                    domain = domain.split()[0]
+                    sender = self.msg.from_[0][1]
+                    spf_check = spf.check(s=sender, i=ip, h=domain)
+                    if spf_check[1] != 250:
+                        flags.append("SPF")
+                        spf_info = "Sender {0} rejected on {1} ({2}): {3}. Considered Hop: {4}".format(
+                            sender,
+                            domain,
+                            ip,
+                            spf_check[2],
+                            first_hop,
+                        )
+                if (
+                    domain
+                    and self.info.internal_domains
+                    and any(
+                        [
+                            domain.find(internal) != -1
+                            for internal in self.info.internal_domains
+                        ]
+                    )
+                ):
+                    flags.append("Internal")
+
+            # DATE from mail, if error now()
+            if not self.msg.date:
+                date = timezone.now()
+            else:
+                date = parse(
+                    "{} {}".format(self.msg.date, self.msg.timezone.replace(".", ":"))
+                )
+
+            logging.error(
+                "AAAAAAAAAAAAAAAAAA {} - SKIPPING".format(type(self.msg.text_html))
             )
 
-        self.db_mail = Mail(
-            parent=None if not self.parent_id else Mail(self.parent_id),
-            message_id=self.msg.message_id,
-            subject=self.msg.subject,
-            date=date,
-            submission_date=date if not self.parent_id else Mail(self.parent_id).date,
-            received=self.msg.received,
-            headers=self.msg.headers,
-            text_plain=self.msg.text_plain,
-            text_html=self.msg.text_html,
-            text_not_managed=self.msg.text_not_managed,
-            sender_ip_address=self.msg.get_server_ipaddress(domain) if domain else None,
-            to_domains=self.msg.to_domains,
-            geom=geo_info,
-            dmark=dmark_info,
-            dkim=dkim_info,
-            spf=spf_info,
-            # this is an .eml if parent is None otherwhise is the parent attachment folder
-            eml_path=self.mail_filepath,
-        )
-        self.db_mail.save()
-
-        # ADD ADDRESSES TO MAIL, CHECK IF HONEYPOT OR SECINC
-        for addr_item, addr_type in addresses_list:
-            addr_obj = Mail_Addresses(
-                mail=self.db_mail, address=addr_item, field=addr_type
+            self.db_mail = Mail.objects.create(
+                parent=None if not self.parent_id else Mail(self.parent_id),
+                message_id=self.msg.message_id,
+                subject=self.msg.subject,
+                date=date,
+                submission_date=date
+                if not self.parent_id
+                else Mail(self.parent_id).date,
+                received=self.msg.received,
+                headers=self.msg.headers,
+                text_plain=self.msg.text_plain,
+                text_html=self.msg.text_html,
+                text_not_managed=self.msg.text_not_managed,
+                sender_ip_address=self.msg.get_server_ipaddress(domain)
+                if domain
+                else None,
+                to_domains=self.msg.to_domains,
+                geom=geo_info,
+                dmark=dmark_info,
+                dkim=dkim_info,
+                spf=spf_info,
+                # this is an .eml if parent is None otherwhise is the parent attachment folder
+                eml_path=self.mail_filepath,
             )
-            addr_obj.save()
-            if addr_type == "to":
-                if (
-                    self.info.security_emails
-                    and addr_item.address in self.info.security_emails
-                ):
-                    self.db_mail.tags.add("SecInc")
-                if self.info.honeypot_emails and any(
-                    [addr_item.address.endswith(x) for x in self.info.honeypot_emails]
-                ):
-                    self.db_mail.tags.add("Honeypot")
-            elif addr_type == "cc":
-                if (
-                    self.info.security_emails
-                    and addr_obj.address in self.info.security_emails
-                ):
-                    self.db_mail.tags.add("SecInc")
 
-            # check from mail in not internal and not in wl
-            elif addr_type == "from" and (
-                not self.info.internal_domains
-                or all(
-                    [
-                        addr_item.address.lower().find(x) == -1
-                        for x in self.info.internal_domains
-                    ]
+            # ADD ADDRESSES TO MAIL, CHECK IF HONEYPOT OR SECINC
+            for addr_item, addr_type in addresses_list:
+                addr_obj = Mail_Addresses(
+                    mail=self.db_mail, address=addr_item, field=addr_type
                 )
-            ):
-                self.tasks.append((addr_item.address, "mail", addr_item, False))
+                addr_obj.save()
+                if addr_type == "to":
+                    if (
+                        self.info.security_emails
+                        and addr_item.address in self.info.security_emails
+                    ):
+                        self.db_mail.tags.add("SecInc")
+                    if self.info.honeypot_emails and any(
+                        [
+                            addr_item.address.endswith(x)
+                            for x in self.info.honeypot_emails
+                        ]
+                    ):
+                        self.db_mail.tags.add("Honeypot")
+                elif addr_type == "cc":
+                    if (
+                        self.info.security_emails
+                        and addr_obj.address in self.info.security_emails
+                    ):
+                        self.db_mail.tags.add("SecInc")
 
-        if self.db_mail.tags.count() == 0:
-            self.db_mail.tags.add("Hunting")
+                # check from mail in not internal and not in wl
+                elif addr_type == "from" and (
+                    not self.info.internal_domains
+                    or all(
+                        [
+                            addr_item.address.lower().find(x) == -1
+                            for x in self.info.internal_domains
+                        ]
+                    )
+                ):
+                    self.tasks.append((addr_item.address, "mail", addr_item.pk, False))
 
-        self.find_ioc(self.db_mail.text_html)
-        self.find_ioc(self.db_mail.text_plain)
-        self.find_ioc(self.db_mail.text_not_managed)
+            if self.db_mail.tags.count() == 0:
+                self.db_mail.tags.add("Hunting")
 
-        # STORE FLAGS IN DB
-        for flag in flags:
-            self.db_mail.tags.add(flag)
+            self.find_ioc(self.db_mail.text_html)
+            self.find_ioc(self.db_mail.text_plain)
+            self.find_ioc(self.db_mail.text_not_managed)
 
-        return self.db_mail.pk
+            # STORE FLAGS IN DB
+            for flag in flags:
+                self.db_mail.tags.add(flag)
+
+            return self.db_mail.pk
 
     def store_attachments(self):
-        """ Store attachment to disk.
+        """Store attachment to disk.
 
-            returns:
-            - random_path: path on disk containing attachments
+        returns:
+        - random_path: path on disk containing attachments
         """
         random_path = "/tmp/{}".format(uuid.uuid4())
+        logging.error("##########################################")
+        logging.error("##########################################")
+        logging.error("{}".format(random_path))
+        logging.error("##########################################")
+        logging.error("##########################################")
         os.makedirs(random_path)
         self.msg.write_attachments(random_path)
         return random_path
 
     def clean_files(self, filepaths):
-        """ Clean a file or folder.
+        """Clean a file or folder.
 
-            arguments:
-            - filepath: path to delete
+        arguments:
+        - filepath: path to delete
         """
         try:
             for filepath in filepaths:
@@ -429,17 +451,19 @@ class MethMail:
                 elif os.path.isfile(filepath):
                     os.remove(filepath)
         except Exception as e:
-            logging.error("Error deleting files {}".format(e))
+            pass
+            # TODO: why are not able to delete his file?
+            # logging.error("Error deleting files {}. {}".format(filepaths, e))
 
     def is_whitelisted(self, content_type, mimetype_whitelist=None):
-        """" Checks if content_type is whitelisted.
+        """Checks if content_type is whitelisted.
 
-            arguments:
-            - content_type: attachment content type
+        arguments:
+        - content_type: attachment content type
 
-            returns:
-            - True: content_type is in whitelist
-            - False: content_type is not in whitelist
+        returns:
+        - True: content_type is in whitelist
+        - False: content_type is not in whitelist
         """
 
         if mimetype_whitelist:
@@ -449,13 +473,13 @@ class MethMail:
         return False
 
     def get_hashes(self, filepath):
-        """" Get file md5, sha1, sha256.
+        """Get file md5, sha1, sha256.
 
-            arguments:
-            - filepath: file to generate md5/sha1/sha256
+        arguments:
+        - filepath: file to generate md5/sha1/sha256
 
-            returns:
-            - md5/sha1/sha256
+        returns:
+        - md5/sha1/sha256
         """
 
         with open(filepath, "rb") as f:
@@ -472,11 +496,11 @@ class MethMail:
         return md5_hash.hexdigest(), sha1_hash.hexdigest(), sha256_hash.hexdigest()
 
     def process_attachment(self, filepath, mess_att):
-        """ Check if attachments is whitelisted, zipped, another mail or text:
+        """Check if attachments is whitelisted, zipped, another mail or text:
 
-            arguments:
-            - filepath: path of the attachment
-            - mess_att: attachment obcject
+        arguments:
+        - filepath: path of the attachment
+        - mess_att: attachment obcject
         """
 
         all_wl = Whitelist.objects.all()
@@ -484,6 +508,7 @@ class MethMail:
         fileext = fileext.lower()
 
         if not os.path.exists(filepath):
+            logging.error("Path {} does not exists - SKIPPING".format(filepath))
             return False
 
         # Unzip the attachment if is_zipfile
@@ -504,12 +529,14 @@ class MethMail:
                     self.clean_files(
                         (self.db_mail.eml_path, self.db_mail.attachments_path)
                     )
+                    logging.error("Zipped and multiple files in attachment - SKIPPING")
                     return False
 
         if self.is_whitelisted(
             mess_att["mail_content_type"], self.info.mimetype_whitelist
         ):
             self.clean_files((self.db_mail.eml_path, self.db_mail.attachments_path))
+            logging.error("Attachment type in whitelist - SKIPPING")
             return False
 
         # IF MAIL PROCESS RECURSIVELY
@@ -517,7 +544,7 @@ class MethMail:
             "application/ms-tnef",
             "Transport Neutral Encapsulation Format",
         ]:
-            print("TNEF -- see old release for support")
+            logging.error("TNEF not supported")
         elif (
             mess_att["mail_content_type"] == "application/octet-stream"
             and fileext in (".eml", ".msg")
@@ -535,7 +562,10 @@ class MethMail:
             internal_methmail.process_mail()
 
         # IF TEXT EXTRACT IOC
-        elif mess_att["mail_content_type"] in ("text/plain", "text/html",):
+        elif mess_att["mail_content_type"] in (
+            "text/plain",
+            "text/html",
+        ):
             self.find_ioc(mess_att["payload"])
 
         # IF GENERIC FILE, EXTRACT MD5/SHA256 AND GET REPORT
@@ -545,26 +575,28 @@ class MethMail:
                 x.value for x in all_wl if x.type == "sha256"
             ]:
                 self.clean_files((self.db_mail.eml_path, self.db_mail.attachments_path))
+                logging.error("Attachment hash in wl - SKIPPING")
                 return False
 
             fix_mail_dict = dict((k.replace("-", "_"), v) for k, v in mess_att.items())
             filename = fix_mail_dict["filename"]
             del fix_mail_dict["payload"]
             del fix_mail_dict["filename"]
-            attachment, created = Attachment.objects.get_or_create(
-                md5=md5, defaults=fix_mail_dict
-            )
-            if created:
-                attachment.filename = [filename]
-                attachment.filepath = filepath
-                attachment.sha1 = sha1
-                attachment.sha256 = sha256
-            else:
-                if filename not in attachment.filename:
-                    attachment.filename.append(filename)
-            attachment.save()
-            self.db_mail.attachments.add(attachment)
-            # Check file in onprems sandboxes
-            self.tasks.append((attachment.filepath, "file", attachment, False))
-            # Check hashes in cloud services
-            self.tasks.append((attachment.sha256, "file", attachment, False))
+            with transaction.atomic():
+                attachment, created = Attachment.objects.get_or_create(
+                    md5=md5, defaults=fix_mail_dict
+                )
+                if created:
+                    attachment.filename = [filename]
+                    attachment.filepath = filepath
+                    attachment.sha1 = sha1
+                    attachment.sha256 = sha256
+                else:
+                    if filename not in attachment.filename:
+                        attachment.filename.append(filename)
+                attachment.save()
+                self.db_mail.attachments.add(attachment)
+                # Check file in onprem sandboxes
+                self.tasks.append((attachment.filepath, "file", attachment.pk, False))
+                # Check hashes in cloud services
+                self.tasks.append((attachment.sha256, "file", attachment.pk, False))

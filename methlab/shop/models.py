@@ -224,17 +224,23 @@ class MailManager(models.Manager):
 
     def search(self, search_text):
         # Multiple language will be available in 3.1
-        search_vectors = SearchVector(
-            "body", weight="A", config="english"
-        ) + SearchVector("subject", weight="B", config="english")
+        search_vectors = (
+            SearchVector("text_plain", weight="A", config="english")
+            + SearchVector("text_html", weight="A", config="english")
+            + SearchVector("subject", weight="B", config="english")
+        )
         search_query = SearchQuery(search_text)
         search_rank = SearchRank(search_vectors, search_query)
-        body_tr_sim = TrigramSimilarity("body", search_text)
+        text_plain_tr_sim = TrigramSimilarity("text_plain", search_text)
+        text_html_tr_sim = TrigramSimilarity("text_html", search_text)
         subject_tr_si = TrigramSimilarity("subject", search_text)
         qs = (
             self.get_queryset()
             .filter(search_vector=search_query)
-            .annotate(rank=search_rank, similarity=body_tr_sim + subject_tr_si)
+            .annotate(
+                rank=search_rank,
+                similarity=text_plain_tr_sim + text_html_tr_sim + subject_tr_si,
+            )
             .order_by("-rank")
         )
         return qs
@@ -272,9 +278,15 @@ class Mail(models.Model):
     )
     received = models.JSONField(blank=True, null=True)
     headers = models.JSONField(blank=True, null=True)
-    text_plain = models.TextField(blank=True, null=True)
-    text_html = models.TextField(blank=True, null=True)
-    text_not_managed = models.TextField(blank=True, null=True)
+    text_plain = ArrayField(
+        models.TextField(blank=True, null=True), blank=True, null=True
+    )
+    text_html = ArrayField(
+        models.TextField(blank=True, null=True), blank=True, null=True
+    )
+    text_not_managed = ArrayField(
+        models.TextField(blank=True, null=True), blank=True, null=True
+    )
     sender_ip_address = models.CharField(max_length=50, blank=True, null=True)
     to_domains = ArrayField(models.CharField(max_length=500), blank=True, null=True)
 
@@ -307,9 +319,11 @@ class Mail(models.Model):
     # Update search vectors works only in update
     def save(self, *args, **kwargs):
         if self._state.adding is False:
-            self.search_vector = SearchVector(
-                "body", weight="A", config="english"
-            ) + SearchVector("subject", weight="B", config="english")
+            self.search_vector = (
+                SearchVector("text_plain", weight="A", config="english")
+                + SearchVector("text_html", weight="A", config="english")
+                + SearchVector("subject", weight="B", config="english")
+            )
         self.slug_subject = slugify(self.subject, allow_unicode=True)
         super().save(*args, **kwargs)
 

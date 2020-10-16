@@ -33,13 +33,13 @@ class CeleryError(Exception):
 
 
 def store_mail(content):
-    """ Saves mail as file to send it to cortex analyzers.
+    """Saves mail as file to send it to cortex analyzers.
 
-        arguments:
-        - content: mail payload to write on disk
+    arguments:
+    - content: mail payload to write on disk
 
-        returns:
-        - eml_path: path on disk
+    returns:
+    - eml_path: path on disk
     """
     eml_path = "/tmp/{}.eml".format(uuid.uuid4())
     with open(eml_path, "wb") as f:
@@ -47,47 +47,61 @@ def store_mail(content):
     return eml_path
 
 
-def get_info():
+def get_info(mail=True, cortex=True):
     try:
         info = InternalInfo.objects.first()
-        inbox = IMAP4(info.imap_server)
-        inbox.starttls()
-        inbox.login(info.imap_username, info.imap_password)
-        inbox.select(info.imap_folder)
     except (ObjectDoesNotExist, AttributeError):
         logging.error("missing information")
         raise CeleryError
-    except (IMAP4.error, ConnectionRefusedError, socket.gaierror):
-        logging.error("error connecting to imap")
-        raise CeleryError
 
-    try:
-        if info.http_proxy and info.https_proxy:
-            cortex_api = Api(
-                info.cortex_url,
-                info.cortex_api,
-                proxies={"http": info.http_proxy, "https": info.https_proxy},
-                verify_cert=False,
-            )
-        else:
-            cortex_api = Api(info.cortex_url, info.cortex_api, verify_cert=False)
-    except Exception:
-        raise CeleryError
+    # MAIL ITEM ONLY ONCE
+    if mail:
+        try:
+            info = InternalInfo.objects.first()
+            inbox = IMAP4(info.imap_server)
+            inbox.starttls()
+            inbox.login(info.imap_username, info.imap_password)
+            inbox.select(info.imap_folder)
+        except (ObjectDoesNotExist, AttributeError):
+            logging.error("missing information")
+            raise CeleryError
+        except (IMAP4.error, ConnectionRefusedError, socket.gaierror):
+            logging.error("error connecting to imap")
+            raise CeleryError
+    else:
+        inbox = None
+
+    # CORTEX CHECK NOT ON MAIL DOWNLOAD
+    if cortex:
+        try:
+            if info.http_proxy and info.https_proxy:
+                cortex_api = Api(
+                    info.cortex_url,
+                    info.cortex_api,
+                    proxies={"http": info.http_proxy, "https": info.https_proxy},
+                    verify_cert=False,
+                )
+            else:
+                cortex_api = Api(info.cortex_url, info.cortex_api, verify_cert=False)
+        except Exception:
+            raise CeleryError
+    else:
+        cortex_api = None
     return info, inbox, cortex_api
 
 
 @celery_app.task(name="check_cortex")
 def check_cortex(ioc, ioc_type, object_id, is_mail=False):
-    """ Run all available analyzer for ioc.
+    """Run all available analyzer for ioc.
 
-        arguments:
-        - ioc: value/path of item we need to check on cortex
-        - ioc_type: type of the ioc (generic_relation and cortex datatype)
-        - object_id: item to attach report to
-        - is_mail: ioc is a mail [mail datatype is for addresses and file is for mail]
+    arguments:
+    - ioc: value/path of item we need to check on cortex
+    - ioc_type: type of the ioc (generic_relation and cortex datatype)
+    - object_id: item to attach report to
+    - is_mail: ioc is a mail [mail datatype is for addresses and file is for mail]
     """
 
-    _, _, cortex_api = get_info()
+    _, _, cortex_api = get_info(mail=False)
 
     # Mail object is file in cortex
     # need to save mail object analyzer as mail_obj to discriminate them
@@ -109,10 +123,12 @@ def check_cortex(ioc, ioc_type, object_id, is_mail=False):
 
     old_reports = Report.objects.filter(
         content_type=ContentType.objects.get_for_model(content_type),
-        object_id=object_id.pk,
+        object_id=object_id,
         success=True,
         date__gte=datetime.datetime.today() - datetime.timedelta(days=30),
     )
+
+    db_object = content_type.objects.get(pk=object_id)
 
     for analyzer in analyzers:
 
@@ -120,19 +136,19 @@ def check_cortex(ioc, ioc_type, object_id, is_mail=False):
         for report in old_reports:
             if report.analyzer == analyzer:
                 if "malicious" in report.taxonomies:
-                    object_id.tags.add(
+                    db_object.tags.add(
                         "{}: malicious".format(analyzer.name),
                         tag_kwargs={"color": "#FF0000"},
                     )
 
                 elif "suspicious" in report.taxonomies:
-                    object_id.tags.add(
+                    db_object.tags.add(
                         "{}: suspicious".format(analyzer.name),
                         tag_kwargs={"color": "#C15808"},
                     )
 
                 elif "safe" in report.taxonomies:
-                    object_id.tags.add(
+                    db_object.tags.add(
                         "{}: safe".format(analyzer.name),
                         tag_kwargs={"color": "#00FF00"},
                     )
@@ -142,7 +158,9 @@ def check_cortex(ioc, ioc_type, object_id, is_mail=False):
         # If not rerun the analyzer
         try:
             job = cortex_api.analyzers.run_by_name(
-                analyzer.name, {"data": ioc, "dataType": ioc_type, "tlp": 1}, force=1,
+                analyzer.name,
+                {"data": ioc, "dataType": ioc_type, "tlp": 1},
+                force=1,
             )
             while job.status not in ["Success", "Failure"]:
                 time.sleep(10)
@@ -159,7 +177,7 @@ def check_cortex(ioc, ioc_type, object_id, is_mail=False):
 
                 report = Report(
                     response=response,
-                    content_object=object_id,
+                    content_object=db_object,
                     analyzer=analyzer,
                     taxonomies=taxonomies,
                     success=True,
@@ -167,26 +185,28 @@ def check_cortex(ioc, ioc_type, object_id, is_mail=False):
                 report.save()
 
                 if "malicious" in taxonomies:
-                    object_id.tags.add(
+                    db_object.tags.add(
                         "{}: malicious".format(analyzer.name),
                         tag_kwargs={"color": "#FF0000"},
                     )
 
                 elif "suspicious" in taxonomies:
-                    object_id.tags.add(
+                    db_object.tags.add(
                         "{}: suspicious".format(analyzer.name),
                         tag_kwargs={"color": "#C15808"},
                     )
 
                 elif "safe" in taxonomies:
-                    object_id.tags.add(
+                    db_object.tags.add(
                         "{}: safe".format(analyzer.name),
                         tag_kwargs={"color": "#00FF00"},
                     )
 
             elif job.status == "Failure":
                 report = Report(
-                    content_object=object_id, analyzer=analyzer, success=False,
+                    content_object=db_object,
+                    analyzer=analyzer,
+                    success=False,
                 )
                 report.save()
 
@@ -199,7 +219,7 @@ def check_cortex(ioc, ioc_type, object_id, is_mail=False):
 @celery_app.task(name="process_mail")
 def process_mail(content):
     """
-        Single mail task
+    Single mail task
     """
     # IF PARSE FAILS IGNORE
     try:
@@ -210,9 +230,14 @@ def process_mail(content):
         logging.error(e)
         return "Error parsing mail"
 
-    info, _, cortex_api = get_info()
+    info, _, cortex_api = get_info(mail=False)
 
-    methmail = MethMail(msg, info=info, cortex_api=cortex_api, mail_filepath=filepath,)
+    methmail = MethMail(
+        msg,
+        info=info,
+        cortex_api=cortex_api,
+        mail_filepath=filepath,
+    )
     subtasks = methmail.process_mail()
 
     if not subtasks:
@@ -227,8 +252,8 @@ def process_mail(content):
 @celery_app.task(soft_time_limit=240, time_limit=300)
 def check_mails(name="check_mails"):
     """
-        Check if info are set and cortex is up.
-        If yes reads new mails and runs subtasks
+    Check if info are set and cortex is up.
+    If yes reads new mails and runs subtasks
     """
     _, inbox, cortex_api = get_info()
 
@@ -242,7 +267,6 @@ def check_mails(name="check_mails"):
     inbox.logout()
 
     for content in data_list:
-        logging.error("CONTENT *********************** {} ".format(type(content)))
         process_mail.apply_async(args=[content])
 
     return "{} mails found".format(len(data_list))
