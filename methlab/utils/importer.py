@@ -106,6 +106,7 @@ class MethMail:
             random_path = self.store_attachments()
             self.db_mail.attachments_path = random_path
             self.db_mail.save()
+            logging.error("Attachments path: {}".format(random_path))
 
             # PROCESS ATTACHMENTS
             for mess_att in self.msg.attachments:

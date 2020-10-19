@@ -220,7 +220,13 @@ class Ioc(models.Model):
 
 class MailManager(models.Manager):
     def get_queryset(self):
-        return super().get_queryset().exclude(tags__name__in=["SecInc"])
+        return (
+            super()
+            .get_queryset()
+            .exclude(tags__name__in=["SecInc"])
+            .exclude(subject__isnull=True)
+            .exclude(subject="")
+        )
 
     def search(self, search_text):
         # Multiple language will be available in 3.1

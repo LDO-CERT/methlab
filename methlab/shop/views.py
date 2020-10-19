@@ -61,10 +61,7 @@ def home(request):
     table = LatestMailTable(
         Mail.external_objects.prefetch_related(
             "addresses", "iocs", "attachments", "tags"
-        )
-        .exclude(subject__isnull=True)
-        .exclude(subject="")
-        .order_by("-submission_date")[:250],
+        ).order_by("-submission_date")[:250],
     )
     table.paginate(page=request.GET.get("page", 1), per_page=25)
 
@@ -139,7 +136,10 @@ def stats(request):
         .annotate(total=Count("attachments__md5"))
         .order_by(a_sort_by)
     )
-    table_a = AttachmentTable(attachments, prefix="a-",)
+    table_a = AttachmentTable(
+        attachments,
+        prefix="a-",
+    )
     table_a.paginate(page=request.GET.get("a-page", 1), per_page=10)
 
     # SORT BY IP
@@ -153,7 +153,10 @@ def stats(request):
         .order_by(i_sort_by)
     )
 
-    table_i = IpTable([x for x in i_iocs if x["iocs__ip"] not in ioc_wl], prefix="i-",)
+    table_i = IpTable(
+        [x for x in i_iocs if x["iocs__ip"] not in ioc_wl],
+        prefix="i-",
+    )
     table_i.paginate(page=request.GET.get("i-page", 1), per_page=10)
 
     # SORT BY DOMAIN
@@ -167,7 +170,8 @@ def stats(request):
         .order_by(d_sort_by)
     )
     table_d = DomainTable(
-        [x for x in d_iocs if x["iocs__domain"] not in ioc_wl], prefix="d-",
+        [x for x in d_iocs if x["iocs__domain"] not in ioc_wl],
+        prefix="d-",
     )
     table_d.paginate(page=request.GET.get("d-page", 1), per_page=10)
 
