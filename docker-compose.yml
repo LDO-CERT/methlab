@@ -54,6 +54,9 @@ services:
       - redis
       - postgres
     ports: []
+    environment:
+      HTTPS_PROXY: ${https_proxy}
+      HTTP_PROXY: ${http_proxy}
     command: /start-celeryworker
 
   celerybeat:
