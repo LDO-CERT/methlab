@@ -76,12 +76,16 @@ cortex4py==2.0.1
 # ------------------------------------------------------------------------------
 # https://github.com/fhightower/ioc-finder
 ioc-finder==5.0.0
+
 # mail-parser==3.12.0  # https://github.com/SpamScope/mail-parser
 -e git+https://github.com/dadokkio/mail-parser.git#egg=mail-parser
 # https://github.com/sdgathman/pyspf
 pyspf==2.0.14
+
 # https://github.com/john-kurkowski/tldextract
-tldextract==2.2.3
+#tldextract==2.2.3
+-e git+https://github.com/dadokkio/tldextract.git#egg=tldextract
+
 # https://github.com/delimitry/compressed_rtf
 compressed_rtf==1.0.6
 # https://github.com/rthalley/dnspython
