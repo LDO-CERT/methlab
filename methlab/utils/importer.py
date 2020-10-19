@@ -114,9 +114,7 @@ class MethMail:
 
                 # I don't have payload or I don't understand type skip
                 if not mess_att["mail_content_type"] or not mess_att["payload"]:
-                    self.clean_files(
-                        (self.db_mail.eml_path, self.db_mail.attachments_path)
-                    )
+                    self.clean_files((filepath))
                     continue
 
                 self.process_attachment(filepath, mess_att)
@@ -124,8 +122,6 @@ class MethMail:
             logging.error("Error processing attachments. {} - SKIPPING".format(e))
             return False
 
-        # DELETE MAIL TEMP FILE
-        self.clean_files((self.db_mail.eml_path, self.db_mail.attachments_path))
         return self.tasks
 
     def find_ioc(self, payload):
@@ -426,9 +422,8 @@ class MethMail:
         - random_path: path on disk containing attachments
         """
         random_path = "/tmp/{}".format(uuid.uuid4())
-        logging.error("ATTACHMENTS: {}".format(random_path))
         os.makedirs(random_path)
-        self.msg.write_attachments(random_path)
+        self.msg.write_attachments("ATTACHMENTS: {}".format(random_path))
         return random_path
 
     def clean_files(self, filepaths):
@@ -444,9 +439,7 @@ class MethMail:
                 elif os.path.isfile(filepath):
                     os.remove(filepath)
         except Exception as e:
-            pass
-            # TODO: why are not able to delete his file?
-            # logging.error("Error deleting files {}. {}".format(filepaths, e))
+            logging.error("Error deleting files {}. {}".format(filepaths, e))
 
     def is_whitelisted(self, content_type, mimetype_whitelist=None):
         """Checks if content_type is whitelisted.
@@ -499,6 +492,7 @@ class MethMail:
         all_wl = Whitelist.objects.all()
         _, fileext = os.path.splitext(mess_att["filename"])
         fileext = fileext.lower()
+        old_filepath = filepath
 
         if not os.path.exists(filepath):
             logging.error("Path {} does not exists - SKIPPING".format(filepath))
@@ -519,16 +513,14 @@ class MethMail:
                     mess_att["mail_content_type"] = magic.from_file(filepath, mime=True)
                 else:
                     # Zipped and multiple files, skip
-                    self.clean_files(
-                        (self.db_mail.eml_path, self.db_mail.attachments_path)
-                    )
+                    self.clean_files((filepath, old_filepath))
                     logging.error("Zipped and multiple files in attachment - SKIPPING")
                     return False
 
         if self.is_whitelisted(
             mess_att["mail_content_type"], self.info.mimetype_whitelist
         ):
-            self.clean_files((self.db_mail.eml_path, self.db_mail.attachments_path))
+            self.clean_files((filepath, old_filepath))
             logging.error("Attachment type in whitelist - SKIPPING")
             return False
 
@@ -567,7 +559,7 @@ class MethMail:
             if md5 in [x.value for x in all_wl if x.type == "md5"] or sha256 in [
                 x.value for x in all_wl if x.type == "sha256"
             ]:
-                self.clean_files((self.db_mail.eml_path, self.db_mail.attachments_path))
+                self.clean_files((filepath, old_filepath))
                 logging.error("Attachment hash in wl - SKIPPING")
                 return False
 
