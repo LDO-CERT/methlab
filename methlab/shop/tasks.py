@@ -249,8 +249,8 @@ def process_mail(content):
     return "{} query run on cortex".format(len(subtasks))
 
 
-@celery_app.task(soft_time_limit=240, time_limit=300)
-def check_mails(name="check_mails"):
+@celery_app.task(name="check_mails", soft_time_limit=1800, time_limit=3600)
+def check_mails():
     """
     Check if info are set and cortex is up.
     If yes reads new mails and runs subtasks
