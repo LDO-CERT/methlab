@@ -110,7 +110,7 @@ class MethMail:
 
             # PROCESS ATTACHMENTS
             for mess_att in self.msg.attachments:
-                filepath = "{}/{}".format(random_path, mess_att["filename"])
+                filepath = os.path.join(random_path, mess_att["filename"])
 
                 # I don't have payload or I don't understand type skip
                 if not mess_att["mail_content_type"] or not mess_att["payload"]:
@@ -421,7 +421,7 @@ class MethMail:
         returns:
         - random_path: path on disk containing attachments
         """
-        random_path = "/tmp/{}/".format(uuid.uuid4())
+        random_path = os.path.join("/tmp", uuid.uuid4())
         os.makedirs(random_path)
         self.msg.write_attachments("ATTACHMENTS: {}".format(random_path))
         return random_path
