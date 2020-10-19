@@ -421,7 +421,7 @@ class MethMail:
         returns:
         - random_path: path on disk containing attachments
         """
-        random_path = os.path.join("/tmp", uuid.uuid4())
+        random_path = os.path.join("/tmp", str(uuid.uuid4()))
         os.makedirs(random_path)
         self.msg.write_attachments("ATTACHMENTS: {}".format(random_path))
         return random_path
