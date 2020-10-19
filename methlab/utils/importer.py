@@ -436,8 +436,10 @@ class MethMail:
             for filepath in filepaths:
                 if os.path.isdir(filepath):
                     shutil.rmtree(filepath)
+                    logging.error("Deleting folder {}".format(filepath))
                 elif os.path.isfile(filepath):
                     os.remove(filepath)
+                    logging.error("Deleting path {}".format(filepath))
         except Exception as e:
             logging.error("Error deleting files {}. {}".format(filepaths, e))
 
