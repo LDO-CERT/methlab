@@ -128,6 +128,7 @@ def check_cortex(ioc, ioc_type, object_id, is_mail=False):
         date__gte=datetime.datetime.today() - datetime.timedelta(days=30),
     )
 
+    logging.error("CORTEX {} {} {} {}".format(ioc, ioc_type, object_id, is_mail))
     db_object = content_type.objects.get(pk=object_id)
 
     for analyzer in analyzers:
