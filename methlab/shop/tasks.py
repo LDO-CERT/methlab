@@ -90,7 +90,7 @@ def get_info(mail=True, cortex=True):
     return info, inbox, cortex_api
 
 
-@celery_app.task(name="check_cortex")
+@celery_app.task(name="check_cortex", soft_time_limit=960, time_limit=1800)
 def check_cortex(ioc, ioc_type, object_id, is_mail=False):
     """Run all available analyzer for ioc.
 
@@ -216,7 +216,7 @@ def check_cortex(ioc, ioc_type, object_id, is_mail=False):
             )
 
 
-@celery_app.task(name="process_mail")
+@celery_app.task(name="process_mail", soft_time_limit=960, time_limit=1800)
 def process_mail(content):
     """
     Single mail task
