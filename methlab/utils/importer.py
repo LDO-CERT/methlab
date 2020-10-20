@@ -111,6 +111,7 @@ class MethMail:
             # PROCESS ATTACHMENTS
             for mess_att in self.msg.attachments:
                 filepath = os.path.join(random_path, mess_att["filename"])
+                logging.error("Attachment written at {}".format(filepath))
 
                 # I don't have payload or I don't understand type skip
                 if not mess_att["mail_content_type"] or not mess_att["payload"]:
