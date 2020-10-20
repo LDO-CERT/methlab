@@ -141,9 +141,14 @@ class MethMail:
             if domain in [x.value for x in all_wl if x.type == "domain"]:
                 continue
             with transaction.atomic():
-                ioc, created = Ioc.objects.get_or_create(
-                    domain=domain,
-                )
+                if domain:
+                    ioc, created = Ioc.objects.get_or_create(
+                        domain=domain,
+                    )
+                else:
+                    ioc, created = Ioc.objects.get_or_create(
+                        url=url,
+                    )
                 if created:
                     try:
                         whois_info = json.loads(

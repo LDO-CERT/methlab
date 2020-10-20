@@ -119,6 +119,11 @@ class Whitelist(models.Model):
     value = models.CharField(max_length=500)
     type = models.CharField(max_length=8, choices=WL_TYPE)
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["value", "type"], name="duplicated_wl")
+        ]
+
     def __str__(self):
         return "[{}] {}".format(self.type, self.value)
 
