@@ -3,6 +3,8 @@ import time
 import logging
 import datetime
 
+import kombu
+
 import socket
 import mailparser
 from imaplib import IMAP4
@@ -281,6 +283,11 @@ def check_mails():
     inbox.logout()
 
     for content in data_list:
-        process_mail.apply_async(args=[content])
+        try:
+            process_mail.apply_async(args=[content])
+        except kombu.exceptions.EncodeError:
+            process_mail.apply_async(
+                args=[content.decode("utf8", "ignore").encode("utf8")]
+            )
 
     return "{} mails found".format(len(data_list))

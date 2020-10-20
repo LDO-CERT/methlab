@@ -53,8 +53,8 @@ class InternalInfo(models.Model):
     cortex_url = models.CharField(max_length=200)
     cortex_api = models.CharField(max_length=200)
 
-    misp_url = models.CharField(max_length=200)
-    misp_api = models.CharField(max_length=200)
+    misp_url = models.CharField(max_length=200, blank=True, null=True)
+    misp_api = models.CharField(max_length=200, blank=True, null=True)
 
     server_list = ArrayField(models.CharField(max_length=100), blank=True, null=True)
     vip_list = ArrayField(models.CharField(max_length=100), blank=True, null=True)
