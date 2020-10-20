@@ -423,7 +423,7 @@ class MethMail:
         """
         random_path = os.path.join("/tmp", str(uuid.uuid4()))
         os.makedirs(random_path)
-        self.msg.write_attachments("ATTACHMENTS: {}".format(random_path))
+        self.msg.write_attachments(random_path)
         return random_path
 
     def clean_files(self, filepaths):
