@@ -81,11 +81,8 @@ ioc-finder==5.0.0
 -e git+https://github.com/dadokkio/mail-parser.git#egg=mail-parser
 # https://github.com/sdgathman/pyspf
 pyspf==2.0.14
-
-# https://github.com/john-kurkowski/tldextract
-#tldextract==2.2.3
--e git+https://github.com/dadokkio/tldextract.git#egg=tldextract
-
+# https://github.com/barseghyanartur/tld
+tld==0.12.2
 # https://github.com/delimitry/compressed_rtf
 compressed_rtf==1.0.6
 # https://github.com/rthalley/dnspython

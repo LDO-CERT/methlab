@@ -21,7 +21,7 @@ from zipfile import ZipFile, is_zipfile
 import dkim
 from ipwhois import IPWhois
 from dateutil.parser import parse
-from tldextract import extract
+from tld import get_tld, get_fld
 from checkdmarc import check_domains, results_to_json
 
 from ip2geotools.databases.noncommercial import DbIpCity
@@ -137,7 +137,7 @@ class MethMail:
         for url in parse_urls(payload):
             whois_info = None
             url = url.split(">")[0].rstrip('"].').strip("/").lower()
-            domain = ".".join(part for part in extract(url) if part)
+            domain = ".".join(part for part in get_fld(url, fix_protocol=True) if part)
             if domain in [x.value for x in all_wl if x.type == "domain"]:
                 continue
             with transaction.atomic():
