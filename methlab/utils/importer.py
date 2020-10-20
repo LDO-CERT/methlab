@@ -99,7 +99,7 @@ class MethMail:
             return False
 
         # ANALYZERS ON FULL EMAIL
-        self.tasks.append((self.mail_filepath, "file", self.db_mail.pk, True))
+        self.tasks.append((self.mail_filepath, "mail", self.db_mail.pk, True))
 
         # Save attachments
         try:
