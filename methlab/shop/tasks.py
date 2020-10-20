@@ -126,6 +126,9 @@ def check_cortex(ioc, ioc_type, object_id, is_mail=False):
 
     elif ioc_type == "hash":
         content_type = Attachment
+    else:
+        logging.error("Wrong content type {}".format(content_type))
+        return
 
     old_reports = Report.objects.filter(
         content_type=ContentType.objects.get_for_model(content_type),
