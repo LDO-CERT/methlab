@@ -35,15 +35,15 @@ class Error(Exception):
 
 
 def store_mail(content):
-    """ Saves mail as file to send it to cortex analyzers.
+    """Saves mail as file to send it to cortex analyzers.
 
-        arguments:
-        - content: mail payload to write on disk
+    arguments:
+    - content: mail payload to write on disk
 
-        returns:
-        - eml_path: path on disk
+    returns:
+    - eml_path: path on disk
     """
-    eml_path = "/tmp/{}.eml".format(uuid.uuid4())
+    eml_path = "/wip/{}.eml".format(uuid.uuid4())
     with open(eml_path, "wb") as f:
         f.write(content)
     return eml_path

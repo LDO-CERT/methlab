@@ -18,7 +18,7 @@ services:
       - postgres
       - redis
     volumes:
-      - ./samples:/tmp
+      - ./samples:/wip
       - .:/app
     env_file:
       - ./.envs/.local/.django
