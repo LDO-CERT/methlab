@@ -266,6 +266,7 @@ class ReportAdmin(admin.ModelAdmin, DynamicArrayMixin):
     }
 
     list_display = ("analyzer", "content_type", "object_id", "taxonomies", "success")
+    list_filter = ("analyzer", "taxonomies", "success")
 
 
 class AttachmentAdmin(admin.ModelAdmin, DynamicArrayMixin):
