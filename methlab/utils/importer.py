@@ -99,7 +99,7 @@ class MethMail:
             return False
 
         # ANALYZERS ON FULL EMAIL
-        self.tasks.append((self.mail_filepath, "mail", self.db_mail.pk, True))
+        self.tasks.append((self.mail_filepath, "file", self.db_mail.pk, True))
 
         # Save attachments
         try:
@@ -587,4 +587,4 @@ class MethMail:
                 # Check file in onprem sandboxes
                 self.tasks.append((attachment.filepath, "file", attachment.pk, False))
                 # Check hashes in cloud services
-                self.tasks.append((attachment.sha256, "file", attachment.pk, False))
+                self.tasks.append((attachment.sha256, "hash", attachment.pk, False))

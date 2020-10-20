@@ -110,16 +110,24 @@ def check_cortex(ioc, ioc_type, object_id, is_mail=False):
         disabled=False, supported_types__contains=[filter_type]
     ).order_by("-priority")
 
-    if ioc_type == "mail" and is_mail is False:
-        content_type = Address
-        analyzers = analyzers.filter(onpremise=True)
-    elif ioc_type == "mail" and is_mail is True:
+    # Full mail only on premise
+    if ioc_type == "file" and is_mail is True:
         content_type = Mail
+        analyzers = analyzers.filter(onpremise=True)
+
+    elif ioc_type == "address":
+        content_type = Address
+
     elif ioc_type in ["url", "ip"]:
         content_type = Ioc
+
+    # FILE only on premise
     elif ioc_type == "file":
         content_type = Attachment
         analyzers = analyzers.filter(onpremise=True)
+
+    elif ioc_type == "hash":
+        content_type = Attachment
 
     old_reports = Report.objects.filter(
         content_type=ContentType.objects.get_for_model(content_type),
@@ -128,8 +136,11 @@ def check_cortex(ioc, ioc_type, object_id, is_mail=False):
         date__gte=datetime.datetime.today() - datetime.timedelta(days=30),
     )
 
-    logging.error("CORTEX {} {} {} {}".format(ioc, ioc_type, object_id, is_mail))
-    db_object = content_type.objects.get(pk=object_id)
+    try:
+        db_object = content_type.objects.get(pk=object_id)
+    except Exception:
+        logging.error("CORTEX {} {} {} {}".format(ioc, ioc_type, object_id, is_mail))
+        return
 
     for analyzer in analyzers:
 
