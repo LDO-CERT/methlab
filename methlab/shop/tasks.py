@@ -118,7 +118,7 @@ def check_cortex(ioc, ioc_type, object_id, is_mail=False):
         else:
             content_type = Attachment
 
-    elif ioc_type == "address":
+    elif ioc_type == "mail":
         content_type = Address
 
     elif ioc_type in ["url", "ip"]:
