@@ -41,7 +41,7 @@ def store_mail(content):
     returns:
     - eml_path: path on disk
     """
-    eml_path = "/tmp/{}.eml".format(uuid.uuid4())
+    eml_path = "/wip/{}.eml".format(uuid.uuid4())
     with open(eml_path, "wb") as f:
         f.write(content)
     return eml_path
