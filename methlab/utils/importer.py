@@ -88,7 +88,7 @@ class MethMail:
             )
             self.clean_files((self.mail_filepath))
             del old_mail
-            logging.error("Mail already present in db - SKIPPING")
+            logging.warning("Mail already present in db - SKIPPING")
             return False
         except Mail.DoesNotExist:
             pass
@@ -106,12 +106,12 @@ class MethMail:
             random_path = self.store_attachments()
             self.db_mail.attachments_path = random_path
             self.db_mail.save()
-            logging.error("Attachments path: {}".format(random_path))
+            logging.warning("Attachments path: {}".format(random_path))
 
             # PROCESS ATTACHMENTS
             for mess_att in self.msg.attachments:
                 filepath = os.path.join(random_path, mess_att["filename"])
-                logging.error("Attachment written at {}".format(filepath))
+                logging.warning("Attachment written at {}".format(filepath))
 
                 # I don't have payload or I don't understand type skip
                 if not mess_att["mail_content_type"] or not mess_att["payload"]:
@@ -214,7 +214,7 @@ class MethMail:
                 # if address in wl clean and skip
                 if address_from in [x.value for x in mail_wl]:
                     self.clean_files((self.mail_filepath))
-                    logging.error("From address in whitelist - SKIPPING")
+                    logging.warning("From address in whitelist - SKIPPING")
                     return False
 
                 address, _ = Address.objects.get_or_create(address=address_from)
@@ -437,10 +437,10 @@ class MethMail:
             for filepath in filepaths:
                 if os.path.isdir(filepath):
                     shutil.rmtree(filepath)
-                    logging.error("Deleting folder {}".format(filepath))
+                    logging.warning("Deleting folder {}".format(filepath))
                 elif os.path.isfile(filepath):
                     os.remove(filepath)
-                    logging.error("Deleting path {}".format(filepath))
+                    logging.warning("Deleting path {}".format(filepath))
         except Exception as e:
             logging.error("Error deleting files {}. {}".format(filepaths, e))
 
@@ -517,14 +517,16 @@ class MethMail:
                 else:
                     # Zipped and multiple files, skip
                     self.clean_files((filepath, old_filepath))
-                    logging.error("Zipped and multiple files in attachment - SKIPPING")
+                    logging.warning(
+                        "Zipped and multiple files in attachment - SKIPPING"
+                    )
                     return False
 
         if self.is_whitelisted(
             mess_att["mail_content_type"], self.info.mimetype_whitelist
         ):
             self.clean_files((filepath, old_filepath))
-            logging.error("Attachment type in whitelist - SKIPPING")
+            logging.warning("Attachment type in whitelist - SKIPPING")
             return False
 
         # IF MAIL PROCESS RECURSIVELY
@@ -532,7 +534,7 @@ class MethMail:
             "application/ms-tnef",
             "Transport Neutral Encapsulation Format",
         ]:
-            logging.error("TNEF not supported")
+            logging.warning("TNEF not supported")
         elif (
             mess_att["mail_content_type"] == "application/octet-stream"
             and fileext in (".eml", ".msg")
@@ -563,7 +565,7 @@ class MethMail:
                 x.value for x in all_wl if x.type == "sha256"
             ]:
                 self.clean_files((filepath, old_filepath))
-                logging.error("Attachment hash in wl - SKIPPING")
+                logging.warning("Attachment hash in wl - SKIPPING")
                 return False
 
             fix_mail_dict = dict((k.replace("-", "_"), v) for k, v in mess_att.items())

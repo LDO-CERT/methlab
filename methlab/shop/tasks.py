@@ -111,20 +111,18 @@ def check_cortex(ioc, ioc_type, object_id, is_mail=False):
     ).order_by("-priority")
 
     # Full mail only on premise
-    if ioc_type == "file" and is_mail is True:
-        content_type = Mail
+    if ioc_type == "file":
         analyzers = analyzers.filter(onpremise=True)
+        if is_mail is True:
+            content_type = Mail
+        else:
+            content_type = Attachment
 
     elif ioc_type == "address":
         content_type = Address
 
     elif ioc_type in ["url", "ip"]:
         content_type = Ioc
-
-    # FILE only on premise
-    elif ioc_type == "file":
-        content_type = Attachment
-        analyzers = analyzers.filter(onpremise=True)
 
     elif ioc_type == "hash":
         content_type = Attachment
