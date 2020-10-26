@@ -103,6 +103,6 @@ dkimpy==1.0.5
 # Util
 # ------------------------------------------------------------------------------
 # https://github.com/tqdm/tqdm
-tqdm==4.50.2
+tqdm==4.51.0
 # https://github.com/mahmoud/glom
 glom==20.8.0
