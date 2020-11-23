@@ -17,7 +17,7 @@ hiredis==1.1.0
 # https://github.com/python-ldap/python-ldap
 python-ldap==3.3.1
 # https://github.com/encode/uvicorn
-uvicorn==0.12.1  
+uvicorn==0.12.3  
 
 # Django
 # ------------------------------------------------------------------------------
