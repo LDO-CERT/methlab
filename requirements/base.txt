@@ -59,7 +59,7 @@ django-pivot==1.8.1
 # Celery
 # ------------------------------------------------------------------------------
 # https://github.com/celery/celery
-celery==4.4.7
+celery==5.0.3
 # https://github.com/celery/django-celery-beat
 django-celery-beat==2.0.0  
 # https://github.com/mher/flower
