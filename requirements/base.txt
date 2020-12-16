@@ -1,5 +1,5 @@
 # https://github.com/stub42/pytz
-pytz==2020.1
+pytz==2020.4
 # https://github.com/un33k/python-slugify
 python-slugify==4.0.1
 # https://github.com/ndparker/rcssmin
@@ -22,7 +22,7 @@ uvicorn==0.13.1
 # Django
 # ------------------------------------------------------------------------------
 # https://www.djangoproject.com/
-django==3.1.2
+django==3.1.4
 # https://github.com/joke2k/django-environ
 django-environ==0.4.5
 # https://github.com/jazzband/django-model-utils
@@ -61,9 +61,7 @@ django-pivot==1.8.1
 # https://github.com/celery/celery
 celery==5.0.4
 # https://github.com/celery/django-celery-beat
-django-celery-beat==2.1.0  
-# https://github.com/mher/flower
-flower==0.9.5  
+django-celery-beat==2.1.0   
 
 # MISP - Cortex
 # ------------------------------------------------------------------------------
@@ -82,7 +80,7 @@ ioc-finder==5.0.0
 # https://github.com/sdgathman/pyspf
 pyspf==2.0.14
 # https://github.com/barseghyanartur/tld
-tld==0.12.2
+tld==0.12.3
 # https://github.com/delimitry/compressed_rtf
 compressed_rtf==1.0.6
 # https://github.com/rthalley/dnspython
@@ -105,4 +103,4 @@ dkimpy==1.0.5
 # https://github.com/tqdm/tqdm
 tqdm==4.54.1
 # https://github.com/mahmoud/glom
-glom==20.8.0
+glom==20.11.0
