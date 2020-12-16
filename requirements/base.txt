@@ -48,7 +48,7 @@ django-json-widget==1.0.1
 # https://github.com/rpkilby/jsonfield/
 jsonfield==3.1.0
 # https://github.com/makinacorpus/django-geojson
-django-geojson==3.0.0
+django-geojson==3.1.0
 # https://github.com/makinacorpus/django-leaflet
 django-leaflet==0.27.1
 # https://github.com/django-compressor/django-compressor
