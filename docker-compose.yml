@@ -43,7 +43,7 @@ services:
       - ./.envs/.local/.postgres
       
   redis:
-    image: redis:5.0
+    image: redis:6.0
     container_name: methlab_redis
 
   celeryworker:
@@ -70,9 +70,9 @@ services:
     command: /start-celerybeat
 
   flower:
-    <<: *django
-    image: methlab_local_flower
+    image: mher/flower:0.9.5
     container_name: methlab_flower
     ports:
       - "5555:5555"
-    command: /start-flower
+    command: ["--app config.celery_app", "--broker=redis://redis:6379/0"]
+    restart: unless-stopped
