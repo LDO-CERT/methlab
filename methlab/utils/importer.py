@@ -89,14 +89,22 @@ class MethMail:
             self.clean_files((self.mail_filepath))
             del old_mail
             logging.warning("Mail already present in db - SKIPPING")
-            return False
+            return {
+                "tasks": None,
+                "ignore": True,
+                "error": "Mail already present in db - SKIPPING",
+            }
         except Mail.DoesNotExist:
             pass
 
         # CREATE OBJECT IN DB, returns PK or None if failed
         stored = self.store_info()
-        if not stored:
-            return False
+        if not stored["id"]:
+            return {
+                "tasks": None,
+                "ignore": stored["ignore"],
+                "error": stored["error"],
+            }
 
         # ANALYZERS ON FULL EMAIL
         self.tasks.append((self.mail_filepath, "file", self.db_mail.pk, True))
@@ -121,9 +129,17 @@ class MethMail:
                 self.process_attachment(filepath, mess_att)
         except Exception as e:
             logging.error("Error processing attachments. {} - SKIPPING".format(e))
-            return False
+            return {
+                "tasks": None,
+                "ignore": False,
+                "error": e,
+            }
 
-        return self.tasks
+        return {
+            "tasks": self.tasks,
+            "ignore": False,
+            "error": False,
+        }
 
     def find_ioc(self, payload):
         """Extracts url and ip from text.
@@ -220,7 +236,11 @@ class MethMail:
                 if address_from in [x.value for x in mail_wl]:
                     self.clean_files((self.mail_filepath))
                     logging.warning("From address in whitelist - SKIPPING")
-                    return False
+                    return {
+                        "id": None,
+                        "ignore": True,
+                        "error": "From address in whitelist - SKIPPING",
+                    }
 
                 address, _ = Address.objects.get_or_create(address=address_from)
 
@@ -315,14 +335,14 @@ class MethMail:
                     # SPF CHECK
                     domain = domain.split()[0]
                     sender = self.msg.from_[0][1]
-                    spf_check = spf.check(s=sender, i=ip, h=domain)
-                    if spf_check[1] != 250:
+                    result, explanation = spf.check2(s=sender, i=ip, h=domain)
+                    if result != 250:
                         flags.append("SPF")
                         spf_info = "Sender {0} rejected on {1} ({2}): {3}. Considered Hop: {4}".format(
                             sender,
                             domain,
                             ip,
-                            spf_check[2],
+                            explanation,
                             first_hop,
                         )
                 if (
@@ -419,7 +439,7 @@ class MethMail:
             for flag in flags:
                 self.db_mail.tags.add(flag)
 
-            return self.db_mail.pk
+            return {"id": self.db_mail.pk, "ignore": False, "error": False}
 
     def store_attachments(self):
         """Store attachment to disk.

@@ -231,6 +231,8 @@ def check_cortex(ioc, ioc_type, object_id, is_mail=False):
                 "ERROR running analyzer {} for {}: {}".format(analyzer.name, ioc, excp)
             )
 
+    return True
+
 
 @celery_app.task(name="process_mail", soft_time_limit=960, time_limit=1800)
 def process_mail(content):
@@ -244,7 +246,7 @@ def process_mail(content):
         msg = mailparser.parse_from_bytes(content)
     except Exception as e:
         logging.error(e)
-        return "Error parsing mail"
+        return "Error parsing mail: {}".format(e)
 
     info, _, cortex_api = get_info(mail=False)
 
@@ -256,10 +258,15 @@ def process_mail(content):
     )
     subtasks = methmail.process_mail()
 
-    if not subtasks:
-        return "Error during processing"
+    # Errors must be raise
+    if not subtasks["ignore"] and subtasks["error"]:
+        raise Exception(subtasks["error"])
 
-    for (ioc, ioc_type, object_id, is_mail) in subtasks:
+    # ignored are ok
+    elif subtasks["ignore"]:
+        return subtasks["error"]
+
+    for (ioc, ioc_type, object_id, is_mail) in subtasks["tasks"]:
         check_cortex.apply_async(args=[ioc, ioc_type, object_id, is_mail])
 
     return "{} query run on cortex".format(len(subtasks))
