@@ -73,7 +73,7 @@ cortex4py==2.0.1
 # Dns & ioc check
 # ------------------------------------------------------------------------------
 # https://github.com/fhightower/ioc-finder
-ioc-finder==5.0.0
+ioc-finder==5.0.1
 
 # mail-parser==3.12.0  # https://github.com/SpamScope/mail-parser
 -e git+https://github.com/dadokkio/mail-parser.git#egg=mail-parser
