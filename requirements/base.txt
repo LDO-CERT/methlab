@@ -92,7 +92,7 @@ whois==0.9.7
 # https://github.com/secynic/ipwhois
 ipwhois==1.2.0
 # https://github.com/ahupp/python-magic
-python-magic==0.4.18
+python-magic==0.4.22
 # https://github.com/domainaware/checkdmarc
 checkdmarc== 4.3.1
 # https://pypi.org/project/dkimpy/
