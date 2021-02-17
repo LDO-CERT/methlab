@@ -17,7 +17,7 @@ hiredis==1.1.0
 # https://github.com/python-ldap/python-ldap
 python-ldap==3.3.1
 # https://github.com/encode/uvicorn
-uvicorn==0.13.2  
+uvicorn==0.13.3  
 
 # Django
 # ------------------------------------------------------------------------------
@@ -40,7 +40,7 @@ django-better-admin-arrayfield==1.4.2
 # https://github.com/jazzband/django-taggit
 django-taggit==1.3.0
 # https://github.com/django-import-export/django-import-export
-django-import-export==2.4.0
+django-import-export==2.5.0
 # https://github.com/jieter/django-tables2/
 django-tables2==2.3.3
 # https://github.com/jmrivas86/django-json-widget
@@ -73,7 +73,7 @@ cortex4py==2.0.1
 # Dns & ioc check
 # ------------------------------------------------------------------------------
 # https://github.com/fhightower/ioc-finder
-ioc-finder==5.0.0
+ioc-finder==5.0.1
 
 # mail-parser==3.12.0  # https://github.com/SpamScope/mail-parser
 -e git+https://github.com/dadokkio/mail-parser.git#egg=mail-parser
