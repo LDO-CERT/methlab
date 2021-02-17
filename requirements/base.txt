@@ -34,7 +34,7 @@ django-redis==4.12.1
 # https://github.com/django-auth-ldap/django-auth-ldap
 django-auth-ldap==2.2.0
 # https://github.com/fabiocaccamo/django-colorfield
-django-colorfield==0.3.2
+django-colorfield==0.4.1
 # https://github.com/gradam/django-better-admin-arrayfield
 django-better-admin-arrayfield==1.4.2
 # https://github.com/jazzband/django-taggit
