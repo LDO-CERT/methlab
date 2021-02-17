@@ -44,7 +44,7 @@ django-import-export==2.5.0
 # https://github.com/jieter/django-tables2/
 django-tables2==2.3.3
 # https://github.com/jmrivas86/django-json-widget
-django-json-widget==1.0.1
+django-json-widget==1.1.0
 # https://github.com/rpkilby/jsonfield/
 jsonfield==3.1.0
 # https://github.com/makinacorpus/django-geojson
