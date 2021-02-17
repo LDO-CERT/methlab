@@ -80,7 +80,7 @@ ioc-finder==5.0.1
 # https://github.com/sdgathman/pyspf
 pyspf==2.0.14
 # https://github.com/barseghyanartur/tld
-tld==0.12.3
+tld==0.12.5
 # https://github.com/delimitry/compressed_rtf
 compressed_rtf==1.0.6
 # https://github.com/rthalley/dnspython
