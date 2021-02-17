@@ -28,7 +28,7 @@ django-environ==0.4.5
 # https://github.com/jazzband/django-model-utils
 django-model-utils==4.1.1
 # https://github.com/django-crispy-forms/django-crispy-forms
-django-crispy-forms==1.10.0
+django-crispy-forms==1.11.0
 # https://github.com/jazzband/django-redis
 django-redis==4.12.1
 # https://github.com/django-auth-ldap/django-auth-ldap
