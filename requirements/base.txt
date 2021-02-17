@@ -40,7 +40,7 @@ django-better-admin-arrayfield==1.4.2
 # https://github.com/jazzband/django-taggit
 django-taggit==1.3.0
 # https://github.com/django-import-export/django-import-export
-django-import-export==2.4.0
+django-import-export==2.5.0
 # https://github.com/jieter/django-tables2/
 django-tables2==2.3.3
 # https://github.com/jmrivas86/django-json-widget
