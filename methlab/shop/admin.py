@@ -227,7 +227,7 @@ class IocAdmin(admin.ModelAdmin, DynamicArrayMixin):
 
 class AnalyzerAdmin(admin.ModelAdmin, DynamicArrayMixin):
     list_display = ("name", "disabled", "supported_types", "priority")
-    list_filter = ("priority", "disabled", "supported_types")
+    list_filter = ("priority", "disabled")
     search_fields = ["name"]
 
     def has_add_permission(self, request, obj=None):
