@@ -23,7 +23,7 @@ docker-compose run --rm django python manage.py cortex_import
 
 ### Services and ports:
 ```
-8000: meth gui
+8001: meth gui
 5432: postgres 
 5555: flower
 6379: redis

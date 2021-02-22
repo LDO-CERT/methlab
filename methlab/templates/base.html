@@ -46,12 +46,14 @@
             </li>
             {% if user.is_authenticated %}
             <li class="nav-item dropdown">
-              <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-toggle="dropdown"
+              <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown"
                 aria-expanded="false">
-                🧑‍💻 {{user.username}}
+                <i class="fa fa-user"></i> {{user.username}}
               </a>
-              <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
+              <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="navbarDropdown">
+                {% if user.is_staff %}
                 <li><a class="dropdown-item" href="/admin">Admin</a></li>
+                {% endif %}
                 <li><a class="dropdown-item" href="{% url 'logout' %}">{% trans "Sign Out" %}</a></li>
               </ul>
             </li>

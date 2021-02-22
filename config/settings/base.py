@@ -69,7 +69,7 @@ INSTALLED_APPS = [
     "django.forms",
     "colorfield",
     "crispy_forms",
-	"crispy_bootstrap5",
+    "crispy_bootstrap5",
     "django_better_admin_arrayfield",
     "django_celery_beat",
     "django_json_widget",
@@ -247,6 +247,7 @@ CELERY_TASK_EAGER_PROPAGATES = True
 
 # LDAP
 # ------------------------------------------------------------------------------
+# AUTH_LDAP_START_TLS = env("AUTH_LDAP_START_TLS")
 AUTH_LDAP_SERVER_URI = env("AUTH_LDAP_SERVER_URI")
 AUTH_LDAP_BIND_DN = env("AUTH_LDAP_BIND_DN")
 AUTH_LDAP_BIND_PASSWORD = env("AUTH_LDAP_BIND_PASSWORD")
@@ -255,7 +256,8 @@ AUTH_LDAP_USER_SEARCH = LDAPSearch(
     ldap.SCOPE_SUBTREE,
     env("AUTH_LDAP_USER_SEARCH_ALIAS"),
 )
-
+AUTH_LDAP_USER_ATTR_MAP = env.dict("AUTH_LDAP_USER_ATTR_MAP")
+# AUTH_LDAP_USER_FLAGS_BY_GROUP = env.dict("AUTH_LDAP_USER_FLAGS_BY_GROUP")
 
 # COMPRESSOR
 # ------------------------------------------------------------------------------

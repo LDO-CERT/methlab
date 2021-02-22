@@ -18,3 +18,7 @@
 --> https://datatables.net/
 --> version 1.10.23
 --> with Bootstrap5 template
+
+# HIGHCHARTS [MAIN PAGE TABLE]
+--> https://www.highcharts.com/blog/download/
+--> version 9.0.1
