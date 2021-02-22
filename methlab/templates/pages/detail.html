@@ -1,9 +1,6 @@
 {% extends "base.html" %}
 {% load static i18n leaflet_tags %}
 {% block extra_css %}
-<link rel="stylesheet" type="text/css" href="{% static 'css/toast.min.css'%}" />
-<script src="https://code.jquery.com/jquery-3.5.1.min.js"
-  integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0=" crossorigin="anonymous"></script>
 <link href="https://cdnjs.cloudflare.com/ajax/libs/jsoneditor/9.0.3/jsoneditor.css" rel="stylesheet" type="text/css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jsoneditor/9.0.3/jsoneditor.min.js"></script>
 <script type=" text/javascript" src="{% static 'js/toast.min.js' %}"></script>
@@ -91,7 +88,7 @@
                 <select class="form-control" id="change-assignee">
                   <option {% if not mail.assignee %}selected='selected' {% endif %}>--</option>
                   {% for user in users %}
-                  <option value="{{user.pk}}" {% if user == mail.assignee %}selected{% endif %}>{{user}}</option>
+                  <option value="{{user.pk}}" {% if user==mail.assignee %}selected{% endif %}>{{user}}</option>
                   {% endfor %}
                 </select>
                 {% else %}
@@ -103,7 +100,7 @@
                 {% if user.is_authenticated and mail.progress != 2 %}
                 <select class="form-control" id="change-response">
                   {% for response_pk, response in responses %}
-                  <option value="{{response_pk}}" {% if mail.official_response == response_pk %}selected{% endif %}>
+                  <option value="{{response_pk}}" {% if mail.official_response==response_pk %}selected{% endif %}>
                     {{response}}
                   </option>
                   {% endfor %}
@@ -343,7 +340,7 @@
                       <dt class="col-sm-3">Name:</dt>
                       <dd class="col-sm-9">{{ioc.whois.name}}</dd>
                       <dt class="col-sm-3">Name Servers:</dt>
-                      <dd class="col-sm-9">{{ioc.whois.name_servers|join:"<br/>"}}</dd>
+                      <dd class="col-sm-9">{{ioc.whois.name_servers|join:"<br />"}}</dd>
                       <dt class="col-sm-3">Status:</dt>
                       <dd class="col-sm-9">{{ioc.whois.status}}</dd>
                       <dt class="col-sm-3">Registrar:</dt>
@@ -426,7 +423,7 @@
                   <td>
                     <dl class="row">
                       <dt class="col-sm-3">Filenames</dt>
-                      <dd class="col-sm-9">{{attachment.filename|join:"<br/>"}}</dd>
+                      <dd class="col-sm-9">{{attachment.filename|join:"<br />"}}</dd>
                       <dt class="col-sm-3">md5</dt>
                       <dd class="col-sm-9">{{attachment.md5}}</dd>
                       <dt class="col-sm-3">sha256</dt>

@@ -250,7 +250,7 @@ class MailManager(models.Manager):
             .filter(search_vector=search_query)
             .annotate(
                 rank=search_rank,
-                similarity=subject_tr_si, # + text_html_tr_sim + text_plain_tr_sim,
+                similarity=subject_tr_si,  # + text_html_tr_sim + text_plain_tr_sim,
             )
             .order_by("-rank")
         )

@@ -19,6 +19,12 @@ if READ_DOT_ENV_FILE:
 # GENERAL
 # ------------------------------------------------------------------------------
 DEBUG = env.bool("DJANGO_DEBUG", False)
+
+SECRET_KEY = env(
+    "DJANGO_SECRET_KEY",
+    default="cuPnldUNbcJpXe03LH0emKsCA79ocnHYv10erf3IdliHOnnuKAAh2Ok9f2p5fgcr",
+)
+ALLOWED_HOSTS = env.str("ALLOWED_HOSTS").split(",")
 TIME_ZONE = "CET"
 LANGUAGE_CODE = "en-us"
 SITE_ID = 1
@@ -26,6 +32,19 @@ USE_I18N = True
 USE_L10N = True
 USE_TZ = True
 LOCALE_PATHS = [str(ROOT_DIR / "locale")]
+
+# CACHES
+# ------------------------------------------------------------------------------
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": env("REDIS_URL"),
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            "IGNORE_EXCEPTIONS": True,
+        },
+    }
+}
 
 # DATABASES
 # ------------------------------------------------------------------------------
@@ -50,6 +69,7 @@ INSTALLED_APPS = [
     "django.forms",
     "colorfield",
     "crispy_forms",
+	"crispy_bootstrap5",
     "django_better_admin_arrayfield",
     "django_celery_beat",
     "django_json_widget",
@@ -58,6 +78,8 @@ INSTALLED_APPS = [
     "import_export",
     "leaflet",
     "taggit",
+    "whitenoise.runserver_nostatic",
+    "debug_toolbar",
     "methlab.shop.apps.ShopConfig",
 ]
 
@@ -102,6 +124,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.common.BrokenLinkEmailsMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "debug_toolbar.middleware.DebugToolbarMiddleware",
 ]
 
 # STATIC
@@ -146,7 +169,9 @@ TEMPLATES = [
 ]
 
 FORM_RENDERER = "django.forms.renderers.TemplatesSetting"
-CRISPY_TEMPLATE_PACK = "bootstrap4"
+CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
+CRISPY_TEMPLATE_PACK = "bootstrap5"
+
 
 # FIXTURES
 # ------------------------------------------------------------------------------
@@ -218,7 +243,7 @@ CELERY_BEAT_SCHEDULE = {
         "schedule": crontab(minute="*/5"),
     },
 }
-
+CELERY_TASK_EAGER_PROPAGATES = True
 
 # LDAP
 # ------------------------------------------------------------------------------
@@ -248,3 +273,17 @@ LEAFLET_CONFIG = {
     "MAX_ZOOM": 10,
     "DEFAULT_PRECISION": 6,
 }
+
+
+# django-debug-toolbar
+# ------------------------------------------------------------------------------
+DEBUG_TOOLBAR_CONFIG = {
+    "DISABLE_PANELS": ["debug_toolbar.panels.redirects.RedirectsPanel"],
+    "SHOW_TEMPLATE_CONTEXT": True,
+}
+INTERNAL_IPS = ["127.0.0.1", "10.0.2.2"]
+if env("USE_DOCKER") == "yes":
+    import socket
+
+    hostname, _, ips = socket.gethostbyname_ex(socket.gethostname())
+    INTERNAL_IPS += [".".join(ip.split(".")[:-1] + ["1"]) for ip in ips]

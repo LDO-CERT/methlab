@@ -14,7 +14,7 @@ os.environ["DATABASE_URL"] = "postgres://{}:{}@{}:{}/{}".format(
 
 os.environ["CELERY_BROKER_URL"] = "redis://redis:6379/0"
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.local")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.base")
 django.setup()
 
 import uuid

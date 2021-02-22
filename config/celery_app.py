@@ -1,7 +1,7 @@
 import os
 from celery import Celery
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.local")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.base")
 
 app = Celery("methlab")
 app.config_from_object("django.conf:settings", namespace="CELERY")
