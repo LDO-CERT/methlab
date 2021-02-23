@@ -1,12 +1,167 @@
 {% extends "base.html" %}
 {% load static i18n leaflet_tags %}
 {% block extra_css %}
-<link href="https://cdnjs.cloudflare.com/ajax/libs/jsoneditor/9.0.3/jsoneditor.css" rel="stylesheet" type="text/css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jsoneditor/9.0.3/jsoneditor.min.js"></script>
-<script type=" text/javascript" src="{% static 'js/toast.min.js' %}"></script>
+<link href="{% static 'css/jsoneditor/jsoneditor.css' %}" rel="stylesheet" type="text/css">
 {% leaflet_js %}
 {% leaflet_css %}
 {% endblock extra_css %}
+
+
+{% block extra_javascript %}
+<script src="{% static 'js/jsoneditor/jsoneditor.min.js' %}" type="text/javascript" language="javascript"></script>
+<script>
+
+  // EDITOR PER JSON - RECEIVED/HEADER
+  const options = {
+    mode: 'code',
+    modes: ['text', 'code', 'view'],
+    onEditable: function (node) {
+      if (!node.path) { return false; }
+    }
+  }
+  {% if mail.received %}
+  const received_cont = document.getElementById("js_received")
+  const received_editor = new JSONEditor(received_cont, options)
+  received_editor.set({{ mail.received | safe }})
+  {% endif %}
+  {% if mail.header %}
+  const header_cont = document.getElementById("js_header")
+  const header_editor = new JSONEditor(header_cont, options)
+  header_editor.set({{ mail.header | safe }})
+  {% endif %}
+
+  // MAPPA
+  {% if mail.geom %}
+  function main_map_init(map, options) {
+    L.geoJson({{ mail.geom | safe }}).addTo(map);
+      }
+  {% endif %}
+
+  // ADD TAG
+  $(document).on('click', '#add_tag', function () {
+    bootbox.prompt("Add tag to mail!", function (result) {
+      $.ajax({
+        url: "{% url 'tag' %}",
+        data: {
+          tag: result,
+          op: "ADD",
+          mail: {{ mail.pk }},
+      csrfmiddlewaretoken: $("input[name=csrfmiddlewaretoken").val()
+            },
+    method: 'post',
+    dataType: 'json',
+    success: function () {
+      $("#taglist").append(`<span class="badge" style="background-color: #30357B;">${result}</span>`)
+    },  
+      });
+    });
+  });
+
+  // CLOSE MAIL
+  $(document).on('click', '#btn_close', function () {
+    bootbox.confirm("Confirm setting mail progress to closed?", function (result) {
+      $.ajax({
+        url: "{% url 'progress' %}",
+        data: {
+          progress: 2,
+          mail: {{ mail.pk }},
+      csrfmiddlewaretoken: $("input[name=csrfmiddlewaretoken").val()
+        },
+    method: 'post',
+    dataType: 'json',
+    success: function () {
+      $("#btn_close").parent().hide();
+      $.toast({
+        title: 'Operation succeeded!',
+        content: 'Mail has been set as closed!',
+        type: 'success',
+        delay: 5000
+      });
+    },  
+      });
+    });
+  });
+
+  // SELECT RESPONSE
+  $(document).on('change', '#change-response', function () {
+    bootbox.confirm("Confirm?", function (result) {
+      $.ajax({
+        url: "{% url 'response' %}",
+        data: {
+          response: $('#change-response').val(),
+          mail: {{ mail.pk }},
+      csrfmiddlewaretoken: $("input[name=csrfmiddlewaretoken").val()
+        },
+    method: 'post',
+    dataType: 'json',
+    success: function () {
+      $.toast({
+        title: 'Operation succeeded!',
+        content: 'Response has been set successfully.',
+        type: 'success',
+        delay: 5000
+      });
+    },  
+      });
+    });
+  });
+
+  // SELECT ASSIGNEE
+  $(document).on('change', '#change-assignee', function () {
+    bootbox.confirm("Confirm?", function (result) {
+      $.ajax({
+        url: "{% url 'assignee' %}",
+        data: {
+          assignee: $('#change-assignee').val(),
+          mail: {{ mail.pk }},
+      csrfmiddlewaretoken: $("input[name=csrfmiddlewaretoken").val()
+        },
+    method: 'post',
+    dataType: 'json',
+    success: function () {
+      $.toast({
+        title: 'Operation succeeded!',
+        content: 'Assignee has been set successfully.',
+        type: 'success',
+        delay: 5000
+      });
+    },  
+      });
+    });
+  });
+
+  // ADD TO WL
+  $(document).on('click', '.btn-wl', function () {
+
+    var selected_btn = $(this);
+
+    bootbox.confirm("Confirm?", function (result) {
+      $.ajax({
+        url: "{% url 'whitelist' %}",
+        data: {
+          item: selected_btn.data('pk'),
+          item_type: selected_btn.data('type'),
+          op: selected_btn.data('op'),
+          csrfmiddlewaretoken: $("input[name=csrfmiddlewaretoken").val()
+        },
+        method: 'post',
+        dataType: 'json',
+        success: function () {
+          $.toast({
+            title: 'Operation succeeded!',
+            content: 'Whitelist refreshed!',
+            type: 'success',
+            delay: 5000
+          });
+
+          // TODO: ADD OR REMOVE BADGE, CHANGE BUTTON
+        },
+      });
+    });
+  });
+
+</script>
+{% endblock extra_javascript %}
 
 {% block container%}
 <section class="py-5 container">
@@ -15,48 +170,48 @@
 
       <ul class="nav nav-pills" role="tablist">
         <li class="nav-item" role="presentation">
-          <a class="nav-link active" id="info-tab" data-toggle="tab" href="#info" role="tab" aria-controls="info"
+          <a class="nav-link active" id="info-tab" data-bs-toggle="tab" href="#info" role="tab" aria-controls="info"
             aria-selected="true">Mail Info</a>
         </li>
         <li class="nav-item" role="presentation">
-          <a class="nav-link" id="checks-tab" data-toggle="tab" href="#checks" role="tab" aria-controls="checks"
+          <a class="nav-link" id="checks-tab" data-bs-toggle="tab" href="#checks" role="tab" aria-controls="checks"
             aria-selected="true">Checks</a>
         </li>
         {% if mail.header %}
         <li class="nav-item" role="presentation">
-          <a class="nav-link" id="header-tab" data-toggle="tab" href="#header" role="tab" aria-controls="header"
+          <a class="nav-link" id="header-tab" data-bs-toggle="tab" href="#header" role="tab" aria-controls="header"
             aria-selected="false">Header</a>
         </li>
         {% endif %}
         <li class="nav-item" role="presentation">
-          <a class="nav-link" id="body-tab" data-toggle="tab" href="#body" role="tab" aria-controls="body"
+          <a class="nav-link" id="body-tab" data-bs-toggle="tab" href="#body" role="tab" aria-controls="body"
             aria-selected="true">Body</a>
         </li>
         {% if mail.received %}
         <li class="nav-item" role="presentation">
-          <a class="nav-link" id="received-tab" data-toggle="tab" href="#received" role="tab" aria-controls="received"
-            aria-selected="false">Received</a>
+          <a class="nav-link" id="received-tab" data-bs-toggle="tab" href="#received" role="tab"
+            aria-controls="received" aria-selected="false">Received</a>
         </li>
         {% endif %}
         <li class="nav-item" role="presentation">
-          <a class="nav-link" id="addresses-tab" data-toggle="tab" href="#addresses" role="tab"
+          <a class="nav-link" id="addresses-tab" data-bs-toggle="tab" href="#addresses" role="tab"
             aria-controls="addresses" aria-selected="false">Addresses</a>
         </li>
         {% if mail.geom %}
         <li class="nav-item" role="presentation">
-          <a class="nav-link" id="location-tab" data-toggle="tab" href="#location" role="tab" aria-controls="location"
-            aria-selected="false">Location</a>
+          <a class="nav-link" id="location-tab" data-bs-toggle="tab" href="#location" role="tab"
+            aria-controls="location" aria-selected="false">Location</a>
         </li>
         {% endif %}
         {% if mail.iocs.all %}
         <li class="nav-item" role="presentation">
-          <a class="nav-link" id="iocs-tab" data-toggle="tab" href="#iocs" role="tab" aria-controls="iocs"
+          <a class="nav-link" id="iocs-tab" data-bs-toggle="tab" href="#iocs" role="tab" aria-controls="iocs"
             aria-selected="false">Iocs</a>
         </li>
         {% endif %}
         {% if mail.attachments.all %}
         <li class="nav-item" role="presentation">
-          <a class="nav-link" id="attachments-tab" data-toggle="tab" href="#attachments" role="tab"
+          <a class="nav-link" id="attachments-tab" data-bs-toggle="tab" href="#attachments" role="tab"
             aria-controls="attachments" aria-selected="false">Attachments</a>
         </li>
         {% endif %}
@@ -88,7 +243,7 @@
                 <select class="form-control" id="change-assignee">
                   <option {% if not mail.assignee %}selected='selected' {% endif %}>--</option>
                   {% for user in users %}
-                  <option value="{{user.pk}}" {% if user==mail.assignee %}selected{% endif %}>{{user}}</option>
+                  <option value="{{user.pk}}" {% if user == mail.assignee %}selected{% endif %}>{{user}}</option>
                   {% endfor %}
                 </select>
                 {% else %}
@@ -100,7 +255,7 @@
                 {% if user.is_authenticated and mail.progress != 2 %}
                 <select class="form-control" id="change-response">
                   {% for response_pk, response in responses %}
-                  <option value="{{response_pk}}" {% if mail.official_response==response_pk %}selected{% endif %}>
+                  <option value="{{response_pk}}" {% if mail.official_response == response_pk %} selected {% endif %}>
                     {{response}}
                   </option>
                   {% endfor %}
@@ -133,26 +288,27 @@
             <dl class="row">
               {% if mail.dmark %}
               <dt class="col-sm-3">Dmark:</dt>
-              <dd class="col-sm-9 text-danger">{{mail.dmark}}</dd>
-              {% else%}
-              <dt class="col-sm-3">Dmark:</dt>
-              <dd class="col-sm-9 text-success">🟢</dd>
+              <dd class="col-sm-9">{{mail.dmark}}</dd>
               {% endif %}
 
-              {% if mail.dkim %}
+              {% if mail.dkim and mail.dkim != "False" %}
               <dt class="col-sm-3">Dkim Check:</dt>
-              <dd class="col-sm-9 text-danger">{{mail.dkim}}</dd>
-              {% else %}
-              <dt class="col-sm-3">Dkim Check:</dt>
-              <dd class="col-sm-9 text-success">🟢</dd>
+              <dd class="col-sm-9">{{mail.dkim}}</dd>
+              {% endif %}
+
+              {% if mail.arc %}
+              <dt class="col-sm-3">Arc Check:</dt>
+              <dd class="col-sm-9">[{{mail.arc.success}}] {{ mail.arc.message}}</dd>
               {% endif %}
 
               {% if mail.spf %}
               <dt class="col-sm-3">SPF Check:</dt>
-              <dd class="col-sm-9 text-danger">{{mail.spf}}</dd>
-              {% else %}
-              <dt class="col-sm-3">SPF Check:</dt>
-              <dd class="col-sm-9 text-success">🟢</dd>
+              <dd class="col-sm-9">{{mail.spf}}</dd>
+              {% endif %}
+
+              {% if mail.dig %}
+              <dt class="col-sm-3">Dig Check:</dt>
+              <dd class="col-sm-9">{{mail.dig}}</dd>
               {% endif %}
             </dl>
           </div>
@@ -465,159 +621,5 @@
       </div>
     </div>
   </div>
-
-  <script>
-
-    // EDITOR PER JSON - RECEIVED/HEADER
-    const options = {
-      mode: 'code',
-      modes: ['text', 'code', 'view'],
-      onEditable: function (node) {
-        if (!node.path) { return false; }
-      }
-    }
-    {% if mail.received %}
-    const received_cont = document.getElementById("js_received")
-    const received_editor = new JSONEditor(received_cont, options)
-    received_editor.set({{ mail.received | safe }})
-    {% endif %}
-    {% if mail.header %}
-    const header_cont = document.getElementById("js_header")
-    const header_editor = new JSONEditor(header_cont, options)
-    header_editor.set({{ mail.header | safe }})
-    {% endif %}
-
-    // MAPPA
-    {% if mail.geom %}
-    function main_map_init(map, options) {
-      L.geoJson({{ mail.geom | safe }}).addTo(map);
-        }
-    {% endif %}
-
-    // ADD TAG
-    $(document).on('click', '#add_tag', function () {
-      bootbox.prompt("Add tag to mail!", function (result) {
-        $.ajax({
-          url: "{% url 'tag' %}",
-          data: {
-            tag: result,
-            op: "ADD",
-            mail: {{ mail.pk }},
-        csrfmiddlewaretoken: $("input[name=csrfmiddlewaretoken").val()
-              },
-      method: 'post',
-      dataType: 'json',
-      success: function () {
-        $("#taglist").append(`<span class="badge" style="background-color: #30357B;">${result}</span>`)
-      },  
-        });
-      });
-    });
-
-    // CLOSE MAIL
-    $(document).on('click', '#btn_close', function () {
-      bootbox.confirm("Confirm setting mail progress to closed?", function (result) {
-        $.ajax({
-          url: "{% url 'progress' %}",
-          data: {
-            progress: 2,
-            mail: {{ mail.pk }},
-        csrfmiddlewaretoken: $("input[name=csrfmiddlewaretoken").val()
-          },
-      method: 'post',
-      dataType: 'json',
-      success: function () {
-        $("#btn_close").parent().hide();
-        $.toast({
-          title: 'Operation succeeded!',
-          content: 'Mail has been set as closed!',
-          type: 'success',
-          delay: 5000
-        });
-      },  
-        });
-      });
-    });
-
-    // SELECT RESPONSE
-    $(document).on('change', '#change-response', function () {
-      bootbox.confirm("Confirm?", function (result) {
-        $.ajax({
-          url: "{% url 'response' %}",
-          data: {
-            response: $('#change-response').val(),
-            mail: {{ mail.pk }},
-        csrfmiddlewaretoken: $("input[name=csrfmiddlewaretoken").val()
-          },
-      method: 'post',
-      dataType: 'json',
-      success: function () {
-        $.toast({
-          title: 'Operation succeeded!',
-          content: 'Response has been set successfully.',
-          type: 'success',
-          delay: 5000
-        });
-      },  
-        });
-      });
-    });
-
-    // SELECT ASSIGNEE
-    $(document).on('change', '#change-assignee', function () {
-      bootbox.confirm("Confirm?", function (result) {
-        $.ajax({
-          url: "{% url 'assignee' %}",
-          data: {
-            assignee: $('#change-assignee').val(),
-            mail: {{ mail.pk }},
-        csrfmiddlewaretoken: $("input[name=csrfmiddlewaretoken").val()
-          },
-      method: 'post',
-      dataType: 'json',
-      success: function () {
-        $.toast({
-          title: 'Operation succeeded!',
-          content: 'Assignee has been set successfully.',
-          type: 'success',
-          delay: 5000
-        });
-      },  
-        });
-      });
-    });
-
-    // ADD TO WL
-    $(document).on('click', '.btn-wl', function () {
-
-      var selected_btn = $(this);
-
-      bootbox.confirm("Confirm?", function (result) {
-        $.ajax({
-          url: "{% url 'whitelist' %}",
-          data: {
-            item: selected_btn.data('pk'),
-            item_type: selected_btn.data('type'),
-            op: selected_btn.data('op'),
-            csrfmiddlewaretoken: $("input[name=csrfmiddlewaretoken").val()
-          },
-          method: 'post',
-          dataType: 'json',
-          success: function () {
-            $.toast({
-              title: 'Operation succeeded!',
-              content: 'Whitelist refreshed!',
-              type: 'success',
-              delay: 5000
-            });
-
-            // TODO: ADD OR REMOVE BADGE, CHANGE BUTTON
-          },
-        });
-      });
-    });
-
-  </script>
-
 </section>
 {% endblock container %}

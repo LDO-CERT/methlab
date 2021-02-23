@@ -92,16 +92,44 @@ class AttachmentTable(tables.Table):
 
 class IpTable(tables.Table):
     link = tables.LinkColumn(
-        "search", text=">>>", args=["ip", A("iocs__ip")], orderable=False,
+        "search",
+        text=">>>",
+        args=["ip", A("ips__ip")],
+        orderable=False,
     )
     total = tables.Column(verbose_name="Total")
-    iocs__ip = tables.Column(verbose_name="Ip")
-    iocs__tags = tables.Column(orderable=False, verbose_name="Tags")
+    ips__ip = tables.Column(verbose_name="Ip")
+    ips__tags = tables.Column(orderable=False, verbose_name="Tags")
 
     class Meta:
         model = Mail
         template_name = "django_tables2/bootstrap4.html"
-        fields = ("iocs__ip", "total", "iocs__tags", "link")
+        fields = ("ips__ip", "total", "ips__tags", "link")
+
+    def render_tags(self, value, record):
+        html = format_html_join(
+            "\n",
+            """<span class='badge' style='background-color:{}'>{}</span>""",
+            ((x.color, x.name) for x in value.all()),
+        )
+        return html
+
+
+class UrlTable(tables.Table):
+    link = tables.LinkColumn(
+        "search",
+        text=">>>",
+        args=["domain", A("urls__domain__domain")],
+        orderable=False,
+    )
+    total = tables.Column(verbose_name="Total")
+    urls__url = tables.Column(verbose_name="Url")
+    urls__tags = tables.Column(orderable=False, verbose_name="Tags")
+
+    class Meta:
+        model = Mail
+        template_name = "django_tables2/bootstrap4.html"
+        fields = ("urls__url", "total", "urls__tags", "link")
 
     def render_tags(self, value, record):
         html = format_html_join(
@@ -114,16 +142,19 @@ class IpTable(tables.Table):
 
 class DomainTable(tables.Table):
     link = tables.LinkColumn(
-        "search", text=">>>", args=["domain", A("iocs__domain")], orderable=False,
+        "search",
+        text=">>>",
+        args=["domain", A("urls__domain__domain")],
+        orderable=False,
     )
     total = tables.Column(verbose_name="Total")
-    iocs__domain = tables.Column(verbose_name="Domain")
-    iocs__tags = tables.Column(orderable=False, verbose_name="Tags")
+    urls__domain__domain = tables.Column(verbose_name="Domain")
+    urls__domain__tags = tables.Column(orderable=False, verbose_name="Tags")
 
     class Meta:
         model = Mail
         template_name = "django_tables2/bootstrap4.html"
-        fields = ("iocs__domain", "total", "iocs__tags", "link")
+        fields = ("urls__domain__domain", "total", "urls__domain__tags", "link")
 
     def render_tags(self, value, record):
         html = format_html_join(

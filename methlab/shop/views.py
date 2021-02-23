@@ -1,6 +1,8 @@
-from django.utils import timezone
+import operator
+from functools import reduce
 from datetime import timedelta
-
+from django.db.models import Q
+from django.utils import timezone
 from django.http import Http404, JsonResponse
 from django.shortcuts import render, get_object_or_404
 from django.db.models import Count
@@ -13,13 +15,16 @@ from django.contrib.auth.decorators import login_required
 from django_pivot.pivot import pivot
 
 from methlab.shop.models import (
+    InternalInfo,
     Mail,
     Whitelist,
     Address,
     Flag,
     RESPONSE,
     Attachment,
-    Ioc,
+    Ip,
+    Url,
+    Domain,
 )
 from methlab.shop.tables import (
     AttachmentTable,
@@ -28,6 +33,7 @@ from methlab.shop.tables import (
     MailTable,
     LatestMailTable,
     AddressTable,
+    UrlTable,
 )
 
 
@@ -60,7 +66,7 @@ def home(request):
     # PAGINATE LATEST EMAIL
     table = LatestMailTable(
         Mail.external_objects.prefetch_related(
-            "addresses", "iocs", "attachments", "tags"
+            "addresses", "ips", "urls", "attachments", "tags"
         ).order_by("-submission_date")[:250],
     )
     table.paginate(page=request.GET.get("page", 1), per_page=25)
@@ -82,6 +88,8 @@ def campaigns(request, campaign_type):
     if campaign_type not in ("subject", "sender"):
         raise Http404("404")
 
+    internal_servers = InternalInfo.objects.all()[0].internal_domains
+
     sort_by = request.GET.get("sort", "-total")
     if sort_by == "total":
         sort_by = "-{}".format(sort_by)
@@ -94,7 +102,7 @@ def campaigns(request, campaign_type):
             .values("subject")
             .annotate(total=Count("subject"))
             .values("subject", "slug_subject", "total")
-            # .filter(total__gt=2)
+            .filter(total__gt=2)
             .order_by(sort_by)
         )
         table = MailTable(mails)
@@ -104,10 +112,14 @@ def campaigns(request, campaign_type):
         # BY FROM MAIL ADDRESS
         table = AddressTable(
             Address.objects.filter(mail_addresses__field="from")
-            .exclude(address__icontains="@leonardocompany.com")
+            .exclude(
+                reduce(
+                    operator.and_, (Q(address__icontains=x) for x in internal_servers)
+                )
+            )
             .values("mail_addresses__address__address")
             .annotate(total=Count("mail_addresses__address__address"))
-            # .filter(total__gt=2)
+            .filter(total__gt=2)
             .order_by(sort_by)
         )
         table.paginate(page=request.GET.get("page", 1), per_page=20)
@@ -121,9 +133,9 @@ def campaigns(request, campaign_type):
 
 def stats(request):
     att_wl = Whitelist.objects.filter(type="sha256").values_list("value", flat=True)
-    ioc_wl = Whitelist.objects.filter(type__in=["ip", "domain"]).values_list(
-        "value", flat=True
-    )
+    ip_wl = Whitelist.objects.filter(type="ip").values_list("value", flat=True)
+    url_wl = Whitelist.objects.filter(type="url").values_list("value", flat=True)
+    domain_wl = Whitelist.objects.filter(type="domain").values_list("value", flat=True)
 
     # SORT BY ATTACHMENTS
     a_sort_by = request.GET.get("a-sort", "-total")
@@ -146,45 +158,62 @@ def stats(request):
     i_sort_by = request.GET.get("i-sort", "-total")
     if i_sort_by == "total":
         i_sort_by = "-{}".format(i_sort_by)
-    i_iocs = (
-        Mail.external_objects.filter(iocs__ip__isnull=False)
-        .values("iocs__ip", "iocs__tags")
-        .annotate(total=Count("iocs"))
+    ips = (
+        Mail.external_objects.exclude(
+            ips__ip__isnull=True
+        )  # .exclude(ips__ip__in=ip_wl)
+        .values("ips__ip", "ips__tags")
+        .annotate(total=Count("ips"))
         .order_by(i_sort_by)
     )
-
-    table_i = IpTable(
-        [x for x in i_iocs if x["iocs__ip"] not in ioc_wl],
-        prefix="i-",
-    )
+    table_i = IpTable(ips, prefix="i-")
     table_i.paginate(page=request.GET.get("i-page", 1), per_page=10)
+
+    # SORT BY URL
+    u_sort_by = request.GET.get("u-sort", "-total")
+    if u_sort_by == "total":
+        u_sort_by = "-{}".format(u_sort_by)
+    urls = (
+        Mail.external_objects.exclude(urls__url__isnull=True)
+        .exclude(urls__url__in=url_wl)
+        .values("urls__url", "urls__tags", "urls__domain__domain")
+        .annotate(total=Count("urls"))
+        .order_by(u_sort_by)
+    )
+    table_u = UrlTable(urls, prefix="u-")
+    table_u.paginate(page=request.GET.get("u-page", 1), per_page=10)
 
     # SORT BY DOMAIN
     d_sort_by = request.GET.get("d-sort", "-total")
     if d_sort_by == "total":
         d_sort_by = "-{}".format(d_sort_by)
-    d_iocs = (
-        Mail.external_objects.exclude(iocs__domain__isnull=True)
-        .values("iocs__domain", "iocs__tags")
-        .annotate(total=Count("iocs"))
+    domains = (
+        Mail.external_objects.exclude(urls__url__isnull=True)
+        .exclude(urls__domain__domain__in=domain_wl)
+        .values("urls__domain__domain", "urls__domain__tags")
+        .annotate(total=Count("urls__domain__domain"))
         .order_by(d_sort_by)
     )
-    table_d = DomainTable(
-        [x for x in d_iocs if x["iocs__domain"] not in ioc_wl],
-        prefix="d-",
-    )
+    table_d = DomainTable(domains, prefix="d-")
     table_d.paginate(page=request.GET.get("d-page", 1), per_page=10)
 
     return render(
         request,
         "pages/stats.html",
-        {"table_a": table_a, "table_i": table_i, "table_d": table_d},
+        {
+            "table_a": table_a,
+            "table_i": table_i,
+            "table_u": table_u,
+            "table_d": table_d,
+        },
     )
 
 
 def mail_detail(request, pk):
     mail = get_object_or_404(
-        Mail.objects.prefetch_related("addresses", "iocs", "attachments", "tags"),
+        Mail.objects.prefetch_related(
+            "addresses", "ips", "urls", "attachments", "tags"
+        ),
         pk=pk,
     )
     users = get_user_model().objects.all()
@@ -226,15 +255,23 @@ def search(request, method=None, search_object=None):
         elif method == "ip":
             query = "[ip] {}".format(search_object)
             mails = []
-            for ioc in Ioc.objects.filter(ip=search_object).distinct():
-                for mail in ioc.iocs(manager="external_objects").all():
+            for ioc in Ip.objects.filter(ip=search_object).distinct():
+                for mail in ioc.ips(manager="external_objects").all():
+                    mails.append(mail)
+        elif method == "url":
+            query = "[url] {}".format(search_object)
+            mails = []
+            for ioc in Url.objects.filter(url=search_object).distinct():
+                for mail in ioc.urls(manager="external_objects").all():
                     mails.append(mail)
         elif method == "domain":
             query = "[domain] {}".format(search_object)
             mails = []
-            for ioc in Ioc.objects.filter(domain=search_object).distinct():
-                for mail in ioc.iocs(manager="external_objects").all():
-                    mails.append(mail)
+            for ioc in Domain.objects.filter(domain=search_object).distinct():
+                for url in ioc.url_set.all():
+                    for mail in url.urls(manager="external_objects").all():
+                        if mail not in mails:
+                            mails.append(mail)
         else:
             raise Http404("404")
     else:

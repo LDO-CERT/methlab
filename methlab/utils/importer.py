@@ -38,7 +38,9 @@ from methlab.shop.models import (
     Mail,
     Attachment,
     Address,
-    Ioc,
+    Ip,
+    Url,
+    Domain,
     Mail_Addresses,
     Whitelist,
 )
@@ -150,64 +152,59 @@ class MethMail:
         all_wl = Whitelist.objects.all()
 
         # EXTRACT URL, CHECK IF WL AND GET REPORT
-        for url in parse_urls(payload):
+        for url_value in parse_urls(payload):
             whois_info = None
-            url = url.split(">")[0].rstrip('"].').strip("/").lower()
-            domain = get_fld(url, fix_protocol=True, fail_silently=True)
-            if domain in [x.value for x in all_wl if x.type == "domain"]:
+            url_value = url_value.split(">")[0].rstrip('"].').strip("/").lower()
+            if url_value in [x.value for x in all_wl if x.type == "url"]:
+                continue
+            url_domain = get_fld(url_value, fix_protocol=True, fail_silently=True)
+            if url_domain in [x.value for x in all_wl if x.type == "domain"]:
                 continue
             with transaction.atomic():
-                if domain:
-                    ioc, created = Ioc.objects.get_or_create(
-                        domain=domain,
-                    )
-                else:
-                    ioc, created = Ioc.objects.get_or_create(
-                        url=url,
-                    )
-                if created:
-                    try:
-                        whois_info = json.loads(
-                            json.dumps(
-                                whois.query(domain).__dict__,
-                                cls=DjangoJSONEncoder,
-                                default=default,
+                if url_domain:
+                    domain, created = Domain.objects.get_or_create(domain=url_domain)
+                    if created:
+                        try:
+                            whois_info = json.loads(
+                                json.dumps(
+                                    whois.query(url_domain).__dict__,
+                                    cls=DjangoJSONEncoder,
+                                    default=default,
+                                )
                             )
-                        )
-                    except Exception:
-                        pass
+                            domain.whois = whois_info
+                            domain.save()
+                        except Exception:
+                            pass
+                else:
+                    domain = None
 
-                if ioc.urls and url not in ioc.urls:
-                    ioc.urls.append(url)
-                elif not ioc.urls:
-                    ioc.urls = [url]
-                ioc.whois = whois_info
-                ioc.save()
-                self.db_mail.iocs.add(ioc)
-                self.tasks.append((url, "url", ioc.pk, False))
+                url, created = Url.objects.get_or_create(domain=domain, url=url_value)
+                self.db_mail.urls.add(url)
+                self.tasks.append((url, "url", url.pk, False))
 
         # EXTRACT IP, CHECK IF WL AND GET REPORT
-        for ip in (
+        for ip_value in (
             parse_ipv4_addresses(payload)
             + parse_ipv4_cidrs(payload)
             + parse_ipv6_addresses(payload)
         ):
             whois_info = None
-            if ip in [x.value for x in all_wl if x.type == "ip"]:
+            if ip_value in [x.value for x in all_wl if x.type == "ip"]:
                 continue
 
             with transaction.atomic():
-                ioc, created = Ioc.objects.get_or_create(ip=ip)
+                ip, created = Ip.objects.get_or_create(ip=ip_value)
                 if created:
                     try:
-                        whois_info = IPWhois(ip).lookup_rdap(depth=1)
+                        whois_info = IPWhois(ip_value).lookup_rdap(depth=1)
                     except Exception:
                         pass
 
-                ioc.whois = whois_info
-                ioc.save()
-            self.db_mail.iocs.add(ioc)
-            self.tasks.append((ip, "ip", ioc.pk, False))
+                ip.whois = whois_info
+                ip.save()
+            self.db_mail.ips.add(ip)
+            self.tasks.append((ip, "ip", ip.pk, False))
 
     def store_info(self):
         """Clean mail fields and create item in db"""
@@ -221,6 +218,7 @@ class MethMail:
             dmark_info = None
             dkim_info = False
             spf_info = None
+            arc_info = None
 
             # CHECK FROM ADDRESSES AND ASSIGN FLAGS
             for (name, address_from) in self.msg.from_:
@@ -330,7 +328,19 @@ class MethMail:
 
                     with open(self.mail_filepath, "rb") as f:
                         message = f.read()
-                        dkim_info = dkim.DKIM(message).verify()
+                        try:
+                            dkim_info = dkim.DKIM(message).verify()
+                        except dkim.DKIMException as e:
+                            dkim_info = e
+                        try:
+                            success, info, arc_message = dkim.ARC(message).verify()
+                            arc_info = {
+                                "success": success,
+                                "info": info,
+                                "message": arc_message,
+                            }
+                        except Exception as e:
+                            logging.error(e)
 
                     # SPF CHECK
                     domain = domain.split()[0]
@@ -385,6 +395,7 @@ class MethMail:
                 geom=geo_info,
                 dmark=dmark_info,
                 dkim=dkim_info,
+                arc=arc_info,
                 spf=spf_info,
                 # this is an .eml if parent is None otherwhise is the parent attachment folder
                 eml_path=self.mail_filepath,

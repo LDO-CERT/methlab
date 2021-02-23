@@ -78,7 +78,6 @@
     {% block container %} {% endblock container %}
   </main>
 
-  {% block javascript %}
   <script defer src="{% static 'js/fontawesome/all.min.js' %}" type="text/javascript" language="javascript"></script>
   <script src="{% static 'js/jquery-3.5.1.js' %}" type="text/javascript" language="javascript"></script>
   <script src="{% static 'js/bootstrap/bootstrap.bundle.min.js' %}" type="text/javascript"
@@ -89,7 +88,7 @@
     language="javascript"></script>
   <script src="{% static 'js/bootbox/bootbox.min.js' %}" type="text/javascript" language="javascript"></script>
   <script src="{% static 'js/toast/toast.js' %}" type="text/javascript" language="javascript"></script>
-  {% endblock javascript %}
+  {% block extra_javascript %} {% endblock extra_javascript %}
 </body>
 
 </html>

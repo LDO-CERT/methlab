@@ -22,3 +22,7 @@
 # HIGHCHARTS [MAIN PAGE TABLE]
 --> https://www.highcharts.com/blog/download/
 --> version 9.0.1
+
+# JSONEDITOR [HEADERS]
+-->  https://jsoneditoronline.org/
+--> 9.0.3

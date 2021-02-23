@@ -112,11 +112,12 @@ class Whitelist(models.Model):
     WL_TYPE = (
         ("address", "address"),
         ("domain", "domain"),
+        ("url", "url"),
         ("ip", "ip"),
         ("md5", "md5"),
         ("sha256", "sha256"),
     )
-    value = models.CharField(max_length=500)
+    value = models.CharField(max_length=1000)
     type = models.CharField(max_length=8, choices=WL_TYPE)
 
     class Meta:
@@ -196,31 +197,47 @@ class Address(models.Model):
         return self.address if self.address else ""
 
 
-class Ioc(models.Model):
-    ip = models.GenericIPAddressField(blank=True, null=True)
-    urls = ArrayField(models.CharField(max_length=500), blank=True, null=True)
-    domain = models.CharField(max_length=200, blank=True, null=True)
+class Domain(models.Model):
+    domain = models.CharField(max_length=200)
     whois = models.JSONField(blank=True, null=True)
+    dig = models.TextField(blank=True, null=True)
+    reports = GenericRelation(Report, related_name="ips")
+    tags = TaggableManager(through=CustomTag)
 
-    reports = GenericRelation(Report, related_name="iocs")
+    def __str__(self):
+        return self.domain
+
+
+class Ip(models.Model):
+    ip = models.GenericIPAddressField()
+    whois = models.JSONField(blank=True, null=True)
+    reports = GenericRelation(Report, related_name="ips")
     tags = TaggableManager(through=CustomTag)
 
     @property
-    def value(self):
-        return self.domain if self.domain else self.ip
+    def is_whitelisted(self):
+        return Whitelist.objects.filter(type="ip", value=self.ip).count() > 0
+
+
+class Url(models.Model):
+    url = models.CharField(max_length=1000)
+    domain = models.ForeignKey(Domain, on_delete=models.CASCADE, null=True, blank=True)
+
+    reports = GenericRelation(Report, related_name="urls")
+    tags = TaggableManager(through=CustomTag)
 
     @property
     def is_whitelisted(self):
         return (
             Whitelist.objects.filter(
-                (Q(type="domain") & Q(value=self.domain))
-                | (Q(type="ip") & Q(value=self.ip))
+                (Q(type="url") & Q(value=self.url))
+                | (Q(type="domain") & Q(value=self.domain.domain))
             ).count()
             > 0
         )
 
     def __str__(self):
-        return self.ip if self.ip else self.domain
+        return self.url
 
 
 class MailManager(models.Manager):
@@ -281,8 +298,8 @@ class Mail(models.Model):
 
     # MAIL INFO
     message_id = models.CharField(max_length=1000)
-    subject = models.CharField(max_length=500)
-    slug_subject = models.SlugField(max_length=500, editable=False, default="")
+    subject = models.CharField(max_length=1000)
+    slug_subject = models.SlugField(max_length=1000, editable=False, default="")
     date = models.DateTimeField(blank=True, null=True)
     addresses = models.ManyToManyField(
         Address, related_name="addresses", through="Mail_Addresses"
@@ -303,12 +320,15 @@ class Mail(models.Model):
 
     # ADDITIONAL FIELDS
     geom = PointField(blank=True, null=True)
-    dmark = models.JSONField(blank=True, null=True)
-    dkim = models.BooleanField(default=False)
+
+    dmark = models.TextField(blank=True, null=True)
+    dkim = models.TextField(blank=True, default=True)
     spf = models.TextField(blank=True, null=True)
+    arc = models.JSONField(blank=True, null=True)
 
     # IOC
-    iocs = models.ManyToManyField(Ioc, related_name="iocs")
+    ips = models.ManyToManyField(Ip, related_name="ips")
+    urls = models.ManyToManyField(Url, related_name="urls")
     attachments = models.ManyToManyField(Attachment, related_name="attachments")
 
     # TAGS
@@ -365,7 +385,7 @@ class Mail(models.Model):
 
     @property
     def count_iocs(self):
-        return self.iocs.count()
+        return self.ips.count() + self.urls.count()
 
     def __str__(self):
         return truncatechars(self.subject, 80) if self.subject else ""

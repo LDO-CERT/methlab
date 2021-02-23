@@ -6,7 +6,9 @@ from .models import (
     Mail,
     Flag,
     InternalInfo,
-    Ioc,
+    Ip,
+    Url,
+    Domain,
     Analyzer,
     Report,
     Whitelist,
@@ -107,14 +109,25 @@ class AttachmentInline(admin.StackedInline):
     extra = 0
 
 
-class IocInline(admin.TabularInline):
+class UrlsInline(admin.TabularInline):
     def has_add_permission(self, request, obj=None):
         return False
 
     def has_delete_permission(self, request, obj=None):
         return False
 
-    model = Mail.iocs.through
+    model = Mail.urls.through
+    extra = 0
+
+
+class IpsInline(admin.TabularInline):
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    model = Mail.ips.through
     extra = 0
 
 
@@ -146,12 +159,16 @@ class MailAdmin(LeafletGeoAdmin, DynamicArrayMixin):
         "sender_ip_address",
         "to_domains",
         "attachments",
+        "spf",
         "dmark",
+        "arc",
+        "dkim",
     )
 
     exclude = (
         "tags",
-        "iocs",
+        "ips",
+        "urls",
         "addresses",
         "search_vector",
         "attachments_path",
@@ -162,18 +179,22 @@ class MailAdmin(LeafletGeoAdmin, DynamicArrayMixin):
         return (
             super()
             .get_queryset(request)
-            .prefetch_related("tags", "attachments", "iocs")
+            .prefetch_related("tags", "attachments", "ips", "urls")
         )
 
-    inlines = [AttachmentInline, AddressesInline, IocInline]
+    inlines = [AttachmentInline, AddressesInline, UrlsInline, IpsInline]
     list_display = (
         "submission_date",
+        "date",
         "short_id",
         "short_subject",
         "count_attachments",
         "count_iocs",
         "tag_list",
+        "spf",
         "dmark",
+        "arc",
+        "dkim",
     )
     list_filter = ("submission_date", "official_response", "progress")
     search_fields = ["subject"]
@@ -199,7 +220,7 @@ class ReportInline(GenericTabularInline):
     extra = 0
 
 
-class IocAdmin(admin.ModelAdmin, DynamicArrayMixin):
+class IpAdmin(admin.ModelAdmin, DynamicArrayMixin):
     actions = ["add_to_wl"]
     formfield_overrides = {
         models.JSONField: {"widget": JSONEditorWidget()},
@@ -207,17 +228,50 @@ class IocAdmin(admin.ModelAdmin, DynamicArrayMixin):
 
     def add_to_wl(self, request, queryset):
         for item in queryset:
-            if item.ip:
-                wl = Whitelist(value=item.ip, type="ip")
-            else:
-                wl = Whitelist(value=item.domain, type="domain")
+            wl = Whitelist(value=item.ip, type="ip")
             wl.save()
 
-    add_to_wl.short_description = "Add selected iocs to whitelist"
+    add_to_wl.short_description = "Add selected ips to whitelist"
 
-    list_display = ("ip", "domain", "whois")
+    list_display = ("ip", "whois")
     inlines = [ReportInline]
-    search_fields = ["ip", "domain"]
+    search_fields = ["ip"]
+
+
+class UrlAdmin(admin.ModelAdmin, DynamicArrayMixin):
+    actions = ["add_to_wl"]
+    formfield_overrides = {
+        models.JSONField: {"widget": JSONEditorWidget()},
+    }
+
+    def add_to_wl(self, request, queryset):
+        for item in queryset:
+            wl = Whitelist(value=item.url, type="url")
+            wl.save()
+
+    add_to_wl.short_description = "Add selected urls to whitelist"
+
+    list_display = ("url", "domain")
+    inlines = [ReportInline]
+    search_fields = ["url", "domain__domain"]
+
+
+class DomainAdmin(admin.ModelAdmin, DynamicArrayMixin):
+    actions = ["add_to_wl"]
+    formfield_overrides = {
+        models.JSONField: {"widget": JSONEditorWidget()},
+    }
+
+    def add_to_wl(self, request, queryset):
+        for item in queryset:
+            wl = Whitelist(value=item.domain, type="domain")
+            wl.save()
+
+    add_to_wl.short_description = "Add selected domains to whitelist"
+
+    list_display = ("domain", "whois")
+    inlines = [ReportInline]
+    search_fields = ["domain"]
 
 
 # ########################
@@ -289,7 +343,9 @@ admin.site.register(InternalInfo, InternalInfoAdmin)
 admin.site.register(Mail, MailAdmin)
 admin.site.register(Address, AddressesAdmin)
 admin.site.register(Flag, FlagAdmin)
-admin.site.register(Ioc, IocAdmin)
+admin.site.register(Ip, IpAdmin)
+admin.site.register(Url, UrlAdmin)
+admin.site.register(Domain, DomainAdmin)
 admin.site.register(Analyzer, AnalyzerAdmin)
 admin.site.register(Whitelist, WhitelistAdmin)
 admin.site.register(Report, ReportAdmin)

@@ -25,7 +25,9 @@ from methlab.shop.models import (
     Mail,
     Attachment,
     Report,
-    Ioc,
+    Ip,
+    Url,
+    Domain,
 )
 from methlab.utils.importer import MethMail
 
@@ -123,8 +125,14 @@ def check_cortex(ioc, ioc_type, object_id, is_mail=False):
     elif ioc_type == "mail":
         content_type = Address
 
-    elif ioc_type in ["url", "ip"]:
-        content_type = Ioc
+    elif ioc_type == "url":
+        content_type = Url
+
+    elif ioc_type == "domain":
+        content_type = Domain
+
+    elif ioc_type == "ip":
+        content_type = Ip
 
     elif ioc_type == "hash":
         content_type = Attachment
