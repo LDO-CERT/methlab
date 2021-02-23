@@ -181,7 +181,7 @@ class MethMail:
 
                 url, created = Url.objects.get_or_create(domain=domain, url=url_value)
                 self.db_mail.urls.add(url)
-                self.tasks.append((url, "url", url.pk, False))
+                self.tasks.append((url_value, "url", url.pk, False))
 
         # EXTRACT IP, CHECK IF WL AND GET REPORT
         for ip_value in (
@@ -204,7 +204,7 @@ class MethMail:
                 ip.whois = whois_info
                 ip.save()
             self.db_mail.ips.add(ip)
-            self.tasks.append((ip, "ip", ip.pk, False))
+            self.tasks.append((ip_value, "ip", ip.pk, False))
 
     def store_info(self):
         """Clean mail fields and create item in db"""
