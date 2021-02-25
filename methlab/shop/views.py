@@ -1,7 +1,5 @@
-import operator
-from functools import reduce
+import ipaddress
 from datetime import timedelta
-from django.db.models import Q
 from django.utils import timezone
 from django.http import Http404, JsonResponse
 from django.shortcuts import render, get_object_or_404
@@ -110,14 +108,11 @@ def campaigns(request, campaign_type):
 
     elif campaign_type == "sender":
         # BY FROM MAIL ADDRESS
+        addresses = Address.objects.filter(mail_addresses__field="from")
+        for x in internal_servers:
+            addresses = addresses.exclude(address__icontains=x)
         table = AddressTable(
-            Address.objects.filter(mail_addresses__field="from")
-            .exclude(
-                reduce(
-                    operator.and_, (Q(address__icontains=x) for x in internal_servers)
-                )
-            )
-            .values("mail_addresses__address__address")
+            addresses.values("mail_addresses__address__address")
             .annotate(total=Count("mail_addresses__address__address"))
             .filter(total__gt=2)
             .order_by(sort_by)
@@ -134,6 +129,7 @@ def campaigns(request, campaign_type):
 def stats(request):
     att_wl = Whitelist.objects.filter(type="sha256").values_list("value", flat=True)
     ip_wl = Whitelist.objects.filter(type="ip").values_list("value", flat=True)
+    ip_wl = [ipaddress.ip_address(x) for x in ip_wl]
     url_wl = Whitelist.objects.filter(type="url").values_list("value", flat=True)
     domain_wl = Whitelist.objects.filter(type="domain").values_list("value", flat=True)
 
@@ -159,9 +155,8 @@ def stats(request):
     if i_sort_by == "total":
         i_sort_by = "-{}".format(i_sort_by)
     ips = (
-        Mail.external_objects.exclude(
-            ips__ip__isnull=True
-        )  # .exclude(ips__ip__in=ip_wl)
+        Mail.external_objects.exclude(ips__ip__isnull=True)
+        .exclude(ips__ip__in=ip_wl)
         .values("ips__ip", "ips__tags")
         .annotate(total=Count("ips"))
         .order_by(i_sort_by)
@@ -345,11 +340,14 @@ def whitelist(request):
         if item_type == "sha256":
             item = get_object_or_404(Attachment, pk=item)
             value = item.sha256
+        elif item_type == "url":
+            item = get_object_or_404(Url, pk=item)
+            value = item.url
         elif item_type == "domain":
-            item = get_object_or_404(Ioc, pk=item)
+            item = get_object_or_404(Domain, pk=item)
             value = item.domain
         elif item_type == "ip":
-            item = get_object_or_404(Ioc, pk=item)
+            item = get_object_or_404(Ip, pk=item)
             value = item.ip
         else:
             raise Http404("404")

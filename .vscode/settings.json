@@ -1,7 +1,5 @@
 {
     "peacock.color": "#42b883",
-    "python.linting.pylintEnabled": false,
-    "python.linting.flake8Enabled": true,
     "python.linting.enabled": true,
     "python.linting.mypyEnabled": false,
     "workbench.colorCustomizations": {
