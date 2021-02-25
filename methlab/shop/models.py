@@ -204,6 +204,13 @@ class Domain(models.Model):
     reports = GenericRelation(Report, related_name="ips")
     tags = TaggableManager(through=CustomTag)
 
+    @property
+    def is_whitelisted(self):
+        return (
+            Whitelist.objects.filter(Q(type="domain") & Q(value=self.domain)).count()
+            > 0
+        )
+
     def __str__(self):
         return self.domain
 
