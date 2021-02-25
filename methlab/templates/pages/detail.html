@@ -24,10 +24,10 @@
   const received_editor = new JSONEditor(received_cont, options)
   received_editor.set({{ mail.received | safe }})
   {% endif %}
-  {% if mail.header %}
+  {% if mail.headers %}
   const header_cont = document.getElementById("js_header")
   const header_editor = new JSONEditor(header_cont, options)
-  header_editor.set({{ mail.header | safe }})
+  header_editor.set({{ mail.headers | safe }})
   {% endif %}
 
   // MAPPA
@@ -173,14 +173,16 @@
           <a class="nav-link active" id="info-tab" data-bs-toggle="tab" href="#info" role="tab" aria-controls="info"
             aria-selected="true">Mail Info</a>
         </li>
+        {% if mail.dmark or mail.dkim != "False" or mail.arc or mail.spf %}
         <li class="nav-item" role="presentation">
           <a class="nav-link" id="checks-tab" data-bs-toggle="tab" href="#checks" role="tab" aria-controls="checks"
             aria-selected="true">Checks</a>
         </li>
-        {% if mail.header %}
+        {% endif %}
+        {% if mail.headers %}
         <li class="nav-item" role="presentation">
           <a class="nav-link" id="header-tab" data-bs-toggle="tab" href="#header" role="tab" aria-controls="header"
-            aria-selected="false">Header</a>
+            aria-selected="false">Headers</a>
         </li>
         {% endif %}
         <li class="nav-item" role="presentation">
@@ -229,7 +231,7 @@
           <div style="padding: 20px;">
             <dl class="row">
               <dt class="col-sm-3">Subject <a href="{% url 'search' 'subject' mail.slug_subject %}"
-                  class="similar">🔎</a>:</dt>
+                  class="similarbtn btn-sm btn-primary"><i class="fas fa-search"></i></a>:</dt>
               <dd class="col-sm-9">{{mail.subject}}</dd>
               <dt class="col-sm-3">Message-id:</dt>
               <dd class="col-sm-9">{{mail.message_id}}</dd>
@@ -283,6 +285,7 @@
         </div>
 
         <!-- CHECKS -->
+        {% if mail.dmark or mail.dkim != "False" or mail.arc or mail.spf %}
         <div class="tab-pane fade show" id="checks" role="tabpanel" aria-labelledby="checks-tab">
           <div style="padding: 20px">
             <dl class="row">
@@ -305,14 +308,10 @@
               <dt class="col-sm-3">SPF Check:</dt>
               <dd class="col-sm-9">{{mail.spf}}</dd>
               {% endif %}
-
-              {% if mail.dig %}
-              <dt class="col-sm-3">Dig Check:</dt>
-              <dd class="col-sm-9">{{mail.dig}}</dd>
-              {% endif %}
             </dl>
           </div>
         </div>
+        {% endif %}
 
         <!--- RECEIVED -->
         {% if mail.received %}
@@ -324,7 +323,7 @@
         {% endif %}
 
         <!--- HEADER -->
-        {% if mail.header %}
+        {% if mail.headers %}
         <div class="tab-pane fade show" id="header" role="tabpanel" aria-labelledby="header-tab">
           <div style="padding: 20px;">
             <div id="js_header" style="width: 100%; height: 400px;"></div>
@@ -394,7 +393,7 @@
         <div class="tab-pane fade show" id="addresses" role="tabpanel" aria-labelledby="addresses-tab">
           <div style="padding: 20px;">
             <dl class="row">
-              <dt class="col-sm-3">From <a href="{% url 'search' 'mail' mail.sender.address %}" class="similar">🔎</a>:
+              <dt class="col-sm-3">From <a href="{% url 'search' 'mail' mail.sender.address %}" class="similar btn btn-sm btn-primary"><i class="fas fa-search"></i></a>:
               </dt>
               <dd class="col-sm-9">
                 {% for address in mail.mail_addresses_set.all %}
