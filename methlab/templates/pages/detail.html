@@ -335,39 +335,58 @@
         <!--- BODY -->
         <div class="tab-pane fade show" id="body" role="tabpanel" aria-labelledby="body-tab">
           <div style="padding: 20px;">
+            <ul class="nav nav-tabs" id="myTab" role="tablist">
             {% if mail.text_plain %}
-            <div class="row">
-              <h4>Text Plain</h4>
-              <hr>
-              {% for text in mail.text_plain %}
-              <p class="col-sm-12">
-              <pre><code>{{text}}</code></pre>
-              </p>
-              {% endfor %}
-            </div>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="text_plain" data-bs-toggle="tab" data-bs-target="#plain" type="button" role="tab" aria-controls="plain" aria-selected="true">
+                  Plain Text
+                </button>
+              </li>
             {% endif %}
             {% if mail.text_html %}
-            <div class="row">
-              <h4>Text Html</h4>
-              <hr />
-              {% for text in mail.text_html %}
-              <p class="col-sm-12">
-              <pre><code>{{text}}</code></pre>
-              </p>
-              {% endfor %}
-            </div>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="text_html" data-bs-toggle="tab" data-bs-target="#html" type="button" role="tab" aria-controls="html" aria-selected="false">
+                  Html Text
+                </button>
+              </li>
             {% endif %}
             {% if mail.text_not_managed %}
-            <div class="row">
-              <h4>Text Not Managed</h4>
-              <hr />
-              {% for text in mail.text_not_managed %}
-              <p class="col-sm-12">
-              <pre><code>{{text}}</code></pre>
-              </p>
-              {% endfor %}
-            </div>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="text_error" data-bs-toggle="tab" data-bs-target="#error" type="button" role="tab" aria-controls="error" aria-selected="false">
+                  Text Not Managed
+                </button>
+              </li>
             {% endif %}
+            </ul>
+            <div class="tab-content" id="myTabContent">
+              {% if mail.text_plain %}
+              <div class="tab-pane fade show active" id="plain" role="tabpanel" aria-labelledby="plain-tab">
+                {% for text in mail.text_plain %}
+                <p class="col-sm-12">
+                <pre><code>{{text}}</code></pre>
+                </p>
+                {% endfor %}
+              </div>
+              {% endif %}
+              {% if mail.text_html %}
+              <div class="tab-pane fade" id="html" role="tabpanel" aria-labelledby="html-tab">
+                {% for text in mail.text_html %}
+                <p class="col-sm-12">
+                <pre><code>{{text}}</code></pre>
+                </p>
+                {% endfor %}
+              </div>
+              {% endif %}
+              {% if mail.text_not_managed %}
+              <div class="tab-pane fade" id="error" role="tabpanel" aria-labelledby="error-tab">
+                {% for text in mail.text_not_managed %}
+                <p class="col-sm-12">
+                <pre><code>{{text}}</code></pre>
+                </p>
+                {% endfor %}
+              </div>
+              {% endif %}
+            </div>
           </div>
         </div>
 
