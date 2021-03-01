@@ -1,7 +1,5 @@
 import django_tables2 as tables
-from django.urls import reverse
 from django.utils.html import format_html_join, format_html
-from django.utils.safestring import mark_safe
 from django_tables2.utils import A
 from methlab.shop.models import Mail, Address
 
@@ -57,6 +55,8 @@ class LatestMailTable(tables.Table):
     count_attachments = tables.Column(orderable=False, verbose_name="Attachments")
     count_iocs = tables.Column(orderable=False, verbose_name="Iocs")
     tags = tables.Column(orderable=False)
+    sender = tables.Column(orderable=False)
+    receivers = tables.Column(orderable=False)
     progress = tables.Column(orderable=False, verbose_name="Status")
 
     class Meta:
@@ -66,13 +66,15 @@ class LatestMailTable(tables.Table):
             "progress",
             "submission_date",
             "short_subject",
-            "official_response",
-            "assignee",
+            "sender",
+            "receivers",
             "tags",
             "count_attachments",
             "count_iocs",
             "link",
             "search",
+            "official_response",
+            "assignee",
         )
 
 

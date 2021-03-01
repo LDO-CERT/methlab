@@ -72,6 +72,7 @@ class MethMail:
         - mail_filepath: phisycal path of the mail
         - parent_id: parent id of the mail if processed mail was an attachment
         """
+        self.id = None
         self.msg = msg
         self.info = info
         self.cortex_api = cortex_api
@@ -376,13 +377,13 @@ class MethMail:
                 )
 
             self.db_mail = Mail.objects.create(
-                parent=None if not self.parent_id else Mail(self.parent_id),
+                parent=None
+                if not self.parent_id
+                else Mail.objects.get(pk=self.parent_id),
                 message_id=self.msg.message_id,
                 subject=self.msg.subject,
                 date=date,
-                submission_date=date
-                if not self.parent_id
-                else Mail(self.parent_id).date,
+                submission_date=timezone.now(),
                 received=self.msg.received,
                 headers=self.msg.headers,
                 text_plain=self.msg.text_plain,
@@ -400,6 +401,8 @@ class MethMail:
                 # this is an .eml if parent is None otherwhise is the parent attachment folder
                 eml_path=self.mail_filepath,
             )
+
+            self.id = self.db_mail.pk
 
             # ADD ADDRESSES TO MAIL, CHECK IF HONEYPOT OR SECINC
             for addr_item, addr_type in addresses_list:
@@ -584,6 +587,7 @@ class MethMail:
                 info=self.info,
                 cortex_api=self.cortex_api,
                 mail_filepath=filepath,
+                parent_id=self.id,
             )
             internal_methmail.process_mail()
 

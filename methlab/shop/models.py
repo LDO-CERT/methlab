@@ -258,7 +258,6 @@ class MailManager(models.Manager):
         )
 
     def search(self, search_text):
-        # Multiple language will be available in 3.1
         search_vectors = (
             SearchVector("text_plain", weight="A", config="english")
             + SearchVector("text_html", weight="A", config="english")
@@ -266,15 +265,13 @@ class MailManager(models.Manager):
         )
         search_query = SearchQuery(search_text)
         search_rank = SearchRank(search_vectors, search_query)
-        text_plain_tr_sim = TrigramSimilarity("text_plain", search_text)
-        text_html_tr_sim = TrigramSimilarity("text_html", search_text)
         subject_tr_si = TrigramSimilarity("subject", search_text)
         qs = (
             self.get_queryset()
             .filter(search_vector=search_query)
             .annotate(
                 rank=search_rank,
-                similarity=subject_tr_si,  # + text_html_tr_sim + text_plain_tr_sim,
+                similarity=subject_tr_si,
             )
             .order_by("-rank")
         )
@@ -372,6 +369,16 @@ class Mail(models.Model):
     def sender(self):
         return next(
             iter([x for x in self.mail_addresses_set.all() if x.field == "from"]), None
+        )
+
+    @property
+    def receivers(self):
+        return ", ".join(
+            [
+                x.address.address
+                for x in self.mail_addresses_set.all()
+                if x.field == "to"
+            ]
         )
 
     @property
