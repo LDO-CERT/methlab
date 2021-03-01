@@ -268,6 +268,7 @@ def process_mail(content):
 
     # Errors must be raise
     if not subtasks["ignore"] and subtasks["error"]:
+        logging.error(subtasks["error"])
         raise Exception(subtasks["error"])
 
     # ignored are ok

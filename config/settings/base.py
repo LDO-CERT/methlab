@@ -215,14 +215,14 @@ LOGGING = {
             "formatter": "verbose",
         },
         "celery": {
-            "level": "WARNING",
+            "level": "ERROR",
             "class": "logging.handlers.RotatingFileHandler",
             "filename": "celery.log",
             "formatter": "verbose",
             "maxBytes": 1024 * 1024 * 10,
         },
     },
-    "root": {"level": "ERROR", "handlers": ["console", "celery"]},
+    "root": {"level": "DEBUG", "handlers": ["console", "celery"]},
 }
 
 # CELERY

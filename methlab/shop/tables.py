@@ -55,8 +55,6 @@ class LatestMailTable(tables.Table):
     count_attachments = tables.Column(orderable=False, verbose_name="Attachments")
     count_iocs = tables.Column(orderable=False, verbose_name="Iocs")
     tags = tables.Column(orderable=False)
-    sender = tables.Column(orderable=False)
-    receivers = tables.Column(orderable=False)
     progress = tables.Column(orderable=False, verbose_name="Status")
 
     class Meta:
@@ -66,8 +64,6 @@ class LatestMailTable(tables.Table):
             "progress",
             "submission_date",
             "short_subject",
-            "sender",
-            "receivers",
             "tags",
             "count_attachments",
             "count_iocs",

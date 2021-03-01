@@ -326,7 +326,7 @@ class Mail(models.Model):
     geom = PointField(blank=True, null=True)
 
     dmark = models.TextField(blank=True, null=True)
-    dkim = models.TextField(blank=True, default=True)
+    dkim = models.TextField(blank=True, null=True)
     spf = models.TextField(blank=True, null=True)
     arc = models.JSONField(blank=True, null=True)
 
