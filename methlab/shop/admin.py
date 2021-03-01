@@ -185,16 +185,11 @@ class MailAdmin(LeafletGeoAdmin, DynamicArrayMixin):
     inlines = [AttachmentInline, AddressesInline, UrlsInline, IpsInline]
     list_display = (
         "submission_date",
-        "date",
         "short_id",
         "short_subject",
         "count_attachments",
         "count_iocs",
         "tag_list",
-        "spf",
-        "dmark",
-        "arc",
-        "dkim",
     )
     list_filter = ("submission_date", "official_response", "progress")
     search_fields = ["subject"]
@@ -233,7 +228,7 @@ class IpAdmin(admin.ModelAdmin, DynamicArrayMixin):
 
     add_to_wl.short_description = "Add selected ips to whitelist"
 
-    list_display = ("ip", "whois")
+    list_display = ("ip", "whois", "is_whitelisted")
     inlines = [ReportInline]
     search_fields = ["ip"]
 
@@ -251,7 +246,8 @@ class UrlAdmin(admin.ModelAdmin, DynamicArrayMixin):
 
     add_to_wl.short_description = "Add selected urls to whitelist"
 
-    list_display = ("url", "domain")
+    list_display = ("url", "domain", "is_whitelisted")
+    list_filter = ("domain__domain",)
     inlines = [ReportInline]
     search_fields = ["url", "domain__domain"]
 
@@ -269,7 +265,7 @@ class DomainAdmin(admin.ModelAdmin, DynamicArrayMixin):
 
     add_to_wl.short_description = "Add selected domains to whitelist"
 
-    list_display = ("domain", "whois")
+    list_display = ("domain", "whois", "is_whitelisted")
     inlines = [ReportInline]
     search_fields = ["domain"]
 

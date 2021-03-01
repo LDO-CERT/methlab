@@ -222,7 +222,7 @@ LOGGING = {
             "maxBytes": 1024 * 1024 * 10,
         },
     },
-    "root": {"level": "INFO", "handlers": ["console", "celery"]},
+    "root": {"level": "ERROR", "handlers": ["console", "celery"]},
 }
 
 # CELERY

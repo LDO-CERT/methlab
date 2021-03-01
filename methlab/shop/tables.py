@@ -115,7 +115,7 @@ class IpTable(tables.Table):
 
     total = tables.Column(verbose_name="Total")
     ips__ip = tables.Column(verbose_name="Ip")
-    ips__tags = tables.Column(orderable=False, verbose_name="Tags")
+    tags = tables.Column(orderable=False)
     search = tables.LinkColumn(
         "search",
         text=format_html("<i class='fas fa-search'></i>"),
@@ -126,7 +126,7 @@ class IpTable(tables.Table):
     class Meta:
         model = Mail
         template_name = "django_tables2/bootstrap4.html"
-        fields = ("ips__ip", "total", "ips__tags", "search")
+        fields = ("ips__ip", "total", "tags", "search")
 
 
 class UrlTable(tables.Table):
@@ -138,6 +138,12 @@ class UrlTable(tables.Table):
         )
         return html
 
+    def render_urls__url(self, value, record):
+        if len(value) > 50:
+            return format_html("<a title='{}'>{} ...</a>".format(value, value[:50]))
+        else:
+            return value
+
     search = tables.LinkColumn(
         "search",
         text=format_html("<i class='fas fa-search'></i>"),
@@ -146,12 +152,12 @@ class UrlTable(tables.Table):
     )
     total = tables.Column(verbose_name="Total")
     urls__url = tables.Column(verbose_name="Url")
-    urls__tags = tables.Column(orderable=False, verbose_name="Tags")
+    tags = tables.Column(orderable=False)
 
     class Meta:
         model = Mail
         template_name = "django_tables2/bootstrap4.html"
-        fields = ("urls__url", "total", "urls__tags", "search")
+        fields = ("urls__url", "total", "tags", "search")
 
 
 class DomainTable(tables.Table):
@@ -165,7 +171,7 @@ class DomainTable(tables.Table):
 
     total = tables.Column(verbose_name="Total")
     urls__domain__domain = tables.Column(verbose_name="Domain")
-    urls__domain__tags = tables.Column(orderable=False, verbose_name="Tags")
+    tags = tables.Column(orderable=False)
     search = tables.LinkColumn(
         "search",
         text=format_html("<i class='fas fa-search'></i>"),
@@ -176,7 +182,7 @@ class DomainTable(tables.Table):
     class Meta:
         model = Mail
         template_name = "django_tables2/bootstrap4.html"
-        fields = ("urls__domain__domain", "total", "urls__domain__tags", "search")
+        fields = ("urls__domain__domain", "total", "tags", "search")
 
 
 class AddressTable(tables.Table):

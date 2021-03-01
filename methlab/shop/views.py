@@ -171,6 +171,7 @@ def stats(request):
     urls = (
         Mail.external_objects.exclude(urls__url__isnull=True)
         .exclude(urls__url__in=url_wl)
+        .exclude(urls__domain__domain__in=domain_wl)
         .values("urls__url", "urls__tags", "urls__domain__domain")
         .annotate(total=Count("urls"))
         .order_by(u_sort_by)
@@ -222,14 +223,15 @@ def mail_detail(request, pk):
 def search(request, method=None, search_object=None):
     if search_object:
         query = None
+        mails = []
         if method == "mail":
             query = "[MAIL] {}".format(search_object)
-            mails = []
             for address in Address.objects.filter(
                 mail_addresses__field="from", address=search_object
             ).distinct():
                 for mail in address.addresses(manager="external_objects").all():
                     mails.append(mail)
+
         elif method == "subject":
             query = "[SUBJECT] {}".format(search_object)
             mails = (
@@ -239,29 +241,29 @@ def search(request, method=None, search_object=None):
                 .filter(similarity__gt=0.3)
                 .order_by("-similarity")
             )
+
         elif method == "attachment":
             query = "[SHA256] {}".format(search_object)
-            mails = []
             for attachment in Attachment.objects.filter(
                 sha256=search_object
             ).distinct():
                 for mail in attachment.attachments(manager="external_objects").all():
                     mails.append(mail)
+
         elif method == "ip":
             query = "[ip] {}".format(search_object)
-            mails = []
             for ioc in Ip.objects.filter(ip=search_object).distinct():
                 for mail in ioc.ips(manager="external_objects").all():
                     mails.append(mail)
+
         elif method == "url":
             query = "[url] {}".format(search_object)
-            mails = []
             for ioc in Url.objects.filter(url=search_object).distinct():
                 for mail in ioc.urls(manager="external_objects").all():
                     mails.append(mail)
+
         elif method == "domain":
             query = "[domain] {}".format(search_object)
-            mails = []
             for ioc in Domain.objects.filter(domain=search_object).distinct():
                 for url in ioc.url_set.all():
                     for mail in url.urls(manager="external_objects").all():
@@ -269,9 +271,11 @@ def search(request, method=None, search_object=None):
                             mails.append(mail)
         else:
             raise Http404("404")
+
     else:
         query = request.POST["query"]
         mails = Mail.external_objects.search(query)
+
     table = LatestMailTable(mails)
     table.paginate(page=request.GET.get("page", 1), per_page=25)
     return render(request, "pages/search.html", {"table": table, "query": query})
