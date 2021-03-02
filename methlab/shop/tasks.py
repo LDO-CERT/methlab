@@ -11,13 +11,13 @@ from imaplib import IMAP4
 
 from config import celery_app
 from glom import glom, PathAccessError
+from tld.utils import update_tld_names
+
 
 from cortex4py.api import Api
 
 from django.core.exceptions import ObjectDoesNotExist
-
 from django.contrib.contenttypes.models import ContentType
-
 from methlab.shop.models import (
     InternalInfo,
     Analyzer,
@@ -307,3 +307,11 @@ def check_mails():
             )
 
     return "{} mails found".format(len(data_list))
+
+
+@celery_app.task(name="update_tld")
+def update_tld():
+    """
+    Update tld
+    """
+    update_tld_names()

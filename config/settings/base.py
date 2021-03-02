@@ -242,6 +242,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "check_mails",
         "schedule": crontab(minute="*/5"),
     },
+    "update_tld": {
+        "task": "update_tld",
+        "schedule": crontab(hour=19),
+    },
 }
 CELERY_TASK_EAGER_PROPAGATES = True
 
