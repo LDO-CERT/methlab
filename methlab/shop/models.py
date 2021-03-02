@@ -227,7 +227,7 @@ class Ip(models.Model):
 
 
 class Url(models.Model):
-    url = models.CharField(max_length=1000)
+    url = models.CharField(max_length=2000)
     domain = models.ForeignKey(Domain, on_delete=models.CASCADE, null=True, blank=True)
 
     reports = GenericRelation(Report, related_name="urls")

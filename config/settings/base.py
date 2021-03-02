@@ -18,7 +18,7 @@ if READ_DOT_ENV_FILE:
 
 # GENERAL
 # ------------------------------------------------------------------------------
-DEBUG = env.bool("DJANGO_DEBUG", False)
+DEBUG = env.bool("DEBUG", True)
 
 SECRET_KEY = env(
     "DJANGO_SECRET_KEY",
