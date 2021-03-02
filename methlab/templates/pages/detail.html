@@ -285,7 +285,7 @@
         </div>
 
         <!-- CHECKS -->
-        {% if mail.dmark or mail.dkim != "False" or mail.arc or mail.spf %}
+        {% if mail.dmark or mail.dkim != "False" or mail.arc.message or mail.spf %}
         <div class="tab-pane fade show" id="checks" role="tabpanel" aria-labelledby="checks-tab">
           <div style="padding: 20px">
             <dl class="row">
@@ -299,7 +299,7 @@
               <dd class="col-sm-9">{{mail.dkim}}</dd>
               {% endif %}
 
-              {% if mail.arc %}
+              {% if mail.arc.message %}
               <dt class="col-sm-3">Arc Check:</dt>
               <dd class="col-sm-9">[{{mail.arc.success}}] {{ mail.arc.message}}</dd>
               {% endif %}
@@ -520,18 +520,20 @@
                       {% if ioc.is_whitelisted %}
                       -
                       {% else %}
-                        {% if ioc.whois.asn %}
+                        {% if ioc.whois.status and ioc.whois.domain_name %}
                           <dl class="row">
-                            <dt class="col-sm-3">Asn:</dt>
-                            <dd class="col-sm-9">{{ioc.whois.asn}}</dd>
-                            <dt class="col-sm-3">Asn description:</dt>
-                            <dd class="col-sm-9">{{ioc.whois.asn_description}}</dd>
-                            <dt class="col-sm-3">Asn Country Code:</dt>
-                            <dd class="col-sm-9">{{ioc.whois.asn_country_code}}</dd>
-                            <dt class="col-sm-3">Asn Cidr:</dt>
-                            <dd class="col-sm-9">{{ioc.whois.asn_cidr}}</dd>
-                            <dt class="col-sm-3">Asn Date:</dt>
-                            <dd class="col-sm-9">{{ioc.whois.asn_date}}</dd>
+                            <dt class="col-sm-3">Name:</dt>
+                            <dd class="col-sm-9">{{ioc.whois.domain_name}}</dd>
+                            <dt class="col-sm-3">Name Servers:</dt>
+                            <dd class="col-sm-9">{{ioc.whois.name_servers|join:"<br />"}}</dd>
+                            <dt class="col-sm-3">Status:</dt>
+                            <dd class="col-sm-9">{{ioc.whois.status|join:"<br />"}}</dd>
+                            <dt class="col-sm-3">Registrar:</dt>
+                            <dd class="col-sm-9">{{ioc.whois.registrar}}</dd>
+                            <dt class="col-sm-3">Creation Date:</dt>
+                            <dd class="col-sm-9">{{ioc.whois.created}}</dd>
+                            <dt class="col-sm-3">Expiration Date:</dt>
+                            <dd class="col-sm-9">{{ioc.whois.expires}}</dd>
                           </dl>
                         {% else %}
                           -
@@ -604,23 +606,23 @@
                       {% if ioc.is_whitelisted %}
                         -
                       {% else %}
-                        {% if ioc.domain.whois.name and ioc.domain.whois.status %}
+                        {% if ioc.domain.whois.domain_name and ioc.domain.whois.status %}
                           <dl class="row">
                             <dt class="col-sm-3">Name:</dt>
-                            <dd class="col-sm-9">{{ioc.domain.whois.name}}</dd>
+                            <dd class="col-sm-9">{{ioc.domain.whois.domain_name}}</dd>
                             <dt class="col-sm-3">Name Servers:</dt>
                             <dd class="col-sm-9">{{ioc.domain.whois.name_servers|join:"<br />"}}</dd>
                             <dt class="col-sm-3">Status:</dt>
-                            <dd class="col-sm-9">{{ioc.domain.whois.status}}</dd>
+			    <dd class="col-sm-9">{{ioc.domain.whois.status|join:"<br />"}}</dd>
                             <dt class="col-sm-3">Registrar:</dt>
                             <dd class="col-sm-9">{{ioc.domain.whois.registrar}}</dd>
                             <dt class="col-sm-3">Creation Date:</dt>
-                            <dd class="col-sm-9">{{ioc.domain.whois.creation_date}}</dd>
+                            <dd class="col-sm-9">{{ioc.domain.whois.created}}</dd>
                             <dt class="col-sm-3">Expiration Date:</dt>
-                            <dd class="col-sm-9">{{ioc.domain.whois.expiration_date}}</dd>
+                            <dd class="col-sm-9">{{ioc.domain.whois.expires}}</dd>
                           </dl>
                         {% else %}
-                        -
+			  - 
                         {% endif %}
                       {% endif %}
                     </td>

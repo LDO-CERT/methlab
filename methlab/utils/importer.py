@@ -14,6 +14,7 @@ import logging
 
 from django.db import transaction
 from django.utils import timezone
+from django.core.serializers.json import DjangoJSONEncoder
 
 from zipfile import ZipFile, is_zipfile
 
@@ -185,8 +186,14 @@ class MethMail:
             self.tasks.append((ip_value, "ip", ip.pk, False))
 
         for item, value in whois_list:
-            item.whois = asyncwhois.lookup(value).parser_output
-            item.save()
+            try:
+                item.whois = json.loads(json.dumps(
+                    asyncwhois.lookup(value).parser_output, 
+                    cls=DjangoJSONEncoder
+                ))
+                item.save()
+            except Exception as e:
+                logging.error("WHOIS ERROR {}".format(e))
 
     def store_info(self):
         """Clean mail fields and create item in db"""
