@@ -90,10 +90,8 @@ compressed_rtf==1.0.6
 dnspython==2.0.0
 # https://github.com/tomas-net/ip2geotools
 ip2geotools==0.1.5
-# https://github.com/DannyCork/python-whois/
-whois==0.9.7
-# https://github.com/secynic/ipwhois
-ipwhois==1.2.0
+# https://github.com/pogzyb/asyncwhois
+asyncwhois==0.3.0
 # https://github.com/ahupp/python-magic
 python-magic==0.4.22
 # https://github.com/domainaware/checkdmarc
