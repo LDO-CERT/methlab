@@ -173,6 +173,7 @@ class MailAdmin(LeafletGeoAdmin, DynamicArrayMixin):
         "search_vector",
         "attachments_path",
         "eml_path",
+        "geom",
     )
 
     def get_queryset(self, request):

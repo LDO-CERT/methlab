@@ -177,6 +177,12 @@ def check_cortex(ioc, ioc_type, object_id, is_mail=False):
                         tag_kwargs={"color": "#00FF00"},
                     )
 
+                elif "info" in report.taxonomies:
+                    db_object.tags.add(
+                        "{}: info".format(analyzer.name),
+                        tag_kwargs={"color": "#00B0FF"},
+                    )
+
                 continue
 
         # If not rerun the analyzer
@@ -225,6 +231,13 @@ def check_cortex(ioc, ioc_type, object_id, is_mail=False):
                         "{}: safe".format(analyzer.name),
                         tag_kwargs={"color": "#00FF00"},
                     )
+
+                elif "info" in taxonomies:
+                    db_object.tags.add(
+                        "{}: info".format(analyzer.name),
+                        tag_kwargs={"color": "#00B0FF"},
+                    )
+
 
             elif job.status == "Failure":
                 report = Report(

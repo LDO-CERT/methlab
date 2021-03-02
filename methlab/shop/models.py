@@ -161,7 +161,7 @@ class Attachment(models.Model):
     sha256 = models.CharField(max_length=64, blank=True, null=True, unique=True)
 
     reports = GenericRelation(Report, related_name="attachments")
-    tags = TaggableManager(through=CustomTag)
+    tags = TaggableManager(through=CustomTag, blank=True)
 
     @property
     def is_whitelisted(self):
@@ -188,7 +188,7 @@ class Address(models.Model):
     mx_check = models.TextField(blank=True, null=True)
 
     reports = GenericRelation(Report, related_name="addresses")
-    tags = TaggableManager(through=CustomTag)
+    tags = TaggableManager(through=CustomTag, blank=True)
 
     class Meta:
         verbose_name_plural = "addresses"
@@ -202,7 +202,7 @@ class Domain(models.Model):
     whois = models.JSONField(blank=True, null=True)
     dig = models.TextField(blank=True, null=True)
     reports = GenericRelation(Report, related_name="ips")
-    tags = TaggableManager(through=CustomTag)
+    tags = TaggableManager(through=CustomTag, blank=True)
 
     @property
     def is_whitelisted(self):
@@ -219,7 +219,7 @@ class Ip(models.Model):
     ip = models.GenericIPAddressField()
     whois = models.JSONField(blank=True, null=True)
     reports = GenericRelation(Report, related_name="ips")
-    tags = TaggableManager(through=CustomTag)
+    tags = TaggableManager(through=CustomTag, blank=True)
 
     @property
     def is_whitelisted(self):
@@ -231,7 +231,7 @@ class Url(models.Model):
     domain = models.ForeignKey(Domain, on_delete=models.CASCADE, null=True, blank=True)
 
     reports = GenericRelation(Report, related_name="urls")
-    tags = TaggableManager(through=CustomTag)
+    tags = TaggableManager(through=CustomTag, blank=True)
 
     @property
     def is_whitelisted(self):
@@ -336,7 +336,7 @@ class Mail(models.Model):
     attachments = models.ManyToManyField(Attachment, related_name="attachments")
 
     # TAGS
-    tags = TaggableManager(through=CustomTag)
+    tags = TaggableManager(through=CustomTag, blank=True)
 
     # STORAGE INFO
     eml_path = models.CharField(max_length=500, blank=True, null=True)

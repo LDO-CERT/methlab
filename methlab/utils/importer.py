@@ -129,6 +129,9 @@ class MethMail:
 
             self.process_attachment(filepath, mess_att)
 
+        logging.warning("RETURNING LIST OF TASKS {}: {} {}".format(
+            self.db_mail.pk, len(self.tasks), ",".join([x[1] for x in self.tasks])
+        ))
         return {
             "tasks": self.tasks,
             "ignore": False,
@@ -306,13 +309,13 @@ class MethMail:
                     success = True
                 elif success in [dkim.CV_Fail, dkim.CV_None]:
                     success = False
-                arc_info = json.dumps(
+                arc_info = json.loads(json.dumps(
                     {
                         "success": success,
                         "info": info,
                         "message": arc_message,
                     }
-                )
+                ))
             except Exception as e:
                 logging.error("ARC ERROR {}".format(e))
 
