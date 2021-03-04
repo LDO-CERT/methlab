@@ -21,14 +21,14 @@ class MailTable(tables.Table):
 
 
 class LatestMailTable(tables.Table):
-    def render_progress(self, value, record):
+    def render_progress(self, value):
         if value != "done":
             html = format_html("""<span class='badge bg-danger'>{}</span>""", value)
         else:
             html = format_html("""<span class='badge bg-success'>{}</span>""", value)
         return html
 
-    def render_tags(self, value, record):
+    def render_tags(self, value):
         html = format_html_join(
             "\n",
             """<span class='badge' style='background-color:{}'>{}</span>""",

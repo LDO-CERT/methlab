@@ -7,14 +7,10 @@ from django.template.defaultfilters import truncatechars
 from django.utils.translation import ugettext_lazy as _
 from django.utils.text import slugify
 
-
 # CUSTOM FIELDS
 from djgeojson.fields import PointField
 from colorfield.fields import ColorField
-
-# from django.contrib.postgres.fields import ArrayField
 from django_better_admin_arrayfield.models.fields import ArrayField
-
 
 # TAGS
 from taggit.managers import TaggableManager
@@ -56,7 +52,6 @@ class InternalInfo(models.Model):
     misp_url = models.CharField(max_length=200, blank=True, null=True)
     misp_api = models.CharField(max_length=200, blank=True, null=True)
 
-    server_list = ArrayField(models.CharField(max_length=100), blank=True, null=True)
     vip_list = ArrayField(models.CharField(max_length=100), blank=True, null=True)
     vip_domain = models.CharField(max_length=200)
 
@@ -288,7 +283,6 @@ class Mail(models.Model):
 
     # WORKFLOW
     progress = models.PositiveIntegerField(choices=PROGRESS, default=0)
-    suggested_response = models.PositiveIntegerField(choices=RESPONSE, default=0)
     official_response = models.PositiveIntegerField(choices=RESPONSE, default=0)
     assignee = models.ForeignKey(
         get_user_model(), on_delete=models.CASCADE, null=True, blank=True
@@ -367,9 +361,7 @@ class Mail(models.Model):
 
     @property
     def sender(self):
-        sender = next(
-            iter([x for x in self.mail_addresses_set.all() if x.field == "from"]), None
-        )
+        sender = next(iter(self.mail_addresses_set.from_addresses()), None)
         if sender:
             flags = Flag.objects.all()
             suspicious_tags = [x for x in flags if x.name.find("suspicious") != -1]
@@ -377,7 +369,7 @@ class Mail(models.Model):
             return [
                 sender.address.tags.filter(name__in=suspicious_tags).count(),
                 sender.address.tags.filter(name__in=malicious_tags).count(),
-                sender.address.address,
+                sender.address,
             ]
         return None
 
@@ -405,19 +397,19 @@ class Mail(models.Model):
 
     @property
     def tos(self):
-        return [x for x in self.mail_addresses_set.all() if x.field == "to"]
+        return self.mail_addresses_set.to_addresses()
 
     @property
     def ccs(self):
-        return [x for x in self.mail_addresses_set.all() if x.field == "cc"]
+        return self.mail_addresses_set.cc_addresses()
 
     @property
     def bccs(self):
-        return [x for x in self.mail_addresses_set.all() if x.field == "bcc"]
+        return self.mail_addresses_set.bcc_addresses()
 
     @property
     def reply(self):
-        return [x for x in self.mail_addresses_set.all() if x.field == "reply_to"]
+        return self.mail_addresses_set.reply_to_addresses()
 
     @property
     def short_id(self):
@@ -437,23 +429,57 @@ class Mail(models.Model):
 
     @property
     def list_iocs(self):
-        flags = Flag.objects.all()
-        suspicious_tags = [x for x in flags if x.name.find("suspicious") != -1]
-        malicious_tags = [x for x in flags if x.name.find("malicious") != -1]
         return [
-            self.ips.filter(tags__name__in=suspicious_tags).count(),
-            self.ips.filter(tags__name__in=malicious_tags).count(),
+            self.ips.filter(tags__name__icontains="suspicious").count(),
+            self.ips.filter(tags__name__icontains="malicious").count(),
             self.ips.count(),
-            self.urls.filter(tags__name__in=suspicious_tags).count(),
-            self.urls.filter(tags__name__in=malicious_tags).count(),
+            self.urls.filter(tags__name__icontains="suspicious").count(),
+            self.urls.filter(tags__name__icontains="malicious").count(),
             self.urls.count(),
-            self.attachments.filter(tags__name__in=suspicious_tags).count(),
-            self.attachments.filter(tags__name__in=malicious_tags).count(),
+            self.attachments.filter(tags__name__icontains="suspicious").count(),
+            self.attachments.filter(tags__name__icontains="malicious").count(),
             self.attachments.count(),
         ]
 
     def __str__(self):
         return truncatechars(self.subject, 80) if self.subject else ""
+
+
+class AddressQueryset(models.QuerySet):
+    def from_addresses(self):
+        return self.filter(field="from")
+
+    def to_addresses(self):
+        return self.filter(field="to")
+
+    def bcc_addresses(self):
+        return self.filter(field="bcc")
+
+    def cc_addresses(self):
+        return self.filter(field="cc")
+
+    def reply_to_addresses(self):
+        return self.filter(field="reply_to")
+
+
+class AddressManager(models.Manager):
+    def get_queryset(self):
+        return AddressQueryset(self.model, using=self._db)
+
+    def from_addresses(self):
+        return self.get_queryset().from_addresses()
+
+    def to_addresses(self):
+        return self.get_queryset().to_addresses()
+
+    def bcc_addresses(self):
+        return self.get_queryset().bcc_addresses()
+
+    def cc_addresses(self):
+        return self.get_queryset().cc_addresses()
+
+    def reply_to_addresses(self):
+        return self.get_queryset().reply_to_addresses()
 
 
 class Mail_Addresses(models.Model):
@@ -469,6 +495,7 @@ class Mail_Addresses(models.Model):
     mail = models.ForeignKey(Mail, on_delete=models.CASCADE)
     address = models.ForeignKey(Address, on_delete=models.CASCADE)
     field = models.CharField(max_length=10, choices=FIELDS)
+    objects = AddressManager()
 
     def __str__(self):
         return "{}".format(self.address.address)

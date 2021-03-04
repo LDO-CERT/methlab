@@ -35,12 +35,10 @@ from methlab.shop.tables import (
 
 def home(request):
     # COUNT MAIL
-    email_count = Mail.external_objects.count()
-    flags = Flag.objects.all()
-    suspicious_tags = [x for x in flags if x.name.find("suspicious") != -1]
-    suspicious = Mail.external_objects.filter(tags__name__in=suspicious_tags).count()
-    malicious_tags = [x for x in flags if x.name.find("malicious") != -1]
-    malicious = Mail.external_objects.filter(tags__name__in=malicious_tags).count()
+    emails = Mail.external_objects.all()
+    email_count = emails.count()
+    suspicious = emails.filter(tags__name__contains="suspicious").count()
+    malicious = emails.filter(tags__name__contains="malicious").count()
 
     qs = (
         Mail.external_objects.filter(
@@ -62,7 +60,15 @@ def home(request):
     # PAGINATE LATEST EMAIL
     table = LatestMailTable(
         Mail.external_objects.prefetch_related(
-            "addresses", "ips", "urls", "attachments", "tags"
+            "addresses",
+            "ips",
+            "urls",
+            "attachments",
+            "tags",
+            "addresses__tags",
+            "ips__tags",
+            "urls__tags",
+            "attachments__tags",
         ).order_by("-submission_date")[:250],
     )
     table.paginate(page=request.GET.get("page", 1), per_page=25)
@@ -206,7 +212,15 @@ def stats(request):
 def mail_detail(request, pk):
     mail = get_object_or_404(
         Mail.objects.prefetch_related(
-            "addresses", "ips", "urls", "attachments", "tags"
+            "addresses",
+            "ips",
+            "urls",
+            "attachments",
+            "tags",
+            "addresses__tags",
+            "ips__tags",
+            "urls__tags",
+            "attachments__tags",
         ),
         pk=pk,
     )

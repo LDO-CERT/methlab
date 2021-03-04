@@ -34,26 +34,28 @@
   {% if mail.geom %}
   function main_map_init(map, options) {
     L.geoJson({{ mail.geom | safe }}).addTo(map);
-      }
+  }
   {% endif %}
 
   // ADD TAG
   $(document).on('click', '#add_tag', function () {
     bootbox.prompt("Add tag to mail!", function (result) {
-      $.ajax({
-        url: "{% url 'tag' %}",
-        data: {
-          tag: result,
-          op: "ADD",
-          mail: {{ mail.pk }},
-      csrfmiddlewaretoken: $("input[name=csrfmiddlewaretoken").val()
-            },
-    method: 'post',
-    dataType: 'json',
-    success: function () {
-      $("#taglist").append(`<span class="badge" style="background-color: #30357B;">${result}</span>`)
-    },  
-      });
+      if(result !== null){
+        $.ajax({
+          url: "{% url 'tag' %}",
+          data: {
+            tag: result,
+            op: "ADD",
+            mail: {{ mail.pk }},
+            csrfmiddlewaretoken: $("input[name=csrfmiddlewaretoken").val()
+          },
+          method: 'post',
+          dataType: 'json',
+          success: function () {
+            $("#taglist").append(`<span class="badge" style="background-color: #30357B;">${result}</span>`)
+          },  
+        });
+      }
     });
   });
 
@@ -65,19 +67,19 @@
         data: {
           progress: 2,
           mail: {{ mail.pk }},
-      csrfmiddlewaretoken: $("input[name=csrfmiddlewaretoken").val()
+          csrfmiddlewaretoken: $("input[name=csrfmiddlewaretoken").val()
         },
-    method: 'post',
-    dataType: 'json',
-    success: function () {
-      $("#btn_close").parent().hide();
-      $.toast({
-        title: 'Operation succeeded!',
-        content: 'Mail has been set as closed!',
-        type: 'success',
-        delay: 5000
-      });
-    },  
+        method: 'post',
+        dataType: 'json',
+        success: function () {
+          $("#btn_close").parent().hide();
+          $.toast({
+            title: 'Operation succeeded!',
+            content: 'Mail has been set as closed!',
+            type: 'success',
+            delay: 5000
+          });
+        },  
       });
     });
   });
@@ -90,18 +92,18 @@
         data: {
           response: $('#change-response').val(),
           mail: {{ mail.pk }},
-      csrfmiddlewaretoken: $("input[name=csrfmiddlewaretoken").val()
+          csrfmiddlewaretoken: $("input[name=csrfmiddlewaretoken").val()
         },
-    method: 'post',
-    dataType: 'json',
-    success: function () {
-      $.toast({
-        title: 'Operation succeeded!',
-        content: 'Response has been set successfully.',
-        type: 'success',
-        delay: 5000
-      });
-    },  
+        method: 'post',
+        dataType: 'json',
+        success: function () {
+          $.toast({
+            title: 'Operation succeeded!',
+            content: 'Response has been set successfully.',
+            type: 'success',
+            delay: 5000
+          });
+        },  
       });
     });
   });
@@ -114,27 +116,25 @@
         data: {
           assignee: $('#change-assignee').val(),
           mail: {{ mail.pk }},
-      csrfmiddlewaretoken: $("input[name=csrfmiddlewaretoken").val()
+          csrfmiddlewaretoken: $("input[name=csrfmiddlewaretoken").val()
         },
-    method: 'post',
-    dataType: 'json',
-    success: function () {
-      $.toast({
-        title: 'Operation succeeded!',
-        content: 'Assignee has been set successfully.',
-        type: 'success',
-        delay: 5000
-      });
-    },  
+        method: 'post',
+        dataType: 'json',
+        success: function () {
+          $.toast({
+            title: 'Operation succeeded!',
+            content: 'Assignee has been set successfully.',
+            type: 'success',
+            delay: 5000
+          });
+        },  
       });
     });
   });
 
   // ADD TO WL
   $(document).on('click', '.btn-wl', function () {
-
     var selected_btn = $(this);
-
     bootbox.confirm("Confirm?", function (result) {
       $.ajax({
         url: "{% url 'whitelist' %}",
@@ -153,8 +153,6 @@
             type: 'success',
             delay: 5000
           });
-
-          // TODO: ADD OR REMOVE BADGE, CHANGE BUTTON
         },
       });
     });
@@ -395,39 +393,28 @@
             <dl class="row">
               <dt class="col-sm-3">
                 {% if mail.sender %}
-                From <a href="{% url 'search' 'mail' mail.sender.2 %}" class="similar btn btn-sm btn-primary"><i class="fas fa-search"></i></a>:
+                From <a href="{% url 'search' 'mail' mail.sender.2.address %}" class="similar btn btn-sm btn-primary"><i class="fas fa-search"></i></a>:
                 {% else %}
                 From:
                 {% endif %}
               </dt>
               <dd class="col-sm-9">
-                {% for address in mail.mail_addresses_set.all %}
-                  {% if address.field == 'from' %}
-                    {{address.address.address}}
-                    <br />
-                    [{{address.address.name|join:","}}]
-                  {% endif %}
-                {% endfor %}
+                {{ mail.sender.2.address }}
+                <br />
+                [{{mail.sender.2.name|join:", "}}]
               </dd>
               <dt class="col-sm-3">MX:</dt>
               <dd class="col-sm-9">
-                {% for address in mail.mail_addresses_set.all %}
-                  {% if address.field == 'from' %}
-                    {{address.address.mx_check}}
-                  {% endif %}
-                {% endfor %}
+                {{mail.sender.2.mx_check}}
               </dd>
               <hr />
               {% if mail.tos %}
                 <dt class="col-sm-3">To:</dt>
                 <dd class="col-sm-9">
-                  {% for address in mail.mail_addresses_set.all %}
-                    {% if address.field == 'to' %}
-                      {{address.address.address}}
-                      <br />
-                      [{{address.address.name|join:","}}]
-                      <br />
-                    {% endif %}
+                  {% for address in mail.tos %}
+                    {{address.address.address}}
+                    <br />
+                    [{{address.address.name|join:", "}}]
                   {% endfor %}
                 </dd>
                 <hr />
@@ -436,25 +423,20 @@
                 {% if mail.ccs %}
                   <dt class="col-sm-3">Cc:</dt>
                   <dd class="col-sm-9">
-                    {% for address in mail.mail_addresses_set.all %}
-                      {% if address.field == 'cc' %}
-                        {{address.address.address}}
-                        <br />
-                        [{{address.address.name|join:","}}]
-                        <br />
-                      {% endif %}
+                    {% for address in mail.ccs %}
+                      {{address.address.address}}
+                      <br />
+                      [{{address.address.name|join:", "}}]
                     {% endfor %}
                   </dd>
                 {% endif %}
                 {% if mail.bccs %}
                   <dt class="col-sm-3">Bcc:</dt>
                   <dd class="col-sm-9">
-                    {% for address in mail.mail_addresses_set.all %}
-                      {% if address.field == 'bcc' %}
-                        {{address.address.address}}
-                        <br />
-                        [{{address.address.name|join:","}}]
-                      {% endif %}
+                    {% for address in mail.bccs %}
+                      {{address.address.address}}
+                      <br />
+                      [{{address.address.name|join:", "}}]
                     {% endfor%}
                   </dd>
                 {% endif %}
@@ -463,12 +445,10 @@
               {% if mail.reply %}
                 <dt class="col-sm-3">Reply to:</dt>
                 <dd class="col-sm-9">
-                  {% for address in mail.mail_addresses_set.all %}
-                    {% if address.field == 'reply_to' %}
-                      {{address.address.address}}
-                      <br />
-                      [{{address.address.name|join:","}}]
-                    {% endif %}
+                  {% for address in mail.reply %}
+                    {{address.address.address}}
+                    <br />
+                    [{{address.address.name|join:", "}}]
                   {% endfor %}
                 </dd>
                 <hr />
@@ -506,7 +486,7 @@
                   <tr>
                     <td>Ip</td>
                     <td>Whois</td>
-                    <td>Report</td>
+                    <td>Tags</td>
                     <td>Whitelist</td>
                   </tr>
                 </thead>
@@ -550,13 +530,10 @@
                       {% if ioc.is_whitelisted %}
                       -
                       {% else %}
-                        {% if ioc.reports.all %}
-                        <dl class="row">
-                          {% for report in ioc.reports.all %}
-                          <dt class="col-sm-3">{{report.analyzer.name}}</dt>
-                          <dd class="col-sm-9">{{report.taxonomies|join:","}}</dd>
+                        {% if ioc.tags.all %}
+                          {% for tag in ioc.tags.all %}
+                            <span class='badge' style='background-color:{{tag.color}}'>{{tag.name}}</span>
                           {% endfor %}
-                        </dl>
                         {% else %}
                         -
                         {% endif %}
@@ -586,7 +563,7 @@
                   <tr>
                     <td>Url</td>
                     <td>Whois</td>
-                    <td>Report</td>
+                    <td>Tags</td>
                     <td>Whitelist Url</td>
                     <td>Domain</td>
                     <td>Whitelist Domain</td>
@@ -636,13 +613,10 @@
                       {% if ioc.is_whitelisted %}
                         -
                       {% else %}
-                        {% if ioc.reports.all %}
-                          <dl class="row">
-                            {% for report in ioc.reports.all %}
-                              <dt class="col-sm-3">{{report.analyzer.name}}</dt>
-                              <dd class="col-sm-9">{{report.taxonomies|join:","}}</dd>
-                            {% endfor %}
-                          </dl>
+                        {% if ioc.tags.all %}
+                          {% for tag in ioc.tags.all %}
+                            <span class='badge' style='background-color:{{tag.color}}'>{{tag.name}}</span>
+                          {% endfor %}
                         {% else %}
                           -
                         {% endif %}
@@ -694,7 +668,7 @@
               <thead>
                 <tr>
                   <td>Info</td>
-                  <td>Report</td>
+                  <td>Tags</td>
                   <td>Whitelist</td>
                 </tr>
               </thead>
@@ -712,13 +686,10 @@
                     </dl>
                   </td>
                   <td>
-                    {% if attachment.reports.all %}
-                    <dl class="row">
-                      {% for report in attachment.reports.all %}
-                      <dt class="col-sm-3">{{report.analyzer.name}}</dt>
-                      <dd class="col-sm-9">{{report.taxonomies}}</dd>
+                    {% if attachment.tags.all %}
+                      {% for tag in attachment.tags.all %}
+                        <span class='badge' style='background-color:{{tag.color}}'>{{tag.name}}</span>
                       {% endfor %}
-                    </dl>
                     {% else %}
                     -
                     {% endif %}
@@ -748,14 +719,3 @@
   </div>
 </section>
 {% endblock container %}
-
-{% block extra_javascript %}
-<script>
-  $(function () {
-    $('#mainTab a').on('click', function (e) {
-      e.preventDefault()
-      $(this).tab('show')
-    })
-  })
-</script>
-{% endblock extra_javascript %}

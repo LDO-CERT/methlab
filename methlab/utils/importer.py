@@ -314,14 +314,14 @@ class MethMail:
             first_hop = next(iter(self.msg.received), None)
             if first_hop:
                 domain = first_hop.get("by", None)
-                domain = domain.split()[0]
+                domain = next(iter(domain.split()), None)
                 sender_ip = next(
                     iter(parse_ipv4_addresses(first_hop.get("from", []))), None
                 )
                 # sender_ip = self.msg.get_server_ipaddress(domain)
 
                 if domain:
-
+                    # CHECK DMARK
                     try:
                         dmark_result = results_to_json(check_domains(domain))
                         dmark_info = (
