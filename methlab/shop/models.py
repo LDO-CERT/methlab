@@ -404,6 +404,10 @@ class Mail(models.Model):
         return [", ".join(recvs), ", ".join(cleaned_recvs)]
 
     @property
+    def tos(self):
+        return [x for x in self.mail_addresses_set.all() if x.field == "to"]
+
+    @property
     def ccs(self):
         return [x for x in self.mail_addresses_set.all() if x.field == "cc"]
 

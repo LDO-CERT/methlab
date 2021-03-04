@@ -214,7 +214,7 @@ def mail_detail(request, pk):
     return render(
         request,
         "pages/detail.html",
-        {"mail": mail, "users": users, "responses": RESPONSE},
+        {"mail": mail, "users": users},
     )
 
 

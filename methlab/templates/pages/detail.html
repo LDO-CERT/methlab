@@ -394,7 +394,11 @@
           <div style="padding: 20px;">
             <dl class="row">
               <dt class="col-sm-3">
-                From <a href="{% url 'search' 'mail' mail.sender.address %}" class="similar btn btn-sm btn-primary"><i class="fas fa-search"></i></a>:
+                {% if mail.sender %}
+                From <a href="{% url 'search' 'mail' mail.sender.2 %}" class="similar btn btn-sm btn-primary"><i class="fas fa-search"></i></a>:
+                {% else %}
+                From:
+                {% endif %}
               </dt>
               <dd class="col-sm-9">
                 {% for address in mail.mail_addresses_set.all %}
@@ -414,18 +418,20 @@
                 {% endfor %}
               </dd>
               <hr />
-              <dt class="col-sm-3">To:</dt>
-              <dd class="col-sm-9">
-                {% for address in mail.mail_addresses_set.all %}
-                  {% if address.field == 'to' %}
-                    {{address.address.address}}
-                    <br />
-                    [{{address.address.name|join:","}}]
-                    <br />
-                  {% endif %}
-                {% endfor %}
-              </dd>
-              <hr />
+              {% if mail.tos %}
+                <dt class="col-sm-3">To:</dt>
+                <dd class="col-sm-9">
+                  {% for address in mail.mail_addresses_set.all %}
+                    {% if address.field == 'to' %}
+                      {{address.address.address}}
+                      <br />
+                      [{{address.address.name|join:","}}]
+                      <br />
+                    {% endif %}
+                  {% endfor %}
+                </dd>
+                <hr />
+              {% endif %}
               {% if mail.ccs or mail.bccs %}
                 {% if mail.ccs %}
                   <dt class="col-sm-3">Cc:</dt>
@@ -613,7 +619,7 @@
                             <dt class="col-sm-3">Name Servers:</dt>
                             <dd class="col-sm-9">{{ioc.domain.whois.name_servers|join:"<br />"}}</dd>
                             <dt class="col-sm-3">Status:</dt>
-			    <dd class="col-sm-9">{{ioc.domain.whois.status|join:"<br />"}}</dd>
+                            <dd class="col-sm-9">{{ioc.domain.whois.status|join:"<br />"}}</dd>
                             <dt class="col-sm-3">Registrar:</dt>
                             <dd class="col-sm-9">{{ioc.domain.whois.registrar}}</dd>
                             <dt class="col-sm-3">Creation Date:</dt>
@@ -622,7 +628,7 @@
                             <dd class="col-sm-9">{{ioc.domain.whois.expires}}</dd>
                           </dl>
                         {% else %}
-			  - 
+                        - 
                         {% endif %}
                       {% endif %}
                     </td>
@@ -742,3 +748,14 @@
   </div>
 </section>
 {% endblock container %}
+
+{% block extra_javascript %}
+<script>
+  $(function () {
+    $('#mainTab a').on('click', function (e) {
+      e.preventDefault()
+      $(this).tab('show')
+    })
+  })
+</script>
+{% endblock extra_javascript %}
