@@ -188,7 +188,6 @@ class MailAdmin(LeafletGeoAdmin, DynamicArrayMixin):
         "submission_date",
         "short_id",
         "short_subject",
-        "count_attachments",
         "count_iocs",
         "tag_list",
     )

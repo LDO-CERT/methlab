@@ -36,6 +36,62 @@ class LatestMailTable(tables.Table):
         )
         return html
 
+    def render_sender(self, value, record):
+        if not value:
+            return format_html(
+                """
+                <dl class="row">
+                    <dt class="col-sm-2"><i class="fas fa-user-edit"></i></dt>
+                    <dd class="col-sm-10">{}</dd>
+                    <dt class="col-sm-2"><i class="fas fa-user-friends"></i></dt>
+                    <dd class="col-sm-10" data-toggle="tooltip" data-html="true" title="{}">{}</dd>
+                </dl>
+                """,
+                value,
+                *record.receivers,
+            )
+        return format_html(
+            """
+            <dl class="row">
+                <dt class="col-sm-2"><i class="fas fa-user-edit"></i></dt>
+                <dd class="col-sm-10" data-toggle="tooltip" data-html="true" title="Suspicious: {} - Malicious: {}">{}</dd>
+                <dt class="col-sm-2"><i class="fas fa-user-friends"></i></dt>
+                <dd class="col-sm-10" data-toggle="tooltip" data-html="true" title="{}">{}</dd>
+            </dl>
+            """,
+            *value,
+            *record.receivers,
+        )
+
+    def render_submission_date(self, value, record):
+        return format_html(
+            """
+            <dl class="row">
+                <dt class="col-sm-2"><i class="far fa-paper-plane"></i></dt>
+                <dd class="col-sm-10">{}</dd>
+                <dt class="col-sm-2"><i class="fas fa-inbox"></i></dt>
+                <dd class="col-sm-10">{}</dd>
+            </dl>
+            """,
+            value.strftime("%Y/%m/%d %H:%M"),
+            record.date.strftime("%Y/%m/%d %H:%M"),
+        )
+
+    def render_list_iocs(self, value):
+        return format_html(
+            """
+            <dl class="row">
+                <dt class="col-sm-4"><i class="fas fa-map-marker-alt"></i></dt>
+                <dd class="col-sm-8" data-toggle="tooltip" data-html="true" title="Suspicious: {} - Malicious: {}">{}</dd>
+                <dt class="col-sm-4"><i class="fas fa-globe"></i></dt>
+                <dd class="col-sm-8" data-toggle="tooltip" data-html="true" title="Suspicious: {} - Malicious: {}">{}</dd>
+                <dt class="col-sm-4"><i class="fas fa-paperclip"></i></dt>
+                <dd class="col-sm-8" data-toggle="tooltip" data-html="true" title="Suspicious: {} - Malicious: {}">{}</dd>
+            </dl>
+            """,
+            *value,
+        )
+
     link = tables.LinkColumn(
         "mail_detail",
         text=format_html("<i class='far fa-envelope-open'></i>"),
@@ -48,25 +104,26 @@ class LatestMailTable(tables.Table):
         args=["subject", A("slug_subject")],
         orderable=False,
     )
-    submission_date = tables.DateTimeColumn(orderable=False, format="M d Y, h:i A")
+    submission_date = tables.DateTimeColumn(orderable=False, verbose_name="Date")
     official_response = tables.Column(orderable=False, verbose_name="Response")
     assignee = tables.Column(orderable=False)
+    sender = tables.Column(orderable=False, verbose_name="From/To")
     short_subject = tables.Column(orderable=False, verbose_name="Subject")
-    count_attachments = tables.Column(orderable=False, verbose_name="Attachments")
-    count_iocs = tables.Column(orderable=False, verbose_name="Iocs")
+    list_iocs = tables.Column(orderable=False, verbose_name="Iocs")
     tags = tables.Column(orderable=False)
     progress = tables.Column(orderable=False, verbose_name="Status")
 
     class Meta:
         model = Mail
         template_name = "django_tables2/bootstrap4.html"
+        attrs = {"class": "table table-striped table-bordered"}
         fields = (
             "progress",
             "submission_date",
             "short_subject",
+            "sender",
             "tags",
-            "count_attachments",
-            "count_iocs",
+            "list_iocs",
             "link",
             "search",
             "official_response",

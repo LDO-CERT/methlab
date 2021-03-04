@@ -367,19 +367,41 @@ class Mail(models.Model):
 
     @property
     def sender(self):
-        return next(
+        sender = next(
             iter([x for x in self.mail_addresses_set.all() if x.field == "from"]), None
         )
+        if sender:
+            flags = Flag.objects.all()
+            suspicious_tags = [x for x in flags if x.name.find("suspicious") != -1]
+            malicious_tags = [x for x in flags if x.name.find("malicious") != -1]
+            return [
+                sender.address.tags.filter(name__in=suspicious_tags).count(),
+                sender.address.tags.filter(name__in=malicious_tags).count(),
+                sender.address.address,
+            ]
+        return None
 
     @property
     def receivers(self):
-        return ", ".join(
-            [
-                x.address.address.split("@")[0]
-                for x in self.mail_addresses_set.all()
-                if x.field == "to"
-            ]
-        )
+        try:
+            info = InternalInfo.objects.first()
+        except:
+            info = None
+        recvs = [
+            x.address.address
+            for x in self.mail_addresses_set.all()
+            if x.field in ["to", "cc", "bcc"]
+        ]
+        cleaned_recvs = []
+        if info and info.internal_domains:
+            for x in recvs:
+                if "@{}".format(x.split("@")[1]) in info.internal_domains:
+                    cleaned_recvs.append(x.split("@")[0])
+                else:
+                    cleaned_recvs.append(x)
+        else:
+            cleaned_recvs = recvs
+        return [", ".join(recvs), ", ".join(cleaned_recvs)]
 
     @property
     def ccs(self):
@@ -406,12 +428,25 @@ class Mail(models.Model):
         return u", ".join(x.name for x in self.tags.all())
 
     @property
-    def count_attachments(self):
-        return self.attachments.count()
+    def count_iocs(self):
+        return self.ips.count() + self.urls.count() + self.attachments.count()
 
     @property
-    def count_iocs(self):
-        return self.ips.count() + self.urls.count()
+    def list_iocs(self):
+        flags = Flag.objects.all()
+        suspicious_tags = [x for x in flags if x.name.find("suspicious") != -1]
+        malicious_tags = [x for x in flags if x.name.find("malicious") != -1]
+        return [
+            self.ips.filter(tags__name__in=suspicious_tags).count(),
+            self.ips.filter(tags__name__in=malicious_tags).count(),
+            self.ips.count(),
+            self.urls.filter(tags__name__in=suspicious_tags).count(),
+            self.urls.filter(tags__name__in=malicious_tags).count(),
+            self.urls.count(),
+            self.attachments.filter(tags__name__in=suspicious_tags).count(),
+            self.attachments.filter(tags__name__in=malicious_tags).count(),
+            self.attachments.count(),
+        ]
 
     def __str__(self):
         return truncatechars(self.subject, 80) if self.subject else ""

@@ -238,7 +238,6 @@ def check_cortex(ioc, ioc_type, object_id, is_mail=False):
                         tag_kwargs={"color": "#00B0FF"},
                     )
 
-
             elif job.status == "Failure":
                 report = Report(
                     content_object=db_object,
@@ -256,18 +255,35 @@ def check_cortex(ioc, ioc_type, object_id, is_mail=False):
 
 
 @celery_app.task(name="process_mail", soft_time_limit=960, time_limit=1800)
-def process_mail(content):
+def process_mail(content, filetype, parent_id):
     """
     Single mail task
     """
     # IF PARSE FAILS IGNORE
-    try:
-        content = content.encode("utf_8")
-        filepath = store_mail(content)
-        msg = mailparser.parse_from_bytes(content)
-    except Exception as e:
-        logging.error(e)
-        return "Error parsing mail: {}".format(e)
+    if filetype == None:
+        try:
+            content = content.encode("utf_8")
+            filepath = store_mail(content)
+            msg = mailparser.parse_from_bytes(content)
+        except Exception as e:
+            logging.error(e)
+            return "Error parsing mail from mail server: {}".format(e)
+
+    elif filetype == ".msg":
+        try:
+            msg = mailparser.parse_from_file_msg(content)
+            filepath = content
+        except Exception as e:
+            logging.error(e)
+            return "Error parsing mail from msg attachment: {}".format(e)
+
+    else:
+        try:
+            msg = mailparser.parse_from_file(content)
+            filepath = content
+        except Exception as e:
+            logging.error(e)
+            return "Error parsing mail from eml attachment: {}".format(e)
 
     info, _, cortex_api = get_info(mail=False)
 
@@ -276,6 +292,7 @@ def process_mail(content):
         info=info,
         cortex_api=cortex_api,
         mail_filepath=filepath,
+        parent_id=parent_id,
     )
     subtasks = methmail.process_mail()
 
@@ -288,8 +305,13 @@ def process_mail(content):
     elif subtasks["ignore"]:
         return subtasks["error"]
 
-    for (ioc, ioc_type, object_id, is_mail) in subtasks["tasks"]:
-        check_cortex.apply_async(args=[ioc, ioc_type, object_id, is_mail])
+    if subtasks["tasks"]:
+        for (ioc, ioc_type, object_id, is_mail) in subtasks["tasks"]:
+            check_cortex.apply_async(args=[ioc, ioc_type, object_id, is_mail])
+
+    if subtasks["childs"] and subtasks["id"]:
+        for filepath, fileext in subtasks["childs"]:
+            process_mail.apply_async(args=[filepath, fileext, subtasks["id"]])
 
     return "{} query run on cortex".format(len(subtasks))
 
@@ -313,10 +335,10 @@ def check_mails():
 
     for content in data_list:
         try:
-            process_mail.apply_async(args=[content])
+            process_mail.apply_async(args=[content, None, None])
         except kombu.exceptions.EncodeError:
             process_mail.apply_async(
-                args=[content.decode("utf8", "ignore").encode("utf8")]
+                args=[content.decode("utf8", "ignore").encode("utf8"), None, None]
             )
 
     return "{} mails found".format(len(data_list))

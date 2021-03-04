@@ -8,8 +8,6 @@ from django.db.models.functions import TruncHour
 from django.contrib.postgres.search import TrigramSimilarity
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
-
-
 from django_pivot.pivot import pivot
 
 from methlab.shop.models import (

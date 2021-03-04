@@ -45,21 +45,6 @@ from methlab.shop.models import (
 )
 
 
-def default(o):
-    """helpers to store item in json
-
-    arguments:
-    - o: field of the object to serialize
-
-    returns:
-    - valid serialized value for unserializable fields
-    """
-    if isinstance(o, (datetime.date, datetime.datetime)):
-        return o.isoformat()
-    if isinstance(o, set):
-        return list(o)
-
-
 class MethMail:
     def __init__(self, msg, info, cortex_api, mail_filepath, parent_id=None):
         """
@@ -79,6 +64,7 @@ class MethMail:
         self.parent_id = parent_id
         self.db_mail = None  # mail object in db
         self.tasks = []
+        self.childs = []
 
     def process_mail(self):
         """Main workflow for single mail."""
@@ -92,7 +78,9 @@ class MethMail:
             del old_mail
             logging.warning("Mail already present in db - SKIPPING")
             return {
+                "id": None,
                 "tasks": None,
+                "childs": None,
                 "ignore": True,
                 "error": "Mail already present in db - SKIPPING",
             }
@@ -103,7 +91,9 @@ class MethMail:
         stored = self.store_info()
         if not stored["id"]:
             return {
+                "id": None,
                 "tasks": None,
+                "childs": None,
                 "ignore": stored["ignore"],
                 "error": stored["error"],
             }
@@ -128,12 +118,10 @@ class MethMail:
                 continue
 
             self.process_attachment(filepath, mess_att)
-
-        logging.warning("RETURNING LIST OF TASKS {}: {} {}".format(
-            self.db_mail.pk, len(self.tasks), ",".join([x[1] for x in self.tasks])
-        ))
         return {
+            "id": self.db_mail.pk,
             "tasks": self.tasks,
+            "childs": self.childs,
             "ignore": False,
             "error": False,
         }
@@ -190,10 +178,11 @@ class MethMail:
 
         for item, value in whois_list:
             try:
-                item.whois = json.loads(json.dumps(
-                    asyncwhois.lookup(value).parser_output, 
-                    cls=DjangoJSONEncoder
-                ))
+                item.whois = json.loads(
+                    json.dumps(
+                        asyncwhois.lookup(value).parser_output, cls=DjangoJSONEncoder
+                    )
+                )
                 item.save()
             except Exception as e:
                 logging.error("WHOIS ERROR {}".format(e))
@@ -309,13 +298,15 @@ class MethMail:
                     success = True
                 elif success in [dkim.CV_Fail, dkim.CV_None]:
                     success = False
-                arc_info = json.loads(json.dumps(
-                    {
-                        "success": success,
-                        "info": info,
-                        "message": arc_message,
-                    }
-                ))
+                arc_info = json.loads(
+                    json.dumps(
+                        {
+                            "success": success,
+                            "info": info,
+                            "message": arc_message,
+                        }
+                    )
+                )
             except Exception as e:
                 logging.error("ARC ERROR {}".format(e))
 
@@ -586,28 +577,21 @@ class MethMail:
             logging.warning("Attachment type in whitelist - SKIPPING")
             return False
 
-        # IF MAIL PROCESS RECURSIVELY
+        # IF MAIL RETURN IT TO BE PROCESSED AGAIN
         if mess_att["mail_content_type"] in [
             "application/ms-tnef",
             "Transport Neutral Encapsulation Format",
         ]:
+            self.clean_files((filepath, old_filepath))
             logging.warning("TNEF not supported")
+            return False
+
         elif (
             mess_att["mail_content_type"] == "application/octet-stream"
             and fileext in (".eml", ".msg")
         ) or mess_att["mail_content_type"] == "message/rfc822":
-            if fileext == ".msg":
-                internal_message = mailparser.parse_from_file_msg(filepath)
-            else:
-                internal_message = mailparser.parse_from_file(filepath)
-            internal_methmail = MethMail(
-                internal_message,
-                info=self.info,
-                cortex_api=self.cortex_api,
-                mail_filepath=filepath,
-                parent_id=self.id,
-            )
-            internal_methmail.process_mail()
+            logging.warning("Attached email!")
+            self.childs.append((filepath, fileext))
 
         # IF TEXT EXTRACT IOC
         elif mess_att["mail_content_type"] in (
@@ -615,6 +599,7 @@ class MethMail:
             "text/html",
         ):
             self.find_ioc(mess_att["payload"])
+            self.clean_files((filepath, old_filepath))
 
         # IF GENERIC FILE, EXTRACT MD5/SHA256 AND GET REPORT
         else:

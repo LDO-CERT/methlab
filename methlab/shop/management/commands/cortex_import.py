@@ -27,7 +27,12 @@ class Command(BaseCommand):
                 verify_cert=False,
             )
         else:
-            cortex_api = Api(info.cortex_url, info.cortex_api, verify_cert=False)
+            cortex_api = Api(
+                info.cortex_url,
+                info.cortex_api,
+                proxies={"http": None, "https": None},
+                verify_cert=False,
+            )
 
         try:
             cortex_analyzers = [
