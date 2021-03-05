@@ -1,10 +1,10 @@
+from datetime import datetime
 import os
 import json
 import shutil
 import pathlib
 import uuid
 import spf
-import datetime
 import mailparser
 import magic
 import hashlib
@@ -42,6 +42,7 @@ from methlab.shop.models import (
     Domain,
     Mail_Addresses,
     Whitelist,
+    Whois,
 )
 
 
@@ -138,7 +139,6 @@ class MethMail:
 
         # EXTRACT URL, CHECK IF WL AND GET REPORT
         for url_value in parse_urls(payload):
-            whois_info = None
             url_value = url_value.split(">")[0].rstrip('"].').strip("/").lower()
             if url_value in [x.value for x in all_wl if x.type == "url"]:
                 continue
@@ -148,8 +148,7 @@ class MethMail:
             with transaction.atomic():
                 if url_domain:
                     domain, created = Domain.objects.get_or_create(domain=url_domain)
-                    if created:
-                        whois_list.append((domain, domain.domain))
+                    whois_list.append((domain, domain.domain, created))
                 else:
                     domain = None
                 url, created = Url.objects.get_or_create(domain=domain, url=url_value)
@@ -162,28 +161,35 @@ class MethMail:
             + parse_ipv4_cidrs(payload)
             + parse_ipv6_addresses(payload)
         ):
-            whois_info = None
             if ip_value in [x.value for x in all_wl if x.type == "ip"]:
                 continue
 
             with transaction.atomic():
                 ip, created = Ip.objects.get_or_create(ip=ip_value)
-                if created:
-                    whois_list.append((ip, ip.ip))
-
-                ip.whois = whois_info
-                ip.save()
+                whois_list.append((ip, ip.ip, created))
             self.db_mail.ips.add(ip)
             self.tasks.append((ip_value, "ip", ip.pk, False))
 
-        for item, value in whois_list:
+        for item, value, created in whois_list:
             try:
-                item.whois = json.loads(
-                    json.dumps(
-                        asyncwhois.lookup(value).parser_output, cls=DjangoJSONEncoder
+                # WHOIS IF IOC IS NEW OR OLD WHOIS IS OLDER THAN EXP DATE
+                if created or (
+                    item.whois
+                    and (datetime.datetime.today() - item.whois.date).days
+                    > self.info.whois_expiration_days
+                ):
+                    whois = Whois(
+                        response=json.loads(
+                            json.dumps(
+                                asyncwhois.lookup(value).parser_output,
+                                cls=DjangoJSONEncoder,
+                            )
+                        ),
+                        content_object=item,
                     )
-                )
-                item.save()
+                    whois.save()
+                    item.whois = whois
+                    item.save()
             except Exception as e:
                 logging.error("WHOIS ERROR {}".format(e))
 
@@ -399,19 +405,13 @@ class MethMail:
                 sender_ip_address=sender_ip,
                 to_domains=self.msg.to_domains,
                 eml_path=self.mail_filepath,
+                geom=geo_info,
+                dmark=dmark_info,
+                dkim=dkim_info,
+                arc=arc_info,
+                spf=spf_info,
             )
             self.id = self.db_mail.pk
-
-            self.db_mail.geom = geo_info
-            self.db_mail.save()
-            self.db_mail.dmark = dmark_info
-            self.db_mail.save()
-            self.db_mail.dkim = dkim_info
-            self.db_mail.save()
-            self.db_mail.arc = arc_info
-            self.db_mail.save()
-            self.db_mail.spf = spf_info
-            self.db_mail.save()
 
             # ADD ADDRESSES TO MAIL, CHECK IF HONEYPOT OR SECINC
             for addr_item, addr_type in addresses_list:

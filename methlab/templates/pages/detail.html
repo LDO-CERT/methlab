@@ -506,20 +506,20 @@
                       {% if ioc.is_whitelisted %}
                       -
                       {% else %}
-                        {% if ioc.whois.status and ioc.whois.domain_name %}
+                        {% if ioc.whois.response.status and ioc.whois.response.domain_name %}
                           <dl class="row">
                             <dt class="col-sm-3">Name:</dt>
-                            <dd class="col-sm-9">{{ioc.whois.domain_name}}</dd>
+                            <dd class="col-sm-9">{{ioc.whois.response.domain_name}}</dd>
                             <dt class="col-sm-3">Name Servers:</dt>
-                            <dd class="col-sm-9">{{ioc.whois.name_servers|join:"<br />"}}</dd>
+                            <dd class="col-sm-9">{{ioc.whois.response.name_servers|join:"<br />"}}</dd>
                             <dt class="col-sm-3">Status:</dt>
-                            <dd class="col-sm-9">{{ioc.whois.status|join:"<br />"}}</dd>
+                            <dd class="col-sm-9">{{ioc.whois.response.status|join:"<br />"}}</dd>
                             <dt class="col-sm-3">Registrar:</dt>
-                            <dd class="col-sm-9">{{ioc.whois.registrar}}</dd>
+                            <dd class="col-sm-9">{{ioc.whois.response.registrar}}</dd>
                             <dt class="col-sm-3">Creation Date:</dt>
-                            <dd class="col-sm-9">{{ioc.whois.created}}</dd>
+                            <dd class="col-sm-9">{{ioc.whois.response.created}}</dd>
                             <dt class="col-sm-3">Expiration Date:</dt>
-                            <dd class="col-sm-9">{{ioc.whois.expires}}</dd>
+                            <dd class="col-sm-9">{{ioc.whois.response.expires}}</dd>
                           </dl>
                         {% else %}
                           -

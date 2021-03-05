@@ -15,7 +15,6 @@ from methlab.shop.models import (
     Mail,
     Whitelist,
     Address,
-    Flag,
     RESPONSE,
     Attachment,
     Ip,
@@ -37,8 +36,8 @@ def home(request):
     # COUNT MAIL
     emails = Mail.external_objects.all()
     email_count = emails.count()
-    suspicious = emails.filter(tags__name__contains="suspicious").count()
-    malicious = emails.filter(tags__name__contains="malicious").count()
+    suspicious = emails.filter(tags__name__contains="suspicious").distinct().count()
+    malicious = emails.filter(tags__name__contains="malicious").distinct().count()
 
     qs = (
         Mail.external_objects.filter(
@@ -228,7 +227,7 @@ def mail_detail(request, pk):
     return render(
         request,
         "pages/detail.html",
-        {"mail": mail, "users": users},
+        {"mail": mail, "users": users, "responses": RESPONSE},
     )
 
 
@@ -295,6 +294,9 @@ def search(request, method=None, search_object=None):
 
 @login_required
 def tag(request):
+    """
+    Add/Remove tag to email
+    """
     if request.is_ajax():
         mail = request.POST.get("mail")
         tag = request.POST.get("tag")
@@ -312,6 +314,9 @@ def tag(request):
 
 @login_required
 def response(request):
+    """
+    Assign response to email
+    """
     if request.is_ajax():
         mail = request.POST.get("mail")
         response = request.POST.get("response")
@@ -324,6 +329,9 @@ def response(request):
 
 @login_required
 def assignee(request):
+    """
+    Assign assignee to email
+    """
     if request.is_ajax():
         mail = request.POST.get("mail")
         assignee = request.POST.get("assignee")
@@ -337,6 +345,9 @@ def assignee(request):
 
 @login_required
 def progress(request):
+    """
+    Assign progress to email
+    """
     if request.is_ajax():
         mail = request.POST.get("mail")
         progress = request.POST.get("progress")
@@ -349,6 +360,9 @@ def progress(request):
 
 @login_required
 def whitelist(request):
+    """
+    Add/Remove ip/url/domain/sha256 to whitelist
+    """
     if request.is_ajax():
         item = request.POST.get("item")
         item_type = request.POST.get("item_type")

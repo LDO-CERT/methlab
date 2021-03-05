@@ -74,6 +74,7 @@ class InternalInfoAdmin(ImportExportModelAdmin, DynamicArrayMixin):
         ("Whitelist", {"fields": ("mimetype_whitelist",)}),
         ("Cortex", {"fields": ("cortex_url", "cortex_api")}),
         ("Misp", {"fields": ("misp_url", "misp_api")}),
+        ("Expiration", {"fields": ("cortex_expiration_days", "whois_expiration_days")}),
         ("Security", {"fields": ("security_emails", "honeypot_emails")}),
         (
             "Info",
@@ -216,7 +217,7 @@ class ReportInline(GenericTabularInline):
 
 
 class IpAdmin(admin.ModelAdmin, DynamicArrayMixin):
-    actions = ["add_to_wl"]
+    actions = ["add_to_wl", "remove_from_wl"]
     formfield_overrides = {
         models.JSONField: {"widget": JSONEditorWidget()},
     }
@@ -228,13 +229,21 @@ class IpAdmin(admin.ModelAdmin, DynamicArrayMixin):
 
     add_to_wl.short_description = "Add selected ips to whitelist"
 
+    def remove_from_wl(self, request, queryset):
+        wls = Whitelist.objects.filter(
+            value__in=[item.ip for item in queryset], type="ip"
+        )
+        wls.delete()
+
+    remove_from_wl.short_description = "Remove selected ips from whitelist"
+
     list_display = ("ip", "whois", "is_whitelisted")
     inlines = [ReportInline]
     search_fields = ["ip"]
 
 
 class UrlAdmin(admin.ModelAdmin, DynamicArrayMixin):
-    actions = ["add_to_wl"]
+    actions = ["add_to_wl", "remove_from_wl"]
     formfield_overrides = {
         models.JSONField: {"widget": JSONEditorWidget()},
     }
@@ -246,6 +255,14 @@ class UrlAdmin(admin.ModelAdmin, DynamicArrayMixin):
 
     add_to_wl.short_description = "Add selected urls to whitelist"
 
+    def remove_from_wl(self, request, queryset):
+        wls = Whitelist.objects.filter(
+            value__in=[item.url for item in queryset], type="url"
+        )
+        wls.delete()
+
+    remove_from_wl.short_description = "Remove selected url from whitelist"
+
     list_display = ("url", "domain", "is_whitelisted")
     list_filter = ("domain__domain",)
     inlines = [ReportInline]
@@ -253,7 +270,7 @@ class UrlAdmin(admin.ModelAdmin, DynamicArrayMixin):
 
 
 class DomainAdmin(admin.ModelAdmin, DynamicArrayMixin):
-    actions = ["add_to_wl"]
+    actions = ["add_to_wl", "remove_from_wl"]
     formfield_overrides = {
         models.JSONField: {"widget": JSONEditorWidget()},
     }
@@ -264,6 +281,14 @@ class DomainAdmin(admin.ModelAdmin, DynamicArrayMixin):
             wl.save()
 
     add_to_wl.short_description = "Add selected domains to whitelist"
+
+    def remove_from_wl(self, request, queryset):
+        wls = Whitelist.objects.filter(
+            value__in=[item.domain for item in queryset], type="domain"
+        )
+        wls.delete()
+
+    remove_from_wl.short_description = "Remove selected domain from whitelist"
 
     list_display = ("domain", "whois", "is_whitelisted")
     inlines = [ReportInline]

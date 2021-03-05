@@ -95,7 +95,7 @@ def get_info(mail=True, cortex=True):
 
 
 @celery_app.task(name="check_cortex", soft_time_limit=960, time_limit=1800)
-def check_cortex(ioc, ioc_type, object_id, is_mail=False):
+def check_cortex(ioc, ioc_type, object_id, is_mail=False, cortex_expiration_days=30):
     """Run all available analyzer for ioc.
 
     arguments:
@@ -145,7 +145,8 @@ def check_cortex(ioc, ioc_type, object_id, is_mail=False):
         content_type=ContentType.objects.get_for_model(content_type),
         object_id=object_id,
         success=True,
-        date__gte=datetime.datetime.today() - datetime.timedelta(days=30),
+        date__gte=datetime.datetime.today()
+        - datetime.timedelta(days=cortex_expiration_days),
     )
 
     try:
@@ -307,7 +308,9 @@ def process_mail(content, filetype, parent_id):
 
     if subtasks["tasks"]:
         for (ioc, ioc_type, object_id, is_mail) in subtasks["tasks"]:
-            check_cortex.apply_async(args=[ioc, ioc_type, object_id, is_mail])
+            check_cortex.apply_async(
+                args=[ioc, ioc_type, object_id, is_mail, info.cortex_expiration_days]
+            )
 
     if subtasks["childs"] and subtasks["id"]:
         for filepath, fileext in subtasks["childs"]:
@@ -322,7 +325,7 @@ def check_mails():
     Check if info are set and cortex is up.
     If yes reads new mails and runs subtasks
     """
-    _, inbox, cortex_api = get_info()
+    _, inbox, _ = get_info()
 
     _, data = inbox.search(None, "(UNSEEN)")
     email_list = list(data[0].split())

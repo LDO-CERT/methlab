@@ -3,6 +3,7 @@ from django.db.models import Q
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelation
 from django.contrib.contenttypes.models import ContentType
+from django.db.models.fields.related import ForeignKey
 from django.template.defaultfilters import truncatechars
 from django.utils.translation import ugettext_lazy as _
 from django.utils.text import slugify
@@ -70,6 +71,9 @@ class InternalInfo(models.Model):
     http_proxy = models.CharField(max_length=200, blank=True, null=True)
     https_proxy = models.CharField(max_length=200, blank=True, null=True)
 
+    cortex_expiration_days = models.IntegerField(default=30)
+    whois_expiration_days = models.IntegerField(default=30)
+
     def __str__(self):
         return self.name
 
@@ -100,6 +104,11 @@ class Report(models.Model):
     content_object = GenericForeignKey("content_type", "object_id")
     taxonomies = ArrayField(models.CharField(max_length=50), blank=True, null=True)
     success = models.BooleanField(default=False)
+    date = models.DateField(auto_now_add=True)
+
+
+class Whois(models.Model):
+    response = models.JSONField(blank=True, null=True)
     date = models.DateField(auto_now_add=True)
 
 
@@ -194,9 +203,9 @@ class Address(models.Model):
 
 class Domain(models.Model):
     domain = models.CharField(max_length=200)
-    whois = models.JSONField(blank=True, null=True)
     dig = models.TextField(blank=True, null=True)
-    reports = GenericRelation(Report, related_name="ips")
+    whois = ForeignKey(Whois, related_name="domain", on_delete=models.CASCADE)
+    reports = GenericRelation(Report, related_name="domains")
     tags = TaggableManager(through=CustomTag, blank=True)
 
     @property
@@ -212,7 +221,7 @@ class Domain(models.Model):
 
 class Ip(models.Model):
     ip = models.GenericIPAddressField()
-    whois = models.JSONField(blank=True, null=True)
+    whois = ForeignKey(Whois, related_name="ip", on_delete=models.CASCADE)
     reports = GenericRelation(Report, related_name="ips")
     tags = TaggableManager(through=CustomTag, blank=True)
 
