@@ -119,6 +119,9 @@ class Whois(models.Model):
     response = models.JSONField(blank=True, null=True)
     date = models.DateField(auto_now_add=True)
 
+    def __str__(self):
+        return self.response
+
 
 class Whitelist(models.Model):
     WL_TYPE = (

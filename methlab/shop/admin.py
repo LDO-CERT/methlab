@@ -242,7 +242,7 @@ class IpAdmin(admin.ModelAdmin, DynamicArrayMixin):
 
     remove_from_wl.short_description = "Remove selected ips from whitelist"
 
-    list_display = ("ip", "whois__response", "whitelisted")
+    list_display = ("ip", "whois", "whitelisted")
     inlines = [ReportInline]
     search_fields = ["ip"]
 
@@ -305,7 +305,7 @@ class DomainAdmin(admin.ModelAdmin, DynamicArrayMixin):
 
     remove_from_wl.short_description = "Remove selected domain from whitelist"
 
-    list_display = ("domain", "whois__response", "whitelisted")
+    list_display = ("domain", "whois", "whitelisted")
     inlines = [ReportInline]
     search_fields = ["domain"]
 

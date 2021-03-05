@@ -35,8 +35,8 @@ def home(request):
     # COUNT MAIL
     emails = Mail.external_objects.all()
     email_count = emails.count()
-    suspicious = emails.filter(tags__name__contains="suspicious").distinct().count()
-    malicious = emails.filter(tags__name__contains="malicious").distinct().count()
+    suspicious = emails.filter(tags__name__contains="suspicious").count()
+    malicious = emails.filter(tags__name__contains="malicious").count()
 
     qs = (
         Mail.external_objects.filter(
