@@ -1,4 +1,3 @@
-import ipaddress
 from datetime import timedelta
 from django.utils import timezone
 from django.http import Http404, JsonResponse
@@ -130,18 +129,12 @@ def campaigns(request, campaign_type):
 
 
 def stats(request):
-    att_wl = Whitelist.objects.filter(type="sha256").values_list("value", flat=True)
-    ip_wl = Whitelist.objects.filter(type="ip").values_list("value", flat=True)
-    ip_wl = [ipaddress.ip_address(x) for x in ip_wl]
-    url_wl = Whitelist.objects.filter(type="url").values_list("value", flat=True)
-    domain_wl = Whitelist.objects.filter(type="domain").values_list("value", flat=True)
-
     # SORT BY ATTACHMENTS
     a_sort_by = request.GET.get("a-sort", "-total")
     if a_sort_by == "total":
         a_sort_by = "-{}".format(a_sort_by)
     attachments = (
-        Mail.external_objects.exclude(attachments__sha256__in=att_wl)
+        Mail.external_objects.exclude(whitelisted=True)
         .exclude(attachments__sha256__isnull=True)
         .values("attachments__md5", "attachments__sha256", "attachments__tags")
         .annotate(total=Count("attachments__md5"))
@@ -159,7 +152,7 @@ def stats(request):
         i_sort_by = "-{}".format(i_sort_by)
     ips = (
         Mail.external_objects.exclude(ips__ip__isnull=True)
-        .exclude(ips__ip__in=ip_wl)
+        .exclude(whitelisted=True)
         .values("ips__ip", "ips__tags")
         .annotate(total=Count("ips"))
         .order_by(i_sort_by)
@@ -173,8 +166,7 @@ def stats(request):
         u_sort_by = "-{}".format(u_sort_by)
     urls = (
         Mail.external_objects.exclude(urls__url__isnull=True)
-        .exclude(urls__url__in=url_wl)
-        .exclude(urls__domain__domain__in=domain_wl)
+        .exclude(whitelisted=True)
         .values("urls__url", "urls__tags", "urls__domain__domain")
         .annotate(total=Count("urls"))
         .order_by(u_sort_by)
@@ -188,7 +180,7 @@ def stats(request):
         d_sort_by = "-{}".format(d_sort_by)
     domains = (
         Mail.external_objects.exclude(urls__url__isnull=True)
-        .exclude(urls__domain__domain__in=domain_wl)
+        .exclude(whitelisted=True)
         .values("urls__domain__domain", "urls__domain__tags")
         .annotate(total=Count("urls__domain__domain"))
         .order_by(d_sort_by)
@@ -383,9 +375,13 @@ def whitelist(request):
             raise Http404("404")
         if op == "ADD":
             wl, created = Whitelist.objects.get_or_create(value=value, type=item_type)
+            item.whitelisted = True
+            item.save()
         elif op == "REMOVE":
             wl = get_object_or_404(Whitelist, value=value, type=item_type)
             wl.delete()
+            item.whitelisted = False
+            item.save()
         else:
             raise Http404("404")
         return JsonResponse({"ok": True})

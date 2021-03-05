@@ -228,8 +228,11 @@
         <div class="tab-pane fade show active" id="info" role="tabpanel" aria-labelledby="info-tab">
           <div style="padding: 20px;">
             <dl class="row">
-              <dt class="col-sm-3">Subject <a href="{% url 'search' 'subject' mail.slug_subject %}"
-                  class="similarbtn btn-sm btn-primary"><i class="fas fa-search"></i></a>:</dt>
+              <dt class="col-sm-3">Subject 
+                <a href="{% url 'search' 'subject' mail.slug_subject %}" class="similar btn btn-sm btn-primary">
+                  <i class="fas fa-search"></i>
+                </a>:
+              </dt>
               <dd class="col-sm-9">{{mail.subject}}</dd>
               <dt class="col-sm-3">Message-id:</dt>
               <dd class="col-sm-9">{{mail.message_id}}</dd>
@@ -494,16 +497,16 @@
                   {% for ioc in mail.ips.all %}
                   <tr>
                     <td>
-                      {% if ioc.is_whitelisted %}
+                      {% if ioc.whitelisted %}
                       <span class="badge bg-success">
                         {% endif %}
                         {{ioc.ip}}
-                        {% if ioc.is_whitelisted %}
+                        {% if ioc.whitelisted %}
                       </span>
                       {% endif %}
                     </td>
                     <td>
-                      {% if ioc.is_whitelisted %}
+                      {% if ioc.whitelisted %}
                       -
                       {% else %}
                         {% if ioc.whois.response.status and ioc.whois.response.domain_name %}
@@ -527,7 +530,7 @@
                       {% endif %}
                     </td>
                     <td>
-                      {% if ioc.is_whitelisted %}
+                      {% if ioc.whitelisted %}
                       -
                       {% else %}
                         {% if ioc.tags.all %}
@@ -541,7 +544,7 @@
                     </td>
                     <td>
                       {% if user.is_authenticated %}
-                        {% if ioc.is_whitelisted %}
+                        {% if ioc.whitelisted %}
                         <button class="btn btn-sm btn-outline-danger btn-wl" data-pk="{{ioc.pk}}"
                           data-type="ip" data-op="REMOVE">-</button>
                         {% else %}
@@ -549,7 +552,7 @@
                           data-type="ip" data-op="ADD">+</button>
                         {% endif %}
                       {% else %}
-                        {{ioc.is_whitelisted}}
+                        {{ioc.whitelisted}}
                       {% endif %}
                     </td>
                   </tr>
@@ -573,7 +576,7 @@
                   {% for ioc in mail.urls.all %}
                   <tr>
                     <td>
-                      {% if ioc.is_whitelisted %}
+                      {% if ioc.whitelisted %}
                       <span class="badge bg-success">
                         {% endif %}
                         {% if ioc.url|length > 50 %}
@@ -581,12 +584,12 @@
                         {% else %}
                           {{ioc}}
                         {% endif %}
-                        {% if ioc.is_whitelisted %}
+                        {% if ioc.whitelisted %}
                       </span>
                       {% endif %}
                     </td>
                     <td>
-                      {% if ioc.is_whitelisted %}
+                      {% if ioc.whitelisted %}
                         -
                       {% else %}
                         {% if ioc.domain.whois.domain_name and ioc.domain.whois.status %}
@@ -610,7 +613,7 @@
                       {% endif %}
                     </td>
                     <td>
-                      {% if ioc.is_whitelisted %}
+                      {% if ioc.whitelisted %}
                         -
                       {% else %}
                         {% if ioc.tags.all %}
@@ -624,7 +627,7 @@
                     </td>
                     <td>
                       {% if user.is_authenticated %}
-                        {% if ioc.is_whitelisted %}
+                        {% if ioc.whitelisted %}
                         <button class="btn btn-sm btn-outline-danger btn-wl" data-pk="{{ioc.pk}}"
                           data-type="url" data-op="REMOVE">-</button>
                         {% else %}
@@ -632,7 +635,7 @@
                           data-type="url" data-op="ADD">+</button>
                         {% endif %}
                       {% else %}
-                        {{ioc.is_whitelisted}}
+                        {{ioc.whitelisted}}
                       {% endif %}
                     </td>
                     <td>
@@ -648,7 +651,7 @@
                           data-type="domain" data-op="ADD">+</button>
                         {% endif %}
                       {% else %}
-                        {{ioc.is_whitelisted}}
+                        {{ioc.whitelisted}}
                       {% endif %}
                     </td>                    
                   </tr>
@@ -696,7 +699,7 @@
                   </td>
                   <td>
                     {% if user.is_authenticated %}
-                    {% if attachment.is_whitelisted %}
+                    {% if attachment.whitelisted %}
                     <button class="btn btn-sm btn-outline-danger btn-wl" data-pk="{{attachment.pk}}" data-type="sha256"
                       data-op="REMOVE">-</button>
                     {% else %}
@@ -704,7 +707,7 @@
                       data-op="ADD">+</button>
                     {% endif %}
                     {% else %}
-                    {{ioc.is_whitelisted}}
+                      {{ioc.whitelisted}}
                     {% endif %}
                   </td>
                 </tr>

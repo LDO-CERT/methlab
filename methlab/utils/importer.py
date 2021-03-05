@@ -134,26 +134,35 @@ class MethMail:
         - payload: message body
         """
         all_wl = Whitelist.objects.all()
-
         whois_list = []
 
         # EXTRACT URL, CHECK IF WL AND GET REPORT
         for url_value in parse_urls(payload):
+
+            url_whitelisted = False
+            domain_whitelisted = False
+
             url_value = url_value.split(">")[0].rstrip('"].').strip("/").lower()
             if url_value in [x.value for x in all_wl if x.type == "url"]:
-                continue
+                url_whitelisted = True
             url_domain = get_fld(url_value, fix_protocol=True, fail_silently=True)
             if url_domain in [x.value for x in all_wl if x.type == "domain"]:
-                continue
+                domain_whitelisted = True
             with transaction.atomic():
                 if url_domain:
                     domain, created = Domain.objects.get_or_create(domain=url_domain)
-                    whois_list.append((domain, domain.domain, created))
+                    domain.whitelisted = domain_whitelisted
+                    domain.save()
+                    if not domain_whitelisted:
+                        whois_list.append((domain, domain.domain, created))
                 else:
                     domain = None
                 url, created = Url.objects.get_or_create(domain=domain, url=url_value)
+                url.whitelisted = url_whitelisted
+                url.save()
                 self.db_mail.urls.add(url)
-                self.tasks.append((url_value, "url", url.pk, False))
+                if not url_whitelisted and not domain_whitelisted:
+                    self.tasks.append((url_value, "url", url.pk, False))
 
         # EXTRACT IP, CHECK IF WL AND GET REPORT
         for ip_value in (
@@ -161,14 +170,21 @@ class MethMail:
             + parse_ipv4_cidrs(payload)
             + parse_ipv6_addresses(payload)
         ):
+
+            ip_whitelisted = False
+
             if ip_value in [x.value for x in all_wl if x.type == "ip"]:
-                continue
+                ip_whitelisted = True
 
             with transaction.atomic():
                 ip, created = Ip.objects.get_or_create(ip=ip_value)
-                whois_list.append((ip, ip.ip, created))
+                ip.whitelisted = ip_whitelisted
+                ip.save()
+                if not ip_whitelisted:
+                    whois_list.append((ip, ip.ip, created))
             self.db_mail.ips.add(ip)
-            self.tasks.append((ip_value, "ip", ip.pk, False))
+            if not ip_whitelisted:
+                self.tasks.append((ip_value, "ip", ip.pk, False))
 
         for item, value, created in whois_list:
             try:
@@ -213,6 +229,7 @@ class MethMail:
 
                 # if address is not valid skip object
                 if address_from == "":
+                    logging.error("ADDRESS_FROM Invalid - SKIPPING")
                     continue
 
                 name = name.capitalize()
@@ -544,6 +561,7 @@ class MethMail:
         _, fileext = os.path.splitext(mess_att["filename"])
         fileext = fileext.lower()
         old_filepath = filepath
+        whitelisted = False
 
         if not os.path.exists(filepath):
             logging.error("Path {} does not exists - SKIPPING".format(filepath))
@@ -600,6 +618,11 @@ class MethMail:
         ):
             self.find_ioc(mess_att["payload"])
             self.clean_files((filepath, old_filepath))
+            logging.error("*" * 100)
+            logging.error("*" * 100)
+            logging.error("This should be covered by mail-parser")
+            logging.error("*" * 100)
+            logging.error("*" * 100)
 
         # IF GENERIC FILE, EXTRACT MD5/SHA256 AND GET REPORT
         else:
@@ -607,9 +630,7 @@ class MethMail:
             if md5 in [x.value for x in all_wl if x.type == "md5"] or sha256 in [
                 x.value for x in all_wl if x.type == "sha256"
             ]:
-                self.clean_files((filepath, old_filepath))
-                logging.warning("Attachment hash in wl - SKIPPING")
-                return False
+                whitelisted = True
 
             fix_mail_dict = dict((k.replace("-", "_"), v) for k, v in mess_att.items())
             filename = fix_mail_dict["filename"]
@@ -627,6 +648,7 @@ class MethMail:
                 else:
                     if filename not in attachment.filename:
                         attachment.filename.append(filename)
+                attachment.whitelisted = whitelisted
                 attachment.save()
                 self.db_mail.attachments.add(attachment)
                 # Check file in onprem sandboxes

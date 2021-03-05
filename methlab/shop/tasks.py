@@ -165,24 +165,32 @@ def check_cortex(ioc, ioc_type, object_id, is_mail=False, cortex_expiration_days
                         "{}: malicious".format(analyzer.name),
                         tag_kwargs={"color": "#FF0000"},
                     )
+                    db_object.taxonomy = 4
+                    db_object.save()
 
                 elif "suspicious" in report.taxonomies:
                     db_object.tags.add(
                         "{}: suspicious".format(analyzer.name),
                         tag_kwargs={"color": "#C15808"},
                     )
+                    db_object.taxonomy = max(3, db_object.taxonomy)
+                    db_object.save()
 
                 elif "safe" in report.taxonomies:
                     db_object.tags.add(
                         "{}: safe".format(analyzer.name),
                         tag_kwargs={"color": "#00FF00"},
                     )
+                    db_object.taxonomy = max(2, db_object.taxonomy)
+                    db_object.save()
 
                 elif "info" in report.taxonomies:
                     db_object.tags.add(
                         "{}: info".format(analyzer.name),
                         tag_kwargs={"color": "#00B0FF"},
                     )
+                    db_object.taxonomy = max(1, db_object.taxonomy)
+                    db_object.save()
 
                 continue
 
@@ -220,24 +228,32 @@ def check_cortex(ioc, ioc_type, object_id, is_mail=False, cortex_expiration_days
                         "{}: malicious".format(analyzer.name),
                         tag_kwargs={"color": "#FF0000"},
                     )
+                    db_object.taxonomy = 4
+                    db_object.save()
 
                 elif "suspicious" in taxonomies:
                     db_object.tags.add(
                         "{}: suspicious".format(analyzer.name),
                         tag_kwargs={"color": "#C15808"},
                     )
+                    db_object.taxonomy = max(3, db_object.taxonomy)
+                    db_object.save()
 
                 elif "safe" in taxonomies:
                     db_object.tags.add(
                         "{}: safe".format(analyzer.name),
                         tag_kwargs={"color": "#00FF00"},
                     )
+                    db_object.taxonomy = max(2, db_object.taxonomy)
+                    db_object.save()
 
                 elif "info" in taxonomies:
                     db_object.tags.add(
                         "{}: info".format(analyzer.name),
                         tag_kwargs={"color": "#00B0FF"},
                     )
+                    db_object.taxonomy = max(1, db_object.taxonomy)
+                    db_object.save()
 
             elif job.status == "Failure":
                 report = Report(

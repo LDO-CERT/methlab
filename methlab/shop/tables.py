@@ -77,16 +77,16 @@ class LatestMailTable(tables.Table):
             record.date.strftime("%Y/%m/%d %H:%M"),
         )
 
-    def render_list_iocs(self, value):
+    def render_count_iocs(self, value):
         return format_html(
             """
             <dl class="row">
                 <dt class="col-sm-4"><i class="fas fa-map-marker-alt"></i></dt>
-                <dd class="col-sm-8" data-toggle="tooltip" data-html="true" title="Suspicious: {} - Malicious: {}">{}</dd>
+                <dd class="col-sm-8"><span class="badge badge-{}">{}</span></dd>
                 <dt class="col-sm-4"><i class="fas fa-globe"></i></dt>
-                <dd class="col-sm-8" data-toggle="tooltip" data-html="true" title="Suspicious: {} - Malicious: {}">{}</dd>
+                <dd class="col-sm-8"><span class="badge badge-{}">{}</span></dd>
                 <dt class="col-sm-4"><i class="fas fa-paperclip"></i></dt>
-                <dd class="col-sm-8" data-toggle="tooltip" data-html="true" title="Suspicious: {} - Malicious: {}">{}</dd>
+                <dd class="col-sm-8"><span class="badge badge-{}">{}</span></dd>
             </dl>
             """,
             *value,
@@ -109,7 +109,7 @@ class LatestMailTable(tables.Table):
     assignee = tables.Column(orderable=False)
     sender = tables.Column(orderable=False, verbose_name="From/To")
     short_subject = tables.Column(orderable=False, verbose_name="Subject")
-    list_iocs = tables.Column(orderable=False, verbose_name="Iocs")
+    count_iocs = tables.Column(orderable=False, verbose_name="Iocs")
     tags = tables.Column(orderable=False)
     progress = tables.Column(orderable=False, verbose_name="Status")
 
@@ -123,7 +123,7 @@ class LatestMailTable(tables.Table):
             "short_subject",
             "sender",
             "tags",
-            "list_iocs",
+            "count_iocs",
             "link",
             "search",
             "official_response",

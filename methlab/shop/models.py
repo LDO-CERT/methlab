@@ -39,6 +39,14 @@ RESPONSE = (
     (10, "Safe"),
 )
 
+TAXONOMIES = (
+    (0, "none"),
+    (1, "info"),
+    (2, "safe"),
+    (3, "suspicious"),
+    (4, "malicious"),
+)
+
 
 class InternalInfo(models.Model):
     name = models.CharField(max_length=200)
@@ -163,19 +171,10 @@ class Attachment(models.Model):
     md5 = models.CharField(max_length=32, blank=True, null=True, unique=True)
     sha1 = models.CharField(max_length=40, blank=True, null=True, unique=True)
     sha256 = models.CharField(max_length=64, blank=True, null=True, unique=True)
-
     reports = GenericRelation(Report, related_name="attachments")
     tags = TaggableManager(through=CustomTag, blank=True)
-
-    @property
-    def is_whitelisted(self):
-        return (
-            Whitelist.objects.filter(
-                (Q(type="sha256") & Q(value=self.sha256))
-                | (Q(type="md5") & Q(value=self.md5))
-            ).count()
-            > 0
-        )
+    whitelisted = models.BooleanField(default=False)
+    taxonomy = models.IntegerField(default=0, choices=TAXONOMIES)
 
     def __str__(self):
         return (
@@ -190,9 +189,9 @@ class Address(models.Model):
     address = models.EmailField(unique=True)
     domain = models.CharField(max_length=500)
     mx_check = models.TextField(blank=True, null=True)
-
     reports = GenericRelation(Report, related_name="addresses")
     tags = TaggableManager(through=CustomTag, blank=True)
+    taxonomy = models.IntegerField(default=0, choices=TAXONOMIES)
 
     class Meta:
         verbose_name_plural = "addresses"
@@ -207,13 +206,8 @@ class Domain(models.Model):
     whois = ForeignKey(Whois, related_name="domain", on_delete=models.CASCADE)
     reports = GenericRelation(Report, related_name="domains")
     tags = TaggableManager(through=CustomTag, blank=True)
-
-    @property
-    def is_whitelisted(self):
-        return (
-            Whitelist.objects.filter(Q(type="domain") & Q(value=self.domain)).count()
-            > 0
-        )
+    whitelisted = models.BooleanField(default=False)
+    taxonomy = models.IntegerField(default=0, choices=TAXONOMIES)
 
     def __str__(self):
         return self.domain
@@ -224,28 +218,20 @@ class Ip(models.Model):
     whois = ForeignKey(Whois, related_name="ip", on_delete=models.CASCADE)
     reports = GenericRelation(Report, related_name="ips")
     tags = TaggableManager(through=CustomTag, blank=True)
+    whitelisted = models.BooleanField(default=False)
+    taxonomy = models.IntegerField(default=0, choices=TAXONOMIES)
 
-    @property
-    def is_whitelisted(self):
-        return Whitelist.objects.filter(type="ip", value=self.ip).count() > 0
+    def __str__(self):
+        return "{}".format(self.ip)
 
 
 class Url(models.Model):
     url = models.CharField(max_length=2000)
     domain = models.ForeignKey(Domain, on_delete=models.CASCADE, null=True, blank=True)
-
     reports = GenericRelation(Report, related_name="urls")
     tags = TaggableManager(through=CustomTag, blank=True)
-
-    @property
-    def is_whitelisted(self):
-        return (
-            Whitelist.objects.filter(
-                (Q(type="url") & Q(value=self.url))
-                | (Q(type="domain") & Q(value=self.domain.domain))
-            ).count()
-            > 0
-        )
+    whitelisted = models.BooleanField(default=False)
+    taxonomy = models.IntegerField(default=0, choices=TAXONOMIES)
 
     def __str__(self):
         return self.url
@@ -347,6 +333,7 @@ class Mail(models.Model):
 
     # ATTACHED REPORT
     reports = GenericRelation(Report, related_name="mails")
+    taxonomy = models.IntegerField(default=0, choices=TAXONOMIES)
 
     # SEARCH FIELD
     search_vector = pg_search.SearchVectorField(null=True)
@@ -437,17 +424,32 @@ class Mail(models.Model):
         return self.ips.count() + self.urls.count() + self.attachments.count()
 
     @property
-    def list_iocs(self):
+    def count_iocs(self):
+
+        ips = self.ips.all()
+        ips_level = max([ip.taxonomy for ip in ips])
+
+        urls = self.urls.all()
+        urls_level = max([url.taxonomy for url in urls])
+
+        attachments = self.attachments.count()
+        attachments_level = max([attachment.taxonomy for attachment in attachments])
+
+        ioc_class = {
+            0: "bg-light text-dark",
+            1: "bg-light text-dark",
+            2: "bg-success",
+            3: "bg-warning text-dark",
+            4: "bg-danger",
+        }
+
         return [
-            self.ips.filter(tags__name__icontains="suspicious").count(),
-            self.ips.filter(tags__name__icontains="malicious").count(),
-            self.ips.count(),
-            self.urls.filter(tags__name__icontains="suspicious").count(),
-            self.urls.filter(tags__name__icontains="malicious").count(),
-            self.urls.count(),
-            self.attachments.filter(tags__name__icontains="suspicious").count(),
-            self.attachments.filter(tags__name__icontains="malicious").count(),
-            self.attachments.count(),
+            ioc_class[ips_level],
+            ips.count(),
+            ioc_class[urls_level],
+            urls.count(),
+            ioc_class[attachments_level],
+            attachments.count(),
         ]
 
     def __str__(self):

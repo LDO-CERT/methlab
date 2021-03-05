@@ -226,10 +226,15 @@ class IpAdmin(admin.ModelAdmin, DynamicArrayMixin):
         for item in queryset:
             wl = Whitelist(value=item.ip, type="ip")
             wl.save()
+            item.whitelisted = True
+            item.save()
 
     add_to_wl.short_description = "Add selected ips to whitelist"
 
     def remove_from_wl(self, request, queryset):
+        for item in queryset:
+            item.whitelisted = False
+            item.save()
         wls = Whitelist.objects.filter(
             value__in=[item.ip for item in queryset], type="ip"
         )
@@ -237,7 +242,7 @@ class IpAdmin(admin.ModelAdmin, DynamicArrayMixin):
 
     remove_from_wl.short_description = "Remove selected ips from whitelist"
 
-    list_display = ("ip", "whois", "is_whitelisted")
+    list_display = ("ip", "whois__response", "whitelisted")
     inlines = [ReportInline]
     search_fields = ["ip"]
 
@@ -252,10 +257,15 @@ class UrlAdmin(admin.ModelAdmin, DynamicArrayMixin):
         for item in queryset:
             wl = Whitelist(value=item.url, type="url")
             wl.save()
+            item.whitelisted = True
+            item.save()
 
     add_to_wl.short_description = "Add selected urls to whitelist"
 
     def remove_from_wl(self, request, queryset):
+        for item in queryset:
+            item.whitelisted = False
+            item.save()
         wls = Whitelist.objects.filter(
             value__in=[item.url for item in queryset], type="url"
         )
@@ -263,7 +273,7 @@ class UrlAdmin(admin.ModelAdmin, DynamicArrayMixin):
 
     remove_from_wl.short_description = "Remove selected url from whitelist"
 
-    list_display = ("url", "domain", "is_whitelisted")
+    list_display = ("url", "domain", "whitelisted")
     list_filter = ("domain__domain",)
     inlines = [ReportInline]
     search_fields = ["url", "domain__domain"]
@@ -279,10 +289,15 @@ class DomainAdmin(admin.ModelAdmin, DynamicArrayMixin):
         for item in queryset:
             wl = Whitelist(value=item.domain, type="domain")
             wl.save()
+            item.whitelisted = True
+            item.save()
 
     add_to_wl.short_description = "Add selected domains to whitelist"
 
     def remove_from_wl(self, request, queryset):
+        for item in queryset:
+            item.whitelisted = False
+            item.save()
         wls = Whitelist.objects.filter(
             value__in=[item.domain for item in queryset], type="domain"
         )
@@ -290,7 +305,7 @@ class DomainAdmin(admin.ModelAdmin, DynamicArrayMixin):
 
     remove_from_wl.short_description = "Remove selected domain from whitelist"
 
-    list_display = ("domain", "whois", "is_whitelisted")
+    list_display = ("domain", "whois__response", "whitelisted")
     inlines = [ReportInline]
     search_fields = ["domain"]
 
@@ -320,7 +335,7 @@ class WhitelistAdmin(ImportExportModelAdmin, DynamicArrayMixin):
 
 class AddressesAdmin(admin.ModelAdmin, DynamicArrayMixin):
 
-    actions = ["add_to_wl"]
+    actions = ["add_to_wl", "remove_from_wl"]
 
     def add_to_wl(self, request, queryset):
         for item in queryset:
@@ -329,9 +344,31 @@ class AddressesAdmin(admin.ModelAdmin, DynamicArrayMixin):
 
     add_to_wl.short_description = "Add selected addresses to whitelist"
 
-    list_filter = ("domain",)
-    list_display = ("name", "address", "domain")
-    search_fields = ["name", "address"]
+    def remove_from_wl(self, request, queryset):
+        wls = Whitelist.objects.filter(
+            value__in=[item.address for item in queryset], type="address"
+        )
+        wls.delete()
+
+    remove_from_wl.short_description = "Remove selected addresses from whitelist"
+
+    def add_to_wl(self, request, queryset):
+        for item in queryset:
+            wl = Whitelist(value=item.domain, type="domain")
+            wl.save()
+            item.whitelisted = True
+            item.save()
+
+    add_to_wl.short_description = "Add selected domains to whitelist"
+
+    def remove_from_wl(self, request, queryset):
+        for item in queryset:
+            item.whitelisted = False
+            item.save()
+        wls = Whitelist.objects.filter(
+            value__in=[item.domain for item in queryset], type="domain"
+        )
+        wls.delete()
 
 
 class ReportAdmin(admin.ModelAdmin, DynamicArrayMixin):
