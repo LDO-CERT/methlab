@@ -78,7 +78,7 @@ class InternalInfoAdmin(ImportExportModelAdmin, DynamicArrayMixin):
         ("Security", {"fields": ("security_emails", "honeypot_emails")}),
         (
             "Info",
-            {"fields": ("server_list", "vip_list", "vip_domain", "internal_domains")},
+            {"fields": ("vip_list", "vip_domain", "internal_domains")},
         ),
         ("Proxy", {"fields": ("http_proxy", "https_proxy")}),
     )

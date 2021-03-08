@@ -77,16 +77,16 @@ class LatestMailTable(tables.Table):
             record.date.strftime("%Y/%m/%d %H:%M"),
         )
 
-    def render_count_iocs(self, value):
+    def render_render_iocs(self, value):
         return format_html(
             """
             <dl class="row">
                 <dt class="col-sm-4"><i class="fas fa-map-marker-alt"></i></dt>
-                <dd class="col-sm-8"><span class="badge badge-{}">{}</span></dd>
+                <dd class="col-sm-8"><span class="badge {}">{}</span></dd>
                 <dt class="col-sm-4"><i class="fas fa-globe"></i></dt>
-                <dd class="col-sm-8"><span class="badge badge-{}">{}</span></dd>
+                <dd class="col-sm-8"><span class="badge {}">{}</span></dd>
                 <dt class="col-sm-4"><i class="fas fa-paperclip"></i></dt>
-                <dd class="col-sm-8"><span class="badge badge-{}">{}</span></dd>
+                <dd class="col-sm-8"><span class="badge {}">{}</span></dd>
             </dl>
             """,
             *value,
@@ -109,7 +109,7 @@ class LatestMailTable(tables.Table):
     assignee = tables.Column(orderable=False)
     sender = tables.Column(orderable=False, verbose_name="From/To")
     short_subject = tables.Column(orderable=False, verbose_name="Subject")
-    count_iocs = tables.Column(orderable=False, verbose_name="Iocs")
+    render_iocs = tables.Column(orderable=False, verbose_name="Iocs")
     tags = tables.Column(orderable=False)
     progress = tables.Column(orderable=False, verbose_name="Status")
 
@@ -123,7 +123,7 @@ class LatestMailTable(tables.Table):
             "short_subject",
             "sender",
             "tags",
-            "count_iocs",
+            "render_iocs",
             "link",
             "search",
             "official_response",
@@ -141,6 +141,7 @@ class AttachmentTable(tables.Table):
         return html
 
     total = tables.Column(verbose_name="Total")
+    total_mail = tables.Column(verbose_name="Mail")
     attachments__md5 = tables.Column(verbose_name="MD5")
     attachments__sha256 = tables.Column(verbose_name="SHA256")
     tags = tables.Column(orderable=False)
@@ -154,7 +155,14 @@ class AttachmentTable(tables.Table):
     class Meta:
         model = Mail
         template_name = "django_tables2/bootstrap4.html"
-        fields = ("attachments__md5", "attachments__sha256", "total", "tags", "search")
+        fields = (
+            "attachments__md5",
+            "attachments__sha256",
+            "total",
+            "total_mail",
+            "tags",
+            "search",
+        )
 
 
 class IpTable(tables.Table):
@@ -167,6 +175,7 @@ class IpTable(tables.Table):
         return html
 
     total = tables.Column(verbose_name="Total")
+    total_mail = tables.Column(verbose_name="Mail")
     ips__ip = tables.Column(verbose_name="Ip")
     tags = tables.Column(orderable=False)
     search = tables.LinkColumn(
@@ -179,7 +188,7 @@ class IpTable(tables.Table):
     class Meta:
         model = Mail
         template_name = "django_tables2/bootstrap4.html"
-        fields = ("ips__ip", "total", "tags", "search")
+        fields = ("ips__ip", "total", "total_mail", "tags", "search")
 
 
 class UrlTable(tables.Table):
@@ -204,13 +213,14 @@ class UrlTable(tables.Table):
         orderable=False,
     )
     total = tables.Column(verbose_name="Total")
+    total_mail = tables.Column(verbose_name="Mail")
     urls__url = tables.Column(verbose_name="Url")
     tags = tables.Column(orderable=False)
 
     class Meta:
         model = Mail
         template_name = "django_tables2/bootstrap4.html"
-        fields = ("urls__url", "total", "tags", "search")
+        fields = ("urls__url", "total", "total_mail", "tags", "search")
 
 
 class DomainTable(tables.Table):
@@ -223,6 +233,7 @@ class DomainTable(tables.Table):
         return html
 
     total = tables.Column(verbose_name="Total")
+    total_mail = tables.Column(verbose_name="Mail")
     urls__domain__domain = tables.Column(verbose_name="Domain")
     tags = tables.Column(orderable=False)
     search = tables.LinkColumn(
@@ -235,7 +246,7 @@ class DomainTable(tables.Table):
     class Meta:
         model = Mail
         template_name = "django_tables2/bootstrap4.html"
-        fields = ("urls__domain__domain", "total", "tags", "search")
+        fields = ("urls__domain__domain", "total", "total_mail", "tags", "search")
 
 
 class AddressTable(tables.Table):

@@ -206,7 +206,9 @@ class Address(models.Model):
 class Domain(models.Model):
     domain = models.CharField(max_length=200)
     dig = models.TextField(blank=True, null=True)
-    whois = ForeignKey(Whois, related_name="domain", on_delete=models.CASCADE)
+    whois = ForeignKey(
+        Whois, related_name="domain", on_delete=models.CASCADE, null=True, blank=True
+    )
     reports = GenericRelation(Report, related_name="domains")
     tags = TaggableManager(through=CustomTag, blank=True)
     whitelisted = models.BooleanField(default=False)
@@ -218,7 +220,9 @@ class Domain(models.Model):
 
 class Ip(models.Model):
     ip = models.GenericIPAddressField()
-    whois = ForeignKey(Whois, related_name="ip", on_delete=models.CASCADE)
+    whois = ForeignKey(
+        Whois, related_name="ip", on_delete=models.CASCADE, null=True, blank=True
+    )
     reports = GenericRelation(Report, related_name="ips")
     tags = TaggableManager(through=CustomTag, blank=True)
     whitelisted = models.BooleanField(default=False)
@@ -427,16 +431,18 @@ class Mail(models.Model):
         return self.ips.count() + self.urls.count() + self.attachments.count()
 
     @property
-    def count_iocs(self):
+    def render_iocs(self):
 
         ips = self.ips.all()
-        ips_level = max([ip.taxonomy for ip in ips])
+        ips_level = max([ip.taxonomy for ip in ips] + [0])
 
         urls = self.urls.all()
-        urls_level = max([url.taxonomy for url in urls])
+        urls_level = max([url.taxonomy for url in urls] + [0])
 
-        attachments = self.attachments.count()
-        attachments_level = max([attachment.taxonomy for attachment in attachments])
+        attachments = self.attachments.all()
+        attachments_level = max(
+            [attachment.taxonomy for attachment in attachments] + [0]
+        )
 
         ioc_class = {
             0: "bg-light text-dark",

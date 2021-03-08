@@ -134,10 +134,11 @@ def stats(request):
     if a_sort_by == "total":
         a_sort_by = "-{}".format(a_sort_by)
     attachments = (
-        Mail.external_objects.exclude(whitelisted=True)
+        Mail.external_objects.exclude(attachments__whitelisted=True)
         .exclude(attachments__sha256__isnull=True)
         .values("attachments__md5", "attachments__sha256", "attachments__tags")
         .annotate(total=Count("attachments__md5"))
+        .annotate(total_mail=Count("pk", distinct=True))
         .order_by(a_sort_by)
     )
     table_a = AttachmentTable(
@@ -152,9 +153,10 @@ def stats(request):
         i_sort_by = "-{}".format(i_sort_by)
     ips = (
         Mail.external_objects.exclude(ips__ip__isnull=True)
-        .exclude(whitelisted=True)
+        .exclude(ips__whitelisted=True)
         .values("ips__ip", "ips__tags")
         .annotate(total=Count("ips"))
+        .annotate(total_mail=Count("pk", distinct=True))
         .order_by(i_sort_by)
     )
     table_i = IpTable(ips, prefix="i-")
@@ -166,9 +168,10 @@ def stats(request):
         u_sort_by = "-{}".format(u_sort_by)
     urls = (
         Mail.external_objects.exclude(urls__url__isnull=True)
-        .exclude(whitelisted=True)
+        .exclude(urls__whitelisted=True)
         .values("urls__url", "urls__tags", "urls__domain__domain")
         .annotate(total=Count("urls"))
+        .annotate(total_mail=Count("pk", distinct=True))
         .order_by(u_sort_by)
     )
     table_u = UrlTable(urls, prefix="u-")
@@ -180,9 +183,10 @@ def stats(request):
         d_sort_by = "-{}".format(d_sort_by)
     domains = (
         Mail.external_objects.exclude(urls__url__isnull=True)
-        .exclude(whitelisted=True)
+        .exclude(urls__domain__whitelisted=True)
         .values("urls__domain__domain", "urls__domain__tags")
         .annotate(total=Count("urls__domain__domain"))
+        .annotate(total_mail=Count("pk", distinct=True))
         .order_by(d_sort_by)
     )
     table_d = DomainTable(domains, prefix="d-")
