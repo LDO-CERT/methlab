@@ -5,7 +5,7 @@ import ldap
 import environ
 from pathlib import Path
 from celery.schedules import crontab
-from django_auth_ldap.config import LDAPSearch, GroupOfNamesType
+from django_auth_ldap.config import LDAPSearch
 
 ROOT_DIR = Path(__file__).resolve(strict=True).parent.parent.parent
 APPS_DIR = ROOT_DIR / "methlab"
@@ -262,13 +262,6 @@ AUTH_LDAP_USER_SEARCH = LDAPSearch(
 )
 AUTH_LDAP_USER_ATTR_MAP = env.dict("AUTH_LDAP_USER_ATTR_MAP")
 
-AUTH_LDAP_GROUP_TYPE = GroupOfNamesType(name_attr="cn")
-
-AUTH_LDAP_USER_FLAGS_BY_GROUP = {
-    "is_active": env("AUTH_LDAP_IS_ACTIVE_DN"),
-    "is_staff": env("AUTH_LDAP_IS_ASTAFF_DN"),
-    "is_superuser": env("AUTH_LDAP_IS_SUPERUSER_DN"),
-}
 # COMPRESSOR
 # ------------------------------------------------------------------------------
 INSTALLED_APPS += ["compressor"]
