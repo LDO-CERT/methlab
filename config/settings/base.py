@@ -86,8 +86,8 @@ INSTALLED_APPS = [
 # AUTHENTICATION
 # ------------------------------------------------------------------------------
 AUTHENTICATION_BACKENDS = [
-    "django.contrib.auth.backends.ModelBackend",
     "django_auth_ldap.backend.LDAPBackend",
+    "django.contrib.auth.backends.ModelBackend",
 ]
 
 # PASSWORDS
@@ -261,8 +261,11 @@ AUTH_LDAP_USER_SEARCH = LDAPSearch(
     env("AUTH_LDAP_USER_SEARCH_ALIAS"),
 )
 AUTH_LDAP_USER_ATTR_MAP = env.dict("AUTH_LDAP_USER_ATTR_MAP")
-# AUTH_LDAP_USER_FLAGS_BY_GROUP = env.dict("AUTH_LDAP_USER_FLAGS_BY_GROUP")
-
+AUTH_LDAP_USER_FLAGS_BY_GROUP = {
+    "is_active": env("AUTH_LDAP_IS_ACTIVE_DN"),
+    "is_staff": env("AUTH_LDAP_IS_ASTAFF_DN"),
+    "is_superuser": env("AUTH_LDAP_IS_SUPERUSER_DN"),
+}
 # COMPRESSOR
 # ------------------------------------------------------------------------------
 INSTALLED_APPS += ["compressor"]
