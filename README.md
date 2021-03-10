@@ -2,7 +2,7 @@
 Wanna cook?
 
 
-METH is a software for analyze (explode content, submit attachement, search url, parse header etc) all email from imap mailbox ad present result do a webpage
+METH is a software for analyze (explode content, submit attachement, search url, parse header etc via [cortex](https://github.com/TheHive-Project/Cortex) ) all email from imap mailbox ad present result on a webpage
 
 ![screen](https://user-images.githubusercontent.com/10747900/110641722-9d690780-81b2-11eb-80f4-7b5e36e55957.jpg)
 
