@@ -2,7 +2,21 @@
 Wanna cook?
 
 
-METH is a software for analyze (explode content, submit attachement, search url, parse header etc via [cortex](https://github.com/TheHive-Project/Cortex) ) all email from imap mailbox ad present result on a webpage
+METH(lab) is a software designed to analyze (explode content, submit attachment, search url, parse header etc via cortex ) all e-mails and the outcome (of the analysis) is displayed on a webpage.
+
+This tool has been created several years ago to stop suspicious mails from getting into the SOC; the first version of METH could only carry out the following analysis:
+
+-research on VT related to HASH of attachments
+-research  on VT related to the URL in the body
+-analysis of header anomalies (spf, from forged)
+-analysis of URL on Cooku and Sandbox
+
+
+Once these data had been collected, there was a score that could have been assessed by the analyst.
+
+With the newest version, the analysis engine has been improved; instead of implementing each analysis engine, we have relied on Cortex (by The Hive) , standardazing the Application Programming Interface and using the already installed engines in Cortex.
+
+Moreover, the Graphic User Interface has been entirely redeisgned to enhance its efficiency and to better track the activity (analysis assignment).
 
 ![screen](https://user-images.githubusercontent.com/10747900/110641722-9d690780-81b2-11eb-80f4-7b5e36e55957.jpg)
 
