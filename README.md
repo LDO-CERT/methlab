@@ -1,4 +1,4 @@
-# METH(lab) - Malware Email threat hunter
+# METH(lab) - Malware Email Threat Hunter
 _Wanna cook?_
 
 ## Desc
