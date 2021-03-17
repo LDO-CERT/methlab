@@ -1,6 +1,7 @@
-# methlab - Malware Email threat hunter
-Wanna cook?
+# METH(lab) - Malware Email threat hunter
+_Wanna cook?_
 
+## Desc
 
 METH(lab) is a software designed to analyze (explode content, submit attachment, search url, parse header etc via cortex ) all e-mails and the outcome (of the analysis) is displayed on a webpage.
 
@@ -9,11 +10,11 @@ This tool has been created several years ago to stop suspicious mails from getti
 - research on VT related to HASH of attachments
 - research  on VT related to the URL in the body
 - analysis of header anomalies (spf, from forged)
- -analysis of URL on Cooku and Sandbox
+ -analysis of URL on Cuckoo Sandbox 
 
 Once these data had been collected, there was a score that could have been assessed by the analyst.
 
-With the newest version, the analysis engine has been improved; instead of implementing each analysis engine, we have relied on [Cortex](https://github.com/TheHive-Project/Cortex) (by [The Hive Project](https://github.com/TheHive-Project/)) , standardazing the Application Programming Interface and using the already installed engines in Cortex.
+With the newest version, the analysis engine has been improved; instead of implementing each analysis engine, we have relied on [Cortex](https://github.com/TheHive-Project/Cortex) (by [The Hive Project](https://github.com/TheHive-Project/)) , standardazing the Application Programming Interface and using the already installed engines in Cortex (see this [list](https://github.com/TheHive-Project/Cortex-Analyzers/tree/master/analyzers)).
 
 Moreover, the Graphic User Interface has been entirely redeisgned to enhance its efficiency and to better track the activity (analysis assignment).
 
