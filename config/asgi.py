@@ -1,5 +1,5 @@
 """
-ASGI config for My Awesome Project project.
+ASGI config for Meth project.
 
 It exposes the ASGI callable as a module-level variable named ``application``.
 

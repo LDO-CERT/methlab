@@ -2,7 +2,7 @@ from datetime import timedelta
 from django.utils import timezone
 from django.http import Http404, JsonResponse
 from django.shortcuts import render, get_object_or_404
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.db.models.functions import TruncHour
 from django.contrib.postgres.search import TrigramSimilarity
 from django.contrib.auth import get_user_model
@@ -35,9 +35,26 @@ def home(request):
     # COUNT MAIL
     emails = Mail.external_objects.all()
     email_count = emails.count()
-    suspicious = emails.filter(tags__name__contains="suspicious").count()
-    malicious = emails.filter(tags__name__contains="malicious").count()
-
+    suspicious = (
+        emails.filter(
+            Q(tags__name__contains="suspicious")
+            | Q(urls__tags__name__contains="suspicious")
+            | Q(ips__tags__name__contains="suspicious")
+            | Q(urls__domain__tags__name__contains="suspicious")
+        )
+        .distinct()
+        .count()
+    )
+    malicious = (
+        emails.filter(
+            Q(tags__name__contains="malicious")
+            | Q(urls__tags__name__contains="malicious")
+            | Q(ips__tags__name__contains="malicious")
+            | Q(urls__domain__tags__name__contains="malicious")
+        )
+        .distinct()
+        .count()
+    )
     qs = (
         Mail.external_objects.filter(
             submission_date__gte=timezone.now() - timedelta(days=10)
