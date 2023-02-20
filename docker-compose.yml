@@ -80,6 +80,8 @@ services:
 
   nginx:
     build: ./nginx/.
+    volumes:
+      - ./methlab/static:/app/methlab/static
     ports:
       - "8080:8080"
     depends_on:
