@@ -24,9 +24,11 @@ RUN apt-get update \
   && apt-get install -y gettext \
   # cleaning up unused files
   && apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false \
-  && rm -rf /var/lib/apt/lists/*
+  && rm -rf /var/lib/apt/lists/* 
 
 # Requirements are installed here to ensure they will be cached.
+RUN pip uninstall pyparsing
+
 COPY ./requirements /requirements
 RUN pip install -r /requirements/base.txt
 

@@ -15,12 +15,24 @@ from methlab.shop.views import (
     assignee,
     progress,
     whitelist,
+    MailTimeFiltered,
+    _suspicious,
+    _malicious,
+    _total,
 )
 from methlab.shop.models import Mail
-from djgeojson.views import GeoJSONLayerView
-
 
 urlpatterns = [
+
+    ############ API
+
+    path("api/mail/suspicious", _suspicious, name="suspicious"),
+    path("api/mail/malicious", _malicious, name="malicious"),
+    path("api/mail/total", _total, name="total"),
+
+
+    ############ API END
+
     path("", home, name="home"),
     path("mail/<int:pk>/", mail_detail, name="mail_detail"),
     path("stats/", stats, name="stats"),
@@ -34,7 +46,7 @@ urlpatterns = [
     path("search/<str:method>/<str:search_object>", search, name="search"),
     path(
         "data.geojson",
-        GeoJSONLayerView.as_view(model=Mail),
+        MailTimeFiltered.as_view(model=Mail,properties=("geom",)),
         name="data",
     ),
     path("accounts/", include("django.contrib.auth.urls")),

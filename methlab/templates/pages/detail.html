@@ -30,10 +30,13 @@
   header_editor.set({{ mail.headers | safe }})
   {% endif %}
 
+  leaflet_map = null;
+
   // MAPPA
   {% if mail.geom %}
   function main_map_init(map, options) {
     L.geoJson({{ mail.geom | safe }}).addTo(map);
+    leaflet_map = map;
   }
   {% endif %}
 
@@ -158,6 +161,16 @@
     });
   });
 
+  function update_map(){
+
+    setTimeout(() => {
+       leaflet_map.invalidateSize(true);
+    }, 400)
+
+   
+  }
+  
+
 </script>
 {% endblock extra_javascript %}
 
@@ -199,7 +212,7 @@
         </li>
         {% if mail.geom %}
         <li class="nav-item" role="presentation">
-          <a class="nav-link" id="location-tab" data-bs-toggle="tab" href="#location" role="tab"
+          <a class="nav-link" onclick="update_map() " id="location-tab" data-bs-toggle="tab" href="#location" role="tab"
             aria-controls="location" aria-selected="false">Location</a>
         </li>
         {% endif %}

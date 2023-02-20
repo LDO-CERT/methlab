@@ -1,4 +1,4 @@
-version: "3"
+version: "3.7"
 
 volumes:
   local_postgres_data: {}
@@ -23,8 +23,6 @@ services:
     env_file:
       - ./.envs/.local/.django
       - ./.envs/.local/.postgres
-    ports:
-      - "8001:8000"
     command: /start
 
   postgres:
@@ -36,11 +34,14 @@ services:
         - https_proxy
     image: methlab_local_postgres
     container_name: methlab_postgres
+    shm_size: '0.5gb'
     volumes:
       - local_postgres_data:/var/lib/postgresql/data
       - local_postgres_data_backups:/backups
     env_file:
       - ./.envs/.local/.postgres
+    
+  
       
   redis:
     image: redis:6.0
@@ -76,3 +77,10 @@ services:
       - "5555:5555"
     command: ["--app config.celery_app", "--broker=redis://redis:6379/0"]
     restart: unless-stopped
+
+  nginx:
+    build: ./nginx/.
+    ports:
+      - "80:8080"
+    depends_on:
+      - django

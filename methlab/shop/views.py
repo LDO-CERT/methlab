@@ -1,13 +1,20 @@
-from datetime import timedelta
+from datetime import timedelta,datetime
 from django.utils import timezone
 from django.http import Http404, JsonResponse
 from django.shortcuts import render, get_object_or_404
-from django.db.models import Count, Q
-from django.db.models.functions import TruncHour
+from django.db.models import Count, Q, Subquery, OuterRef
+from django.db.models.functions import TruncHour, Coalesce
 from django.contrib.postgres.search import TrigramSimilarity
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django_pivot.pivot import pivot
+
+
+from djgeojson.views import GeoJSONLayerView
+
+from celery import shared_task
+from celery.result import AsyncResult
+
 
 from methlab.shop.models import (
     InternalInfo,
@@ -19,6 +26,7 @@ from methlab.shop.models import (
     Ip,
     Url,
     Domain,
+    Mail_Addresses
 )
 from methlab.shop.tables import (
     AttachmentTable,
@@ -30,31 +38,118 @@ from methlab.shop.tables import (
     UrlTable,
 )
 
+import time
 
-def home(request):
-    # COUNT MAIL
-    emails = Mail.external_objects.all()
-    email_count = emails.count()
+############## API LOGIC
+
+#### counter
+
+def _suspicious(request):
+
+    task_id = request.GET.get('ray', None)
+
+    if task_id:
+        task_result = AsyncResult(task_id)
+        return JsonResponse({
+                "status": task_result.status,
+                "result": task_result.result,
+            })
+    else:
+        task = count_suspicious.delay()
+        return JsonResponse({'ray':str(task)})
+
+@shared_task
+def count_suspicious(): 
+    
     suspicious = (
-        emails.filter(
+        Mail.external_objects.all().filter(
             Q(tags__name__contains="suspicious")
             | Q(urls__tags__name__contains="suspicious")
             | Q(ips__tags__name__contains="suspicious")
             | Q(urls__domain__tags__name__contains="suspicious")
         )
-        .distinct()
+        .distinct('id')
         .count()
     )
+
+    return suspicious  
+     
+def _malicious(request):
+
+    task_id = request.GET.get('ray', None)
+
+    if task_id:
+        task_result = AsyncResult(task_id)
+        return JsonResponse({
+                "status": task_result.status,
+                "result": task_result.result,
+            })
+    else:
+        task = count_malicious.delay()
+        return JsonResponse({'ray':str(task)})
+
+@shared_task
+def count_malicious(): 
+    
     malicious = (
-        emails.filter(
+        Mail.external_objects.all().filter(
             Q(tags__name__contains="malicious")
             | Q(urls__tags__name__contains="malicious")
             | Q(ips__tags__name__contains="malicious")
             | Q(urls__domain__tags__name__contains="malicious")
         )
-        .distinct()
+        .distinct('id')
         .count()
     )
+
+    return malicious
+
+def _total(request):
+
+    task_id = request.GET.get('ray', None)
+
+    if task_id:
+        task_result = AsyncResult(task_id)
+        return JsonResponse({
+                "status": task_result.status,
+                "result": task_result.result,
+            })
+    else:
+        task = count_total.delay()
+        return JsonResponse({'ray':str(task)})
+
+@shared_task
+def count_total(): 
+    
+    emails = Mail.external_objects.all()
+    email_count = emails.count()
+
+    return email_count
+
+#### table
+
+def _sender():
+    task_id = request.GET.get('ray', None)
+
+    if task_id:
+        task_result = AsyncResult(task_id)
+        return JsonResponse({
+                "status": task_result.status,
+                "result": task_result.result,
+            })
+    else:
+        task = count_total.delay()
+        return JsonResponse({'ray':str(task)})
+        
+@shared_task
+def retrive_sender():
+
+    return 0
+
+############## API LOGIC END
+
+def home(request):
+
     qs = (
         Mail.external_objects.filter(
             submission_date__gte=timezone.now() - timedelta(days=10)
@@ -84,7 +179,8 @@ def home(request):
             "ips__tags",
             "urls__tags",
             "attachments__tags",
-        ).order_by("-submission_date")[:250],
+        )
+       .order_by("-submission_date")[:250],
     )
     table.paginate(page=request.GET.get("page", 1), per_page=25)
 
@@ -92,10 +188,10 @@ def home(request):
         request,
         "pages/main.html",
         {
-            "table": table,
-            "email_count": email_count,
-            "suspicious": suspicious,
-            "malicious": malicious,
+            "table" : table,
+            "email_count": 0,
+            "suspicious": 0,
+            "malicious": 0,
             "groups": record_by_time,
         },
     )
@@ -178,7 +274,7 @@ def stats(request):
     )
     table_i = IpTable(ips, prefix="i-")
     table_i.paginate(page=request.GET.get("i-page", 1), per_page=10)
-
+    
     # SORT BY URL
     u_sort_by = request.GET.get("u-sort", "-total")
     if u_sort_by == "total":
@@ -192,7 +288,7 @@ def stats(request):
         .order_by(u_sort_by)
     )
     table_u = UrlTable(urls, prefix="u-")
-    table_u.paginate(page=request.GET.get("u-page", 1), per_page=10)
+    #table_u.paginate(page=request.GET.get("u-page", 1), per_page=10)
 
     # SORT BY DOMAIN
     d_sort_by = request.GET.get("d-sort", "-total")
@@ -215,7 +311,7 @@ def stats(request):
         {
             "table_a": table_a,
             "table_i": table_i,
-            "table_u": table_u,
+            "table_u": table_d,
             "table_d": table_d,
         },
     )
@@ -407,3 +503,16 @@ def whitelist(request):
             raise Http404("404")
         return JsonResponse({"ok": True})
     raise Http404("404")
+
+
+#
+#   class for filtering GeoJsonresult
+#
+#
+
+class MailTimeFiltered(GeoJSONLayerView):
+    def get_queryset(self):
+        today = datetime.today()
+        from_date = today - timedelta(days=7)
+        context = Mail.objects.all().exclude(geom=None).filter(submission_date__gte=from_date)
+        return context

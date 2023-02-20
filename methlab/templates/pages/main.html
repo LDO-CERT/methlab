@@ -1,7 +1,53 @@
 {% extends "base.html" %}
 {% load render_table from django_tables2 %}
 {% load static i18n leaflet_tags %}
+{% block extra_javascript %}
+<script>
 
+  indicators=["total","suspicious","malicious"]
+
+  function query_api(indicator){
+    url='api/mail/'+indicator;
+
+    fetch(url)
+        .then((response) => response.json())
+        .then((data) => check(data.ray, indicator));
+   
+    }
+
+    function check(id, indicator){
+
+      url='api/mail/'+indicator+'?ray='+id;
+
+      fetch(url)
+        .then((response) => response.json())
+        .then((data) =>{
+          if (data.status =="SUCCESS"){
+
+            document.getElementById(indicator).innerHTML = data.result;
+            window.onload = (event) => {
+              document.getElementById(indicator).innerHTML = data.result;
+            };
+          }
+                
+          else if (data.status =="FAILURE"){
+            
+          }
+          else{
+            setTimeout(function() {
+              check(id, indicator);
+            }, 1000);
+          }
+        });
+      }
+  
+  indicators.forEach(element => query_api(element));
+      
+  $(function () {
+    $('[data-toggle="tooltip"]').tooltip();
+  })
+</script>
+{% endblock extra_javascript %}
 {% block extra_css %}
 <script src="{% static 'js/highcharts/highcharts.src.js' %}"></script>
 {% leaflet_js %}
@@ -21,7 +67,7 @@
       <div class="card h-100 bg-primary text-white">
         <div class="card-header">Email Analyzed</div>
         <div class="card-body bg-light text-dark">
-          <p><span style="font-size: 60px;">{{email_count}}</span></p>
+          <p><span id="total"  style="font-size: 60px;">{{email_count}}</span></p>
         </div>
       </div>
     </div>
@@ -29,7 +75,7 @@
       <div class="card shadow-sm h-100 bg-warning text-white">
         <div class="card-header">Suspicious</div>
         <div class="card-body bg-light text-dark">
-          <p><span style="font-size: 60px;">{{suspicious}}</span></p>
+          <p><span id="suspicious" style="font-size: 60px;">{{suspicious}}</span></p>
         </div>
       </div>
     </div>
@@ -37,7 +83,7 @@
       <div class="card shadow-sm h-100 bg-danger text-white">
         <div class="card-header">Malicious</div>
         <div class="card-body bg-light text-dark">
-          <p><span style="font-size: 60px;">{{malicious}}</span></p>
+          <p><span id="malicious" style="font-size: 60px;">{{malicious}}</span></p>
         </div>
       </div>
     </div>
@@ -125,10 +171,3 @@
 </section>
 
 {% endblock container %}
-{% block extra_javascript %}
-<script>
-  $(function () {
-    $('[data-toggle="tooltip"]').tooltip();
-  })
-</script>
-{% endblock extra_javascript %}
